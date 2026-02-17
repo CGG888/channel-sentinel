@@ -270,7 +270,6 @@ services:
       - ./data:/app/data
       - ./src:/app/src
       - ./public:/app/public
-      - ./package.json:/app/package.json
       - ./.git:/app/.git
     restart: unless-stopped
     networks:
@@ -284,6 +283,7 @@ networks:
 **注意**：
 - 此模式下，您可以直接修改本地 `src` 或 `public` 目录下的文件，容器内会实时生效（部分后端修改可能需要重启容器）。
 - 网页端的“检查更新”功能会执行 `git pull`，自动更新您本地的源码。
+ - 不要挂载 `package.json` 到容器（保留镜像内的 `package.json` 与 `node_modules`），否则可能出现“Are you trying to mount a directory onto a file”启动错误。
 
 3. 常用命令：
 ```bash
@@ -329,10 +329,10 @@ docker-compose down
   - 网络问题：检查网络连接和防火墙设置
 - 🚫 **容器无法启动**：
   - 检查端口是否被占用：`netstat -nltp | grep 3000`
-  - 查看容器日志：`docker logs iptv-web-checker`
+  - 查看容器日志：`docker logs iptv-checker`
 - 💾 **数据持久化问题**：
   - 确保挂载目录存在且有正确的权限
-  - 可执行 `docker exec -it iptv-web-checker ls -la /app/data` 检查容器内权限
+  - 可执行 `docker exec -it iptv-checker ls -la /app/data` 检查容器内权限
 
 ---
 

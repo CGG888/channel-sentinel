@@ -14,7 +14,6 @@ services:
       # 挂载源代码，实现实时修改
       - ./src:/app/src
       - ./public:/app/public
-      - ./package.json:/app/package.json
       # 挂载 .git 目录，允许在容器内执行 git pull 更新
       - ./.git:/app/.git
     restart: unless-stopped
