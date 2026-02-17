@@ -396,14 +396,65 @@ function showCenterLinks(title, links) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'centerModalLinksR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark" id="centerModalLinksTitleR"></h5><button type="button" class="btn-close" id="centerModalLinksCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>生成播放器直连的接口链接，选择下拉后可复制或打开链接。</span></div><div class="d-flex flex-wrap align-items-center gap-3"><div class="d-flex align-items-center"><label for="centerLinksStatusSelect" class="text-muted small me-2 fw-bold">状态:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksStatusSelect" style="min-width:140px;"><option value="all">全部频道</option><option value="online" selected>在线频道</option><option value="offline">离线频道</option></select></div><div class="d-flex align-items-center"><label for="centerLinksScopeSelect" class="text-muted small me-2 fw-bold">范围:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksScopeSelect" style="min-width:120px;"><option value="internal" selected>内网</option><option value="external">外网</option></select></div><div class="d-flex align-items-center gap-2"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="centerLinksTokenSwitch"><label class="form-check-label small text-muted fw-bold" for="centerLinksTokenSwitch">Token验证</label></div><div class="input-group input-group-sm shadow-sm" style="width:auto;"><input type="text" class="form-control border-0" id="centerLinksToken" placeholder="安全令牌" style="max-width: 120px;" title="仅外网链接生效"><button class="btn btn-outline-secondary bg-white" type="button" id="centerLinksTokenRand" title="生成随机Token"><i class="bi bi-shuffle"></i></button></div></div></div></div><div id="centerModalLinksBodyR" class="api-links-grid"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark" id="centerModalLinksTitleR"></h5><button type="button" class="btn-close" id="centerModalLinksCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>生成播放器直连的接口链接，用户自行选择对应的相关配置后后可复制或打开链接；外网使用建议打开token验证，使用更加安全！</span></div><div class="d-flex flex-wrap align-items-center gap-3"><div class="d-flex align-items-center"><label for="centerLinksStatusSelect" class="text-muted small me-2 fw-bold">状态:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksStatusSelect" style="min-width:140px;"><option value="all">全部频道</option><option value="online" selected>在线频道</option><option value="offline">离线频道</option></select></div><div class="d-flex align-items-center"><label for="centerLinksScopeSelect" class="text-muted small me-2 fw-bold">范围:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksScopeSelect" style="min-width:120px;"><option value="internal" selected>内网</option><option value="external">外网</option></select></div><div class="d-flex align-items-center gap-2"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="centerLinksTokenSwitch"><label class="form-check-label small text-muted fw-bold" for="centerLinksTokenSwitch">Token验证</label></div><div class="input-group input-group-sm shadow-sm" style="width:auto;"><input type="text" class="form-control border-0" id="centerLinksToken" placeholder="安全令牌" style="max-width: 120px;" title="仅外网链接生效"><button class="btn btn-outline-secondary bg-white" type="button" id="centerLinksTokenRand" title="生成随机Token"><i class="bi bi-shuffle"></i></button></div></div></div></div><div id="centerModalLinksBodyR" class="api-links-grid"></div></div></div></div></div>';
     document.body.appendChild(modal);
     document.getElementById('centerModalLinksCloseR').onclick = function(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); };
+    var ctrlRow = modal.querySelector('.modal-body .d-flex.flex-wrap.align-items-center.gap-3');
+    if (ctrlRow && !document.getElementById('centerLinksFmtSelect')) {
+      var protoBlock = document.createElement('div');
+      protoBlock.className = 'd-flex align-items-center';
+      protoBlock.innerHTML = '<label for="centerLinksProtoSelect" class="text-muted small me-2 fw-bold">协议:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksProtoSelect" style="min-width:140px;"><option value="http" selected>HTTP 单播</option><option value="rtsp">RTSP 单播</option></select>';
+      var fmtBlock = document.createElement('div');
+      fmtBlock.className = 'd-flex align-items-center';
+      fmtBlock.innerHTML = '<label for="centerLinksFmtSelect" class="text-muted small me-2 fw-bold">格式:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksFmtSelect" style="min-width:220px;"><option value="default">无回看参数</option><option value="ku9" selected>酷9（UTC YYYYMMDD+HHmmss）</option><option value="mytv">mytv（{utc:yyyyMMddHHmmss}）</option><option value="playseek">playseek（YYYYMMDDHHmmss-YYYYMMDDHHmmss）</option><option value="startend14">starttime/endtime（YYYYMMDDHHmmss）</option><option value="beginend14">begin/end（YYYYMMDDHHmmss）</option><option value="iso8601">ISO8601（UTC，RFC3339）</option><option value="npt">NPT（HH:MM:SS-HH:MM:SS）</option><option value="rtsp_range">RTSP Range（使用 NPT 区间）</option><option value="unix_s">Unix 秒区间</option><option value="unix_ms">Unix 毫秒区间</option></select>';
+      var scopeSelEl = modal.querySelector('#centerLinksScopeSelect');
+      var scopeGroup = scopeSelEl ? scopeSelEl.closest('.d-flex.align-items-center') : null;
+      function insertAfter(newNode, referenceNode) {
+        if (!referenceNode || !referenceNode.parentNode) { ctrlRow.appendChild(newNode); return; }
+        var parent = referenceNode.parentNode;
+        if (referenceNode.nextSibling) parent.insertBefore(newNode, referenceNode.nextSibling);
+        else parent.appendChild(newNode);
+      }
+      if (scopeGroup && scopeGroup.parentElement === ctrlRow) {
+        insertAfter(protoBlock, scopeGroup);
+        insertAfter(fmtBlock, protoBlock);
+      } else {
+        ctrlRow.appendChild(protoBlock);
+        ctrlRow.appendChild(fmtBlock);
+      }
+    }
+    ;(function(){
+      var ctrlRow = modal.querySelector('.modal-body .d-flex.flex-wrap.align-items-center.gap-3');
+      var tokenSwitchEl = modal.querySelector('#centerLinksTokenSwitch');
+      var tokenGroup = tokenSwitchEl ? tokenSwitchEl.closest('.d-flex.align-items-center.gap-2') : null;
+      var statusSelEl = modal.querySelector('#centerLinksStatusSelect');
+      var scopeSelEl = modal.querySelector('#centerLinksScopeSelect');
+      var statusGroup = statusSelEl ? statusSelEl.closest('.d-flex.align-items-center') : null;
+      var scopeGroup = scopeSelEl ? scopeSelEl.closest('.d-flex.align-items-center') : null;
+      var protoBlock = modal.querySelector('#centerLinksProtoSelect') ? modal.querySelector('#centerLinksProtoSelect').closest('.d-flex.align-items-center') : null;
+      var fmtBlock = modal.querySelector('#centerLinksFmtSelect') ? modal.querySelector('#centerLinksFmtSelect').closest('.d-flex.align-items-center') : null;
+      if (!ctrlRow || !tokenGroup) return;
+      var breakEl = modal.querySelector('#centerLinksRowBreak');
+      if (!breakEl) { breakEl = document.createElement('div'); breakEl.id = 'centerLinksRowBreak'; breakEl.className = 'w-100'; }
+      function insertAfter(newNode, referenceNode) {
+        if (!referenceNode || !referenceNode.parentNode) { ctrlRow.appendChild(newNode); return; }
+        var parent = referenceNode.parentNode;
+        if (referenceNode.nextSibling) parent.insertBefore(newNode, referenceNode.nextSibling);
+        else parent.appendChild(newNode);
+      }
+      insertAfter(breakEl, tokenGroup);
+      if (statusGroup) insertAfter(statusGroup, breakEl);
+      if (scopeGroup) insertAfter(scopeGroup, statusGroup || breakEl);
+      if (protoBlock) insertAfter(protoBlock, scopeGroup || statusGroup || breakEl);
+      if (fmtBlock) insertAfter(fmtBlock, protoBlock || scopeGroup || statusGroup || breakEl);
+    })();
   }
   var titleEl = document.getElementById('centerModalLinksTitleR');
   var bodyEl = document.getElementById('centerModalLinksBodyR');
   var statusSel = document.getElementById('centerLinksStatusSelect');
   var scopeSel = document.getElementById('centerLinksScopeSelect');
+  var protoSel = document.getElementById('centerLinksProtoSelect');
+  var fmtSel = document.getElementById('centerLinksFmtSelect');
   var tokenInput = document.getElementById('centerLinksToken');
   var tokenSwitch = document.getElementById('centerLinksTokenSwitch');
   var tokenRand = document.getElementById('centerLinksTokenRand');
@@ -441,10 +492,24 @@ function showCenterLinks(title, links) {
   }
 
   function buildLinks(status, scope) {
+    var f = fmtSel ? (fmtSel.value || 'ku9') : 'ku9';
+    var p = protoSel ? (protoSel.value || 'http') : 'http';
+    var labelMap = {
+      'default': 'M3U（无回看参数）',
+      'ku9': 'M3U（酷9回看参数）',
+      'mytv': 'M3U（mytv回看参数）',
+      'playseek': 'M3U（playseek 回看参数）',
+      'startend14': 'M3U（starttime/endtime 回看参数）',
+      'beginend14': 'M3U（begin/end 回看参数）',
+      'iso8601': 'M3U（ISO8601 回看参数）',
+      'npt': 'M3U（NPT 区间参数）',
+      'rtsp_range': 'M3U（RTSP Range/NPT 区间）',
+      'unix_s': 'M3U（Unix 秒区间）',
+      'unix_ms': 'M3U（Unix 毫秒区间）'
+    };
     return [
-      { label: 'M3U（无回看参数）', href: '/api/export/m3u?status='+status+'&fmt=default&scope='+scope },
-      { label: 'M3U（酷9回看参数）', href: '/api/export/m3u?status='+status+'&fmt=ku9&scope='+scope },
-      { label: 'M3U（mytv回看参数）', href: '/api/export/m3u?status='+status+'&fmt=mytv&scope='+scope },
+      { label: labelMap['default'], href: '/api/export/m3u?status='+status+'&fmt=default&scope='+scope },
+      { label: labelMap[f] || 'M3U', href: '/api/export/m3u?status='+status+'&fmt='+encodeURIComponent(f)+'&scope='+scope+'&proto='+encodeURIComponent(p) },
       { label: 'TXT', href: '/api/export/txt?status='+status+'&scope='+scope },
       { label: 'JSON', href: '/api/export/json?status='+status+'&scope='+scope }
     ];
@@ -543,6 +608,8 @@ function showCenterLinks(title, links) {
   renderLinks(initStatus);
   if (statusSel) statusSel.onchange = function(){ renderLinks(this.value || 'online'); };
   if (scopeSel) scopeSel.onchange = function(){ renderLinks(statusSel ? (statusSel.value || 'online') : 'online'); };
+  if (protoSel) protoSel.onchange = function(){ renderLinks(statusSel ? (statusSel.value || 'online') : 'online'); };
+  if (fmtSel) fmtSel.onchange = function(){ renderLinks(statusSel ? (statusSel.value || 'online') : 'online'); };
   modal.style.display = 'block';
   modal.querySelector('.modal').classList.add('show');
 }
@@ -604,10 +671,10 @@ async function openEpgModal() {
     list.forEach(item => {
       const href = item.url && !item.url.startsWith('http') ? (origin + item.url) : item.url;
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td><input class="form-control form-control-sm" id="epgName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="epgUrl-'+item.id+'" value="'+(href||'')+'"></td><td><select class="form-select form-select-sm" id="epgScope-'+item.id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="epgDel-'+item.id+'">删除</button></td>';
+      tr.innerHTML = '<td><input class="form-control form-control-sm" id="epgName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="epgUrl-'+item.id+'" value="'+(href||'')+'"></td><td><select class="form-select form-select-sm" id="epgScope-'+item.id+'"><option value="内网EPG">内网EPG</option><option value="外网EPG">外网EPG</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="epgDel-'+item.id+'">删除</button></td>';
       tbody.appendChild(tr);
       const sel = document.getElementById('epgScope-'+item.id);
-      if (sel) sel.value = (item.scope === '外网') ? '外网' : '内网';
+      if (sel) sel.value = (item.scope === '外网EPG') ? '外网EPG' : '内网EPG';
       const delBtn = document.getElementById('epgDel-'+item.id);
       if (delBtn) delBtn.onclick = function(){ tr.remove(); };
     });
@@ -618,7 +685,7 @@ async function openEpgModal() {
     if (!tbody) return;
     const id = uuid();
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td><input class="form-control form-control-sm" id="epgName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="epgUrl-'+id+'" placeholder="http://... 或 https://..."></td><td><select class="form-select form-select-sm" id="epgScope-'+id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="epgDel-'+id+'">删除</button></td>';
+    tr.innerHTML = '<td><input class="form-control form-control-sm" id="epgName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="epgUrl-'+id+'" placeholder="http://... 或 https://..."></td><td><select class="form-select form-select-sm" id="epgScope-'+id+'"><option value="内网EPG">内网EPG</option><option value="外网EPG">外网EPG</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="epgDel-'+id+'">删除</button></td>';
     tbody.appendChild(tr);
     const delBtn = document.getElementById('epgDel-'+id);
     if (delBtn) delBtn.onclick = function(){ tr.remove(); };
@@ -634,7 +701,7 @@ async function openEpgModal() {
       const id = (nameEl && nameEl.id ? nameEl.id.replace('epgName-','') : uuid());
       const name = nameEl ? (nameEl.value || '').trim() : '';
       const url = urlEl ? (urlEl.value || '').trim() : '';
-      const scope = scopeEl ? scopeEl.value : '内网';
+      const scope = scopeEl ? scopeEl.value : '内网EPG';
       return { id, name: name || '未命名EPG', url, scope };
     }).filter(x => x.url && /^https?:\/\//i.test(x.url));
     try {
@@ -921,19 +988,19 @@ function openLogoTplModal() {
     tbody.innerHTML = '';
     list.forEach(item => {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td><input class="form-control form-control-sm" id="logoTplName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="logoTplUrl-'+item.id+'" value="'+(item.url||'')+'"></td><td><select class="form-select form-select-sm" id="logoTplCat-'+item.id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="logoTplDel-'+item.id+'">删除</button></td>';
+      tr.innerHTML = '<td><input class="form-control form-control-sm" id="logoTplName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="logoTplUrl-'+item.id+'" value="'+(item.url||'')+'"></td><td><select class="form-select form-select-sm" id="logoTplCat-'+item.id+'"><option value="内网台标">内网台标</option><option value="外网台标">外网台标</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="logoTplDel-'+item.id+'">删除</button></td>';
       tbody.appendChild(tr);
       const catSel = document.getElementById('logoTplCat-'+item.id);
-      if (catSel) catSel.value = (item.category === '外网') ? '外网' : '内网';
+      if (catSel) catSel.value = (item.category === '外网台标') ? '外网台标' : '内网台标';
       const delBtn = document.getElementById('logoTplDel-'+item.id);
       if (delBtn) delBtn.onclick = function(){ tr.remove(); };
     });
   }
   function fetchList() { const list = getLogoTpls(); renderList(Array.isArray(list) ? list : []); }
   const addBtn = document.getElementById('logoTplAddBtnR');
-  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('logoTplTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><input class="form-control form-control-sm" id="logoTplName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="logoTplUrl-'+id+'" placeholder="http://host/LOGO/{name}.png"></td><td><select class="form-select form-select-sm" id="logoTplCat-'+id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="logoTplDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('logoTplDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
+  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('logoTplTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><input class="form-control form-control-sm" id="logoTplName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="logoTplUrl-'+id+'" placeholder="http://host/LOGO/{name}.png"></td><td><select class="form-select form-select-sm" id="logoTplCat-'+id+'"><option value="内网台标">内网台标</option><option value="外网台标">外网台标</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="logoTplDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('logoTplDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
   const saveBtn = document.getElementById('logoTplSaveBtnR');
-  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('logoTplTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); let list = rows.map(tr => { const nameEl = tr.querySelector('input[id^="logoTplName-"]'); const urlEl = tr.querySelector('input[id^="logoTplUrl-"]'); const catEl = tr.querySelector('select[id^="logoTplCat-"]'); const id = (nameEl && nameEl.id ? nameEl.id.replace('logoTplName-','') : uuid()); const name = nameEl ? (nameEl.value||'').trim() : ''; const url = urlEl ? (urlEl.value||'').trim() : ''; const category = catEl ? catEl.value : '内网'; return { id, name: name || '未命名模板', url, category }; }).filter(x => x.url); saveLogoTpls(list); const curr = list[0] ? list[0].id : ''; setCurrentLogoTplId(curr); const currItem = list.find(x => x.id === curr) || list[0]; const currUrl = currItem ? currItem.url : getLogoTemplate(); await setLogoTemplate(currUrl, list); close(); };
+  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('logoTplTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); let list = rows.map(tr => { const nameEl = tr.querySelector('input[id^="logoTplName-"]'); const urlEl = tr.querySelector('input[id^="logoTplUrl-"]'); const catEl = tr.querySelector('select[id^="logoTplCat-"]'); const id = (nameEl && nameEl.id ? nameEl.id.replace('logoTplName-','') : uuid()); const name = nameEl ? (nameEl.value||'').trim() : ''; const url = urlEl ? (urlEl.value||'').trim() : ''; const category = catEl ? catEl.value : '内网台标'; return { id, name: name || '未命名模板', url, category }; }).filter(x => x.url); saveLogoTpls(list); const curr = list[0] ? list[0].id : ''; setCurrentLogoTplId(curr); const currItem = list.find(x => x.id === curr) || list[0]; const currUrl = currItem ? currItem.url : getLogoTemplate(); await setLogoTemplate(currUrl, list); close(); };
   const syncBtn = document.getElementById('syncLogoTplBtn');
   if (syncBtn) syncBtn.onclick = async function() {
     const list = getLogoTpls();
@@ -953,7 +1020,7 @@ function openProxyModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'proxyModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">代理设置</h5><button type="button" class="btn-close" id="proxyCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>类型说明：外网用于访问组播地址（rtp/udp）（一般使用端口映射或者lucky等工具实现）；代理用于访问单播地址（http/https）或者组播地址。</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="proxyAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="proxySaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="proxyListWrapR"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">代理设置</h5><button type="button" class="btn-close" id="proxyCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>类型说明：组播代理用于访问组播地址（rtp/udp）（一般使用端口映射或者lucky等工具实现）；单播代理用于访问单播地址（http/https）或者组播地址。</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="proxyAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="proxySaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="proxyListWrapR"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -969,19 +1036,20 @@ function openProxyModal() {
     (Array.isArray(list) ? list : []).forEach(item => {
       const id = item && item.id ? item.id : uuid();
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td><select class="form-select form-select-sm" id="proxyType-'+id+'"><option value="外网">外网</option><option value="代理">代理</option></select></td><td><input class="form-control form-control-sm" id="proxyUrl-'+id+'" value="'+(item && item.url ? item.url : '')+'" placeholder="http(s)://域名或IP:端口"></td><td><button class="btn btn-outline-danger btn-sm" id="proxyDel-'+id+'">删除</button></td>';
+      tr.innerHTML = '<td><select class="form-select form-select-sm" id="proxyType-'+id+'"><option value="组播代理">组播代理</option><option value="单播代理">单播代理</option></select></td><td><input class="form-control form-control-sm" id="proxyUrl-'+id+'" value="'+(item && item.url ? item.url : '')+'" placeholder="http(s)://域名或IP:端口"></td><td><button class="btn btn-outline-danger btn-sm" id="proxyDel-'+id+'">删除</button></td>';
       tbody.appendChild(tr);
       const typeSel = document.getElementById('proxyType-'+id);
-      if (typeSel) typeSel.value = (item && item.type === '代理') ? '代理' : '外网';
+      if (typeSel) typeSel.value = (item && item.type === '单播代理') ? '单播代理' : '组播代理';
       const delBtn = document.getElementById('proxyDel-'+id);
       if (delBtn) delBtn.onclick = function(){ tr.remove(); };
     });
   }
   function fetchList() { let arr = []; try { arr = JSON.parse(localStorage.getItem('proxyList') || '[]'); if (!Array.isArray(arr) || arr.length === 0) arr = Array.isArray(appSettings.proxyList) ? appSettings.proxyList : []; } catch(e) {} renderList(arr); }
   const addBtn = document.getElementById('proxyAddBtnR');
-  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('proxyTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><select class="form-select form-select-sm" id="proxyType-'+id+'"><option value="外网" selected>外网</option><option value="代理">代理</option></select></td><td><input class="form-control form-control-sm" id="proxyUrl-'+id+'" placeholder="http(s)://域名或IP:端口"></td><td><button class="btn btn-outline-danger btn-sm" id="proxyDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('proxyDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
+  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('proxyTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><select class="form-select form-select-sm" id="proxyType-'+id+'"><option value="组播代理" selected>组播代理</option><option value="单播代理">单播代理</option></select></td><td><input class="form-control form-control-sm" id="proxyUrl-'+id+'" placeholder="http(s)://域名或IP:端口"></td><td><button class="btn btn-outline-danger btn-sm" id="proxyDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('proxyDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
   const saveBtn = document.getElementById('proxySaveBtnR');
-  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('proxyTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); const list = rows.map(tr => { const typeEl = tr.querySelector('select[id^="proxyType-"]'); const urlEl = tr.querySelector('input[id^="proxyUrl-"]'); const type = typeEl ? typeEl.value : '外网'; const url = urlEl ? (urlEl.value||'').trim() : ''; if (!url) return null; return { type, url }; }).filter(x => x); localStorage.setItem('proxyList', JSON.stringify(list)); appSettings.proxyList = list; try { await fetch('/api/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ proxyList: list }) }); } catch(e) {} close(); };
+  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('proxyTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); const list = rows.map(tr => { const typeEl = tr.querySelector('select[id^="proxyType-"]'); const urlEl = tr.querySelector('input[id^="proxyUrl-"]'); const type = typeEl ? typeEl.value : '组播代理';'组播代理';
+      const url = urlEl ? (urlEl.value||'').trim() : ''; if (!url) return null; return { type, url }; }).filter(x => x); localStorage.setItem('proxyList', JSON.stringify(list)); appSettings.proxyList = list; try { await fetch('/api/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ proxyList: list }) }); } catch(e) {} close(); };
   modal.style.display = 'block';
   modal.querySelector('.modal').classList.add('show');
   fetchList();
@@ -1081,9 +1149,13 @@ function isExternalAccess() {
 function getLogoTemplate() {
   const id = getCurrentLogoTplId();
   const list = getLogoTpls();
-  if (isExternalAccess()) {
-    const ext = list.find(x => x.category === '外网');
+  const useExternal = (localStorage.getItem('useExternal') === 'true') || (typeof appSettings !== 'undefined' && !!appSettings.useExternal);
+  if (useExternal) {
+    const ext = list.find(x => x.category === '外网台标');
     if (ext && ext.url) return ext.url;
+  } else {
+    const int = list.find(x => x.category === '内网台标');
+    if (int && int.url) return int.url;
   }
   const item = list.find(x => x.id === id);
   if (item && item.url) return item.url;
@@ -1105,11 +1177,11 @@ async function loadLogoTemplates() {
       if (!url) return;
       const exist = oldList.find(x => x.url === url);
       if (exist) {
-        merged.push({ id: exist.id, name: (t && t.name) || exist.name || '未命名模板', url: exist.url, category: (t && t.category) || exist.category || '内网' });
+        merged.push({ id: exist.id, name: (t && t.name) || exist.name || '未命名模板', url: exist.url, category: (t && t.category) || exist.category || '内网台标' });
       } else {
         const nm = (typeof t === 'object' && t && t.name) ? t.name : (url.replace(/^https?:\/\//,'').split('/')[0] || '未命名模板');
         const id = (typeof t === 'object' && t && t.id) ? t.id : ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
-        const category = (typeof t === 'object' && t && t.category) ? t.category : '内网';
+        const category = (typeof t === 'object' && t && t.category) ? t.category : '内网台标';
         merged.push({ id, name: nm, url, category });
       }
     });
@@ -1119,7 +1191,7 @@ async function loadLogoTemplates() {
     });
     if (merged.length === 0) {
       const def = getLogoTemplate();
-      merged.push({ id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '默认模板', url: def, category: '内网' });
+      merged.push({ id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '默认模板', url: def, category: '内网台标' });
     }
     saveLogoTpls(merged);
     sel.innerHTML = '';
@@ -1401,12 +1473,12 @@ function renderTable() {
         } catch(e) {}
         if (proxyList.length === 0 && Array.isArray(appSettings.proxyList)) proxyList = appSettings.proxyList;
         if (isMulticast) {
-          const extBaseItem = proxyList.find(x => x.type === '外网');
+          const extBaseItem = proxyList.find(x => x.type === '组播代理');
         const base = useExternal ? ((extBaseItem && extBaseItem.url) || eu || s.udpxyUrl || '') : (iu || s.udpxyUrl || '');
           const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
           return base + path;
         } else {
-          const proxyItem = proxyList.find(x => x.type === '代理');
+          const proxyItem = proxyList.find(x => x.type === '单播代理');
           if (useExternal) {
             const pb = (proxyItem && proxyItem.url) ? proxyItem.url : '';
             const stripped = u.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
@@ -1985,7 +2057,7 @@ function openEditModal(index) {
       let proxyList = [];
       try { proxyList = JSON.parse(localStorage.getItem('proxyList') || '[]'); } catch(e) { proxyList = []; }
       if (proxyList.length === 0 && Array.isArray(appSettings.proxyList)) proxyList = appSettings.proxyList;
-      const proxyItem = proxyList.find(x => x.type === '代理');
+      const proxyItem = proxyList.find(x => x.type === '单播代理');
       let pb = proxyItem && proxyItem.url ? proxyItem.url : '';
       if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
       if (pb) {
@@ -1997,7 +2069,7 @@ function openEditModal(index) {
     if (httpEl) httpEl.value = s.httpParam || '';
     try {
       const list = getLogoTpls();
-      const pick = useExternal ? (list.find(x => x.category === '外网') || null) : (list.find(x => x.category === '内网') || null);
+      const pick = useExternal ? (list.find(x => x.category === '外网台标') || null) : (list.find(x => x.category === '内网台标') || null);
       const logoEl = document.getElementById('editLogoTemplateR');
       if (logoEl && pick && pick.url) logoEl.value = pick.url;
       // 同步“频道台标URL”为当前范围的模板地址
@@ -2013,7 +2085,7 @@ function openEditModal(index) {
       let proxyList = [];
       try { proxyList = JSON.parse(localStorage.getItem('proxyList') || '[]'); } catch(e) { proxyList = []; }
       if (proxyList.length === 0 && Array.isArray(appSettings.proxyList)) proxyList = appSettings.proxyList;
-      const proxyItem = proxyList.find(x => x.type === '代理');
+      const proxyItem = proxyList.find(x => x.type === '单播代理');
       let pb = proxyItem && proxyItem.url ? proxyItem.url : '';
       if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
       const typeVal = (function(){ const u=(s.multicastUrl||'').trim(); const hasUdpxy=!!s.udpxyUrl; const scheme=u.split(':')[0].toLowerCase(); if(hasUdpxy) return '组播'; if(scheme==='rtp'||scheme==='udp') return '组播'; return '单播'; })();
@@ -2033,8 +2105,8 @@ function openEditModal(index) {
         const u = String(s.multicastUrl || '').trim();
         const strippedRtp = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
         if (useExternal) {
-          // 外网：使用“代理设置”中类型为“外网”的地址
-          const extBaseItem = proxyList.find(x => x.type === '外网');
+          // 组播代理：使用“代理设置”中类型为“组播代理”的地址
+          const extBaseItem = proxyList.find(x => x.type === '组播代理');
           const extBase = extBaseItem && extBaseItem.url ? extBaseItem.url : '';
           if (extBase && addrEl) addrEl.value = extBase.replace(/\/+$/,'') + strippedRtp;
         } else {
@@ -2205,7 +2277,7 @@ async function __initResults(){
     }
     async function refreshEpgExternalSelect() {
       const list = await getAllEpgSources();
-      const ext = list.filter(x => x.scope === '外网');
+      const ext = list.filter(x => x.scope === '外网EPG');
       const sel = document.getElementById('epgExternalSelect');
       if (!sel) return;
       sel.innerHTML = '';
@@ -2233,7 +2305,7 @@ async function __initResults(){
       if (!/^https?:\/\//i.test(url)) return;
       const list = await getAllEpgSources();
       const id = 'epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      list.push({ id, name: name || '未命名EPG', url, scope: '外网' });
+      list.push({ id, name: name || '未命名EPG', url, scope: '外网EPG' });
       await fetch('/api/config/epg-sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: list }) });
       await refreshEpgExternalSelect();
     };
@@ -2248,7 +2320,7 @@ async function __initResults(){
       if (!/^https?:\/\//i.test(url)) return;
       const list = await getAllEpgSources();
       const idx = list.findIndex(x => x.id === sel.value);
-      if (idx >= 0) list[idx] = { ...list[idx], name: name || '未命名EPG', url, scope: '外网' };
+      if (idx >= 0) list[idx] = { ...list[idx], name: name || '未命名EPG', url, scope: '外网EPG' };
       await fetch('/api/config/epg-sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: list }) });
       await refreshEpgExternalSelect();
     };

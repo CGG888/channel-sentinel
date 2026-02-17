@@ -121,6 +121,7 @@
                                 <label for="udpxyUrl" class="form-label small text-muted">当前使用地址</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control addr-mono bg-light" id="udpxyUrl" readonly>
+                                    <button type="button" class="btn btn-outline-success btn-icon" id="applyUdpxyBtn" title="应用并保存当前服务器"><i class="bi bi-check-lg"></i></button>
                                     <button type="button" class="btn btn-outline-danger btn-icon" id="delUdpxyBtn" title="删除当前服务器"><i class="bi bi-trash"></i></button>
                                 </div>
                             </div>
@@ -178,6 +179,7 @@
                                 <div class="input-group">
                                     <input type="text" class="form-control addr-mono bg-light border-0" id="rangeSummary" readonly>
                                     <button type="button" class="btn btn-outline-secondary btn-icon" id="applyCidrBtn" title="应用CIDR范围"><i class="bi bi-arrow-right-circle"></i></button>
+                                    <button type="button" class="btn btn-outline-danger btn-icon" id="clearCidrBtn" title="清除范围"><i class="bi bi-trash"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -950,6 +952,21 @@ if (opRow) {
                     updateRangeSummary();
                 });
             }
+            const clearBtn = document.getElementById('clearCidrBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    const startEl = document.getElementById('rangeStart');
+                    const endEl = document.getElementById('rangeEnd');
+                    const cidrEl = document.getElementById('cidrInput');
+                    const sumEl = document.getElementById('rangeSummary');
+                    if (startEl) startEl.value = '';
+                    if (endEl) endEl.value = '';
+                    if (cidrEl) cidrEl.value = '';
+                    if (sumEl) sumEl.value = '';
+                    showStatusInfo('');
+                    updateRangeSummary();
+                });
+            }
             const rs = document.getElementById('rangeStart');
             const re = document.getElementById('rangeEnd');
             const ci = document.getElementById('cidrInput');
@@ -1445,11 +1462,18 @@ window.addEventListener('DOMContentLoaded', function() {
     const addInput = document.getElementById('udpxyAddInput');
     const addBtn = document.getElementById('addUdpxyBtn');
     const delBtn = document.getElementById('delUdpxyBtn');
+    const applyBtn = document.getElementById('applyUdpxyBtn');
     const urlInput = document.getElementById('udpxyUrl');
     if (select) {
         select.onchange = function() {
             setCurrentUdpxyId(this.value);
             if (urlInput) urlInput.value = getCurrentUdpxyUrl();
+        };
+    }
+    if (applyBtn) {
+        applyBtn.onclick = async function() {
+            await syncUdpxyServersBackend();
+            showCenterConfirm('已应用并保存当前服务器设置', null, true);
         };
     }
     if (addBtn) addBtn.onclick = function() {

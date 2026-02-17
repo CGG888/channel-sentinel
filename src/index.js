@@ -238,13 +238,13 @@ let settings = {
 
 function normalizeProxyType(t) {
     const v = String(t || '').trim();
-    if (v === '代理') return '代理';
-    if (v === '外网') return '外网';
+    if (v === '代理' || v === '单播代理') return '单播代理';
+    if (v === '外网' || v === '组播代理') return '组播代理';
     // 兼容英文输入
     const low = v.toLowerCase();
-    if (low === 'proxy') return '代理';
-    if (low === 'external' || low === 'internet') return '外网';
-    return '外网';
+    if (low === 'proxy') return '单播代理';
+    if (low === 'external' || low === 'internet') return '组播代理';
+    return '组播代理';
 }
 function getProxyByType(type) {
     const list = Array.isArray(settings.proxyList) ? settings.proxyList : [];
@@ -357,7 +357,7 @@ settings.enableToken = !!appSetCfg.enableToken;
 if ((!Array.isArray(settings.proxyList) || settings.proxyList.length === 0) && settings.externalUrl) {
     const url = String(settings.externalUrl || '').trim();
     if (url) {
-        settings.proxyList = [{ type: '外网', url }];
+        settings.proxyList = [{ type: '组播代理', url }];
         writeJson(CFG_PROXY, { list: settings.proxyList });
     }
 }
@@ -801,11 +801,14 @@ function findUnicastMatchByMeta(name, resolution, frameRate) {
         return sorted[0];
     }
 }
-function buildUnicastCatchupBase(scope, unicastUrl) {
+function buildUnicastCatchupBase(scope, unicastUrl, proto = 'http') {
     const raw = String(unicastUrl || '').trim();
     if (!raw) return '';
+    if (proto === 'rtsp') {
+        return stripQuery(raw);
+    }
     if (scope === 'external') {
-        const proxyBase = getProxyByType('代理');
+        const proxyBase = getProxyByType('单播代理');
         let pb = proxyBase && proxyBase.url ? proxyBase.url : '';
         if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
         if (pb) return pb + '/' + stripScheme(stripQuery(raw));
@@ -904,7 +907,7 @@ app.get('/api/export/txt', (req, res) => {
         const isMulticast = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
         let httpUrlBase = '';
         if (isMulticast) {
-            const extBase = getProxyByType('外网');
+            const extBase = getProxyByType('组播代理');
             if (scope === 'external' && !(extBase && extBase.url)) return null;
             let base = '';
             if (scope === 'external') {
@@ -917,13 +920,13 @@ app.get('/api/export/txt', (req, res) => {
             const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
             httpUrlBase = `${base}${path}`;
         } else {
-            const proxyBase = getProxyByType('代理');
+            const proxyBase = getProxyByType('单播代理');
             if (scope === 'external' && !(proxyBase && proxyBase.url)) return null;
             let base = scope === 'external' ? (proxyBase.url || '') : '';
             if (scope === 'external' && base && !/^https?:\/\//i.test(base)) base = 'http://' + base.replace(/^\/+/, '');
             httpUrlBase = scope === 'external' ? (base + '/' + stripScheme(u)) : u;
         }
-        const suf = noSuffix ? '' : (`$${q}-${s.frameRate ? `${s.frameRate}fps` : '-'}`);
+        const suf = '';
         const hp = filterHttpParam(s.httpParam || '');
         const httpUrl = (isMulticast && hp) ? (httpUrlBase + '?' + hp + suf) : (httpUrlBase + suf);
         return `${nm},${httpUrl},${q}`;
@@ -940,20 +943,21 @@ app.get('/api/export/m3u', (req, res) => {
     }
     const status = String(req.query.status || 'all').toLowerCase();
     const fmt = String(req.query.fmt || 'default').toLowerCase();
+    const proto = String(req.query.proto || 'http').toLowerCase();
     const stripSuffixParam = String(req.query.stripSuffix || '').toLowerCase();
     const noSuffix = (fmt === 'default') || stripSuffixParam === '1' || stripSuffixParam === 'true' || stripSuffixParam === 'yes';
     const udpxyCfg = readJson(CFG_UDPXY, { servers: [], currentId: '' });
     const udpxyServers = Array.isArray(udpxyCfg.servers) ? udpxyCfg.servers : [];
     const udpxyCurr = udpxyServers.find(x => x.id === udpxyCfg.currentId) || null;
     const udpxyCurrUrl = udpxyCurr ? (udpxyCurr.url || '') : '';
-    const defLogo = { templates: [{ id: 'ltpl-default', name: '默认模板', url: settings.logoTemplate, category: '内网' }], currentId: 'ltpl-default' };
+    const defLogo = { templates: [{ id: 'ltpl-default', name: '默认模板', url: settings.logoTemplate, category: '内网台标' }], currentId: 'ltpl-default' };
     const logoCfg = readJson(CFG_LOGO, defLogo);
     const logoListRaw = Array.isArray(logoCfg.templates) ? logoCfg.templates : [];
     const logoList = logoListRaw.map(t => {
-        if (typeof t === 'string') return { id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '未命名模板', url: t, category: '内网' };
-        return { id: t.id || ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36)), name: t.name || '未命名模板', url: t.url || '', category: typeof t.category === 'string' ? t.category : '内网' };
+        if (typeof t === 'string') return { id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '未命名模板', url: t, category: '内网台标' };
+        return { id: t.id || ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36)), name: t.name || '未命名模板', url: t.url || '', category: typeof t.category === 'string' ? (t.category === '内网' ? '内网台标' : (t.category === '外网' ? '外网台标' : t.category)) : '内网台标' };
     }).filter(x => x.url);
-    const pickLogoTpl = (scope === 'external' ? (logoList.find(x => x.category === '外网') || null) : (logoList.find(x => x.category === '内网') || null)) || null;
+    const pickLogoTpl = (scope === 'external' ? (logoList.find(x => x.category === '外网台标') || null) : (logoList.find(x => x.category === '内网台标') || null)) || null;
     const defEpg = { sources: [] };
     const epgCfg = readJson(CFG_EPG, defEpg);
     const epgListRaw = Array.isArray(epgCfg.sources) ? epgCfg.sources : [];
@@ -961,9 +965,9 @@ app.get('/api/export/m3u', (req, res) => {
         id: x && x.id ? x.id : ('epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36)),
         name: x && x.name ? x.name : '未命名EPG',
         url: x && x.url ? x.url : '',
-        scope: (x && x.scope === '外网') ? '外网' : '内网'
+        scope: (x && x.scope === '外网' || x && x.scope === '外网EPG') ? '外网EPG' : '内网EPG'
     })).filter(x => x.url);
-    const pickEpg = (scope === 'external' ? (epgList.find(x => x.scope === '外网') || null) : (epgList.find(x => x.scope === '内网') || null)) || null;
+    const pickEpg = (scope === 'external' ? (epgList.find(x => x.scope === '外网EPG') || null) : (epgList.find(x => x.scope === '内网EPG') || null)) || null;
     const filtered = filterByStatus(multicastList, status);
     const ordered = sortStreamsForExport(filtered);
     const epgHeaderUrl = pickEpg ? pickEpg.url : '';
@@ -971,13 +975,13 @@ app.get('/api/export/m3u', (req, res) => {
     const body = ordered.map(s => {
         const q = qualityLabelBackend(s.resolution);
         const fpsStr = s.frameRate ? `${s.frameRate}fps` : '-';
-        const suffix = noSuffix ? '' : (`$${q}-${fpsStr}`);
         const u = String(s.multicastUrl || '').trim();
         const scheme = u.split(':')[0].toLowerCase();
         const isMulticast = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
+        const suffix = noSuffix ? '' : (isMulticast ? (`$组播${q}-${fpsStr}`) : (`$单播${q}-${fpsStr}`));
         let httpUrlBase = '';
         if (isMulticast) {
-            const extBase = getProxyByType('外网');
+            const extBase = getProxyByType('组播代理');
             if (scope === 'external' && !(extBase && extBase.url)) return null;
             let base = '';
             if (scope === 'external') {
@@ -990,7 +994,7 @@ app.get('/api/export/m3u', (req, res) => {
             const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
             httpUrlBase = `${base}${path}`;
         } else {
-            const proxyBase = getProxyByType('代理');
+            const proxyBase = getProxyByType('单播代理');
             if (scope === 'external' && !(proxyBase && proxyBase.url)) return null;
             let base = scope === 'external' ? (proxyBase.url || '') : '';
             if (scope === 'external' && base && !/^https?:\/\//i.test(base)) base = 'http://' + base.replace(/^\/+/, '');
@@ -1007,17 +1011,17 @@ app.get('/api/export/m3u', (req, res) => {
         let catchupAttr = '';
         let unicastBase = '';
         if (!isMulticast) {
-            unicastBase = buildUnicastCatchupBase(scope, s.multicastUrl || '');
+            unicastBase = buildUnicastCatchupBase(scope, s.multicastUrl || '', proto);
         } else {
             const match = findUnicastMatchByMeta(s.tvgName || s.name || '', s.resolution || '', s.frameRate);
             if (match && isHttpUrl(match.multicastUrl)) {
-                unicastBase = buildUnicastCatchupBase(scope, match.multicastUrl || '');
+                unicastBase = buildUnicastCatchupBase(scope, match.multicastUrl || '', proto);
             }
         }
         if (!unicastBase && s.catchupBase && fmt === 'default') {
             let cb = s.catchupBase;
             if (scope === 'external') {
-                const proxyBase = getProxyByType('代理');
+                const proxyBase = getProxyByType('单播代理');
                 let pb = proxyBase && proxyBase.url ? proxyBase.url : '';
                 if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
                 if (pb) cb = pb + cb;
@@ -1029,6 +1033,22 @@ app.get('/api/export/m3u', (req, res) => {
                 catchupAttr = ` catchup="default" catchup-source="${unicastBase}?starttime=${'${(b)yyyyMMdd|UTC}'}T${'${(b)HHmmss|UTC}'}&endtime=${'${(e)yyyyMMdd|UTC}'}T${'${(e)HHmmss|UTC}'}"`;
             } else if (fmt === 'mytv') {
                 catchupAttr = ` catchup="default" catchup-source="${unicastBase}?starttime={utc:yyyyMMddHHmmss}&endtime={utcend:yyyyMMddHHmmss}"`;
+            } else if (fmt === 'playseek') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?playseek=${'${(b)yyyyMMddHHmmss}'}-${'${(e)yyyyMMddHHmmss}'}"`;
+            } else if (fmt === 'startend14') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?starttime=${'${(b)yyyyMMddHHmmss}'}&endtime=${'${(e)yyyyMMddHHmmss}'}"`;
+            } else if (fmt === 'beginend14') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?begin=${'${(b)yyyyMMddHHmmss}'}&end=${'${(e)yyyyMMddHHmmss}'}"`;
+            } else if (fmt === 'iso8601') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?start=${'${(b)yyyy-MM-dd|UTC}'}T${'${(b)HH:mm:ss|UTC}'}Z&end=${'${(e)yyyy-MM-dd|UTC}'}T${'${(e)HH:mm:ss|UTC}'}Z"`;
+            } else if (fmt === 'npt') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?npt=${'${(b)HH}'}:${'${(b)mm}'}:${'${(b)ss}'}-${'${(e)HH}'}:${'${(e)mm}'}:${'${(e)ss}'}"`;
+            } else if (fmt === 'rtsp_range') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?npt=${'${(b)HH}'}:${'${(b)mm}'}:${'${(b)ss}'}-${'${(e)HH}'}:${'${(e)mm}'}:${'${(e)ss}'}"`;
+            } else if (fmt === 'unix_s') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?start=${'${(b)unix_s|UTC}'}&end=${'${(e)unix_s|UTC}'}"`;
+            } else if (fmt === 'unix_ms') {
+                catchupAttr = ` catchup="default" catchup-source="${unicastBase}?start=${'${(b)unix_ms|UTC}'}&end=${'${(e)unix_ms|UTC}'}"`;
             } else {
                 catchupAttr = '';
             }
@@ -1063,7 +1083,7 @@ app.get('/api/export/json', (req, res) => {
             const isMulticast = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
             let base = '';
             if (isMulticast) {
-                const extBase = getProxyByType('外网');
+                const extBase = getProxyByType('组播代理');
                 if (scope === 'external' && !(extBase && extBase.url)) return null;
                 let b = '';
                 if (scope === 'external') {
@@ -1076,7 +1096,7 @@ app.get('/api/export/json', (req, res) => {
                 const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
                 base = `${b}${path}`;
             } else {
-                const proxyBase = getProxyByType('代理');
+                const proxyBase = getProxyByType('单播代理');
                 if (scope === 'external' && !(proxyBase && proxyBase.url)) return null;
                 let b = scope === 'external' ? (proxyBase.url || '') : '';
                 if (scope === 'external' && b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
@@ -1123,7 +1143,9 @@ app.post('/api/streams/batch-delete', (req, res) => {
             count++;
         }
     }
-    res.json({ success: true, count, message: `已删除 ${count} 条记录` });
+    // 批量删除通常意味着用户确认了变更，同步保存
+    persistSave();
+    res.json({ success: true, count, message: `已删除 ${count} 条记录并保存` });
 });
 
 // 删除组播地址
@@ -1131,6 +1153,8 @@ app.delete('/api/stream/:index', (req, res) => {
     const index = parseInt(req.params.index);
     if (index >= 0 && index < multicastList.length) {
         multicastList.splice(index, 1);
+        // 单条删除也同步保存
+        persistSave();
         res.json({ success: true, message: '删除成功' });
     } else {
         res.status(400).json({ success: false, message: '无效的索引' });
@@ -1139,7 +1163,9 @@ app.delete('/api/stream/:index', (req, res) => {
 // 清空所有组播地址
 app.delete('/api/streams', (req, res) => {
     multicastList = [];
-    res.json({ success: true, message: '已清空所有检测结果' });
+    // 清空时同步保存到磁盘，防止 fallback 机制读取到旧数据
+    persistSave();
+    res.json({ success: true, message: '已清空所有检测结果并保存' });
 });
 
 // 新增：强制刷新检测，前端传递force参数，后端清空所有检测数据
@@ -1258,9 +1284,9 @@ app.get('/api/config/logo-templates', (req, res) => {
     const listRaw = Array.isArray(cfg.templates) ? cfg.templates : [];
     const listObj = listRaw.map(t => {
         if (typeof t === 'string') {
-            return { id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '未命名模板', url: t, category: '内网' };
+            return { id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '未命名模板', url: t, category: '内网台标' };
         }
-        return { id: t.id || ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36)), name: t.name || '未命名模板', url: t.url || '', category: typeof t.category === 'string' ? t.category : '内网' };
+        return { id: t.id || ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36)), name: t.name || '未命名模板', url: t.url || '', category: typeof t.category === 'string' ? (t.category === '内网' ? '内网台标' : (t.category === '外网' ? '外网台标' : t.category)) : '内网台标' };
     }).filter(x => x.url);
     let currId = typeof cfg.currentId === 'string' ? cfg.currentId : '';
     let currUrl = '';
@@ -1280,7 +1306,7 @@ app.post('/api/config/logo-templates', (req, res) => {
         id: t && t.id ? t.id : ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36)),
         name: t && t.name ? t.name : '未命名模板',
         url: t && t.url ? t.url : '',
-        category: t && typeof t.category === 'string' ? t.category : '内网'
+        category: t && typeof t.category === 'string' ? t.category : '内网台标'
     })) : [];
     if (listObj.length === 0) {
         const listStr = Array.isArray(templates) ? templates : [];
@@ -1288,7 +1314,7 @@ app.post('/api/config/logo-templates', (req, res) => {
             id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36),
             name: '未命名模板',
             url: u,
-            category: '内网'
+            category: '内网台标'
         }));
     }
     listObj = listObj.filter(x => x.url);
@@ -1480,7 +1506,7 @@ app.get('/api/config/epg-sources', (req, res) => {
     id: x && x.id ? x.id : ('epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36)),
     name: x && x.name ? x.name : '未命名EPG',
     url: x && x.url ? x.url : '',
-    scope: (x && x.scope === '外网') ? '外网' : '内网'
+    scope: (x && x.scope === '外网' || x && x.scope === '外网EPG') ? '外网EPG' : '内网EPG'
   })).filter(x => !!x.url);
   res.json({ success: true, sources: normalized });
 });
@@ -1490,7 +1516,7 @@ app.post('/api/config/epg-sources', (req, res) => {
     id: x && x.id ? x.id : ('epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36)),
     name: x && x.name ? x.name : '未命名EPG',
     url: x && x.url ? x.url : '',
-    scope: (x && x.scope === '外网') ? '外网' : '内网'
+    scope: (x && x.scope === '外网EPG') ? '外网EPG' : '内网EPG'
   })).filter(x => !!x.url) : [];
   writeJson(CFG_EPG, { sources: list });
   res.json({ success: true });

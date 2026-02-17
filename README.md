@@ -325,6 +325,12 @@ sudo systemctl status iptv-checker --no-pager
 
 ## 版本历史
 
+### v1.2.0 (2026-02-18)
+- 新增接口弹窗下拉：单播协议（HTTP/RTSP）、回放格式预设
+- 扩展导出：/api/export/m3u 支持 proto=http|rtsp 与多种 fmt（iso8601、npt、rtsp_range、playseek、startend14、beginend14、unix_s、unix_ms），保留酷9、mytv逻辑不变
+- 调整布局：接口弹窗分两行，第一行 Token；第二行 状态→范围→单播协议→回放格式
+- 版本号更新至 1.2.0
+
 ### v1.1.0 (2026-02-18)
 - 🔐 新增登录鉴权系统：
   - 支持账号密码登录，默认 admin/admin
