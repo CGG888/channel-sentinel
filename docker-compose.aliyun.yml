@@ -1,6 +1,5 @@
 services:
   iptv-checker:
-    user: "1000:1000"  
     image: registry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
     container_name: iptv-checker
     ports:

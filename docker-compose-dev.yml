@@ -1,6 +1,5 @@
 services:
   iptv-checker-dev:
-    user: "1000:1000"  
     # 如果本地有构建好的镜像，优先使用本地构建的，或者直接 build
     build: .
     container_name: iptv-checker-dev
