@@ -2,7 +2,12 @@
 
 ![Iptv-Checker 检测空数据界面](./public/preview-empty.png)
 
-🏷️ 版本号：![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/cgg888/iptv-checker?sort=semver)  
+🏷️ 版本号：
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/cgg888/iptv-checker?sort=semver)
+![GitHub Downloads (all releases)](https://img.shields.io/github/downloads/cgg888/iptv-checker/total)
+![Build Status](https://img.shields.io/github/actions/workflow/status/cgg888/iptv-checker/docker-image.yml?branch=main)
+![GHCR](https://img.shields.io/badge/GHCR-iptv--checker-2ea44f?logo=github)
+![Aliyun Registry](https://img.shields.io/badge/Aliyun%20Registry-iptv--checker-ff6a00?logo=alibabacloud)
 
 ---
 
