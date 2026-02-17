@@ -405,3 +405,6 @@ docker-compose down
 ## 页面预览
 
 ![Iptv-Checker 界面截图](./public/preview.png)
+![Iptv-Checker 界面截图](./public/preview1.png)
+![Iptv-Checker 界面截图](./public/preview2.png)
+![Iptv-Checker 界面截图](./public/preview3.png)
