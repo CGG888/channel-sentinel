@@ -239,7 +239,7 @@ function readJson(file, defObj) {
 }
 function writeJson(file, obj) {
     ensureDataDir();
-    try { fs.writeFileSync(file, JSON.stringify(obj, null, 2), 'utf-8'); return true; } catch(e) { return false; }
+    try { fs.writeFileSync(file, JSON.stringify(obj, null, 2), 'utf-8'); return true; } catch(e) { console.error('写入失败', file); return false; }
 }
 function persistSave() {
     ensureDataDir();
@@ -283,7 +283,13 @@ function persistLoad() {
     } catch(e) {}
     return false;
 }
-persistLoad();
+const __loaded = persistLoad();
+if (!__loaded) {
+    const __versions = listVersions();
+    if (Array.isArray(__versions) && __versions.length > 0) {
+        loadVersionFile(__versions[0].file);
+    }
+}
 const logoConfig = readJson(CFG_LOGO, { templates: [settings.logoTemplate], current: settings.logoTemplate });
 const fccConfig = readJson(CFG_FCC, { servers: settings.fccServers, currentId: '' });
 const udpxyConfig = readJson(CFG_UDPXY, { servers: [], currentId: '' });

@@ -23,8 +23,8 @@ FROM node:18-alpine
 # --no-cache 避免缓存占用空间
 RUN apk add --no-cache ffmpeg tini git
 
-# 创建 app 用户，避免使用 root 运行应用
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# 创建 app 用户，设置为常见的 1000:1000，提升宿主机挂载目录的写入兼容性
+RUN addgroup -g 1000 appgroup && adduser -D -u 1000 -G appgroup appuser
 
 WORKDIR /app
 

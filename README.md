@@ -153,6 +153,7 @@ npm start
   - 列表：展示所有版本及数量
 - 接口对应
   - /api/persist/save、/api/persist/list、/api/persist/load-version、/api/persist/delete-version、/api/persist/load、/api/persist/delete
+ - 启动行为：若 /data/streams.json 不存在，将自动加载 /data 中最新的 streams-YYYYMMDD-HHMMSS.json 版本文件
 
 ## API 参考（简要）
 
@@ -231,6 +232,7 @@ yaml格式：
 ```yaml
 services:
   iptv-checker:
+    user: "1000:1000"
     image: ghcr.io/cgg888/iptv-checker:latest
     container_name: iptv-checker
     ports:
@@ -263,6 +265,7 @@ yaml格式：
 ```yaml
 services:
   iptv-checker:
+    user: "1000:1000"  
     image: ghcr.io/cgg888/iptv-checker:latestregistry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
     container_name: iptv-checker
     ports:
@@ -321,6 +324,13 @@ services:
 - 网页端的“检查更新”功能会执行 `git pull`，自动更新您本地的源码。
  - 不要挂载 `package.json` 到容器（保留镜像内的 `package.json` 与 `node_modules`），否则可能出现“Are you trying to mount a directory onto a file”启动错误。
  - Windows 用户若路径包含非 ASCII 字符（如中文用户名目录），Docker Desktop 的卷挂载可能异常。建议将仓库移动到英文路径（如 `C:\Work\iptv-checker`），或使用不映射源码的生产模式。
+- 如果映射 `data` 目录但容器内没有生成文件，检查宿主机目录的写入权限。Linux 用户可在 docker-compose.yml 中添加：
+  ```yaml
+  services:
+    iptv-checker:
+      user: "1000:1000"
+  ```
+  或将宿主机目录权限设置为可写。
 
 3. 常用命令：
 ```bash

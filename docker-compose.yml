@@ -1,5 +1,6 @@
 services:
   iptv-checker:
+    user: "1000:1000"  
     image: ghcr.io/cgg888/iptv-checker:latest
     container_name: iptv-checker
     ports:
