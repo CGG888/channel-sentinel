@@ -3,168 +3,372 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPTV组播检测工具</title>
+    <title>IPTV Checker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27><rect width=%2716%27 height=%2716%27 rx=%273%27 fill=%27%236f42c1%27/></svg>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f8f9fa; }
-        .main-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #e0e0e0; padding: 32px 24px; margin-bottom: 32px; }
-        .stream-item { margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 6px; background: #fafbfc; transition: box-shadow .2s; }
-        .stream-item.available { border-left: 4px solid #28a745; }
-        .stream-item.unavailable { border-left: 4px solid #dc3545; }
-        .stream-item:hover { box-shadow: 0 2px 8px #e0e0e0; }
-        .stat-card { background: #6f42c1; color: #fff; border-radius: 8px; padding: 18px 0; text-align: center; margin-bottom: 16px; }
-        .stat-card .stat-title { font-size: 1.1rem; }
-        .stat-card .stat-value { font-size: 2.2rem; font-weight: bold; }
-        .search-bar { max-width: 300px; margin-bottom: 16px; }
-        .btn-action { min-width: 100px; }
-        @media (max-width: 768px) {
-            .main-card { padding: 16px 6px; }
-        }
-        /* 美化进度条和上下提示样式 */
-#progressBarWrap {
-  background: #f3f3f3;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px #e0e0e0;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-#progressBar {
-  background: linear-gradient(90deg, #6f42c1 0%, #28a745 100%);
-  color: #fff !important;
-  font-size: 1.08rem !important;
-  font-weight: bold;
-  letter-spacing: 1px;
-  border-radius: 8px;
-  transition: width 0.3s;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-#currentCheckInfo, #lastResultInfo, #progressStatusInfo {
-  font-size: 1.08rem;
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  color: #6f42c1;
-  margin-bottom: 8px;
-  box-shadow: 0 2px 8px #e0e0e0;
-  padding: 8px 16px;
-  font-weight: 500;
-}
-#lastResultInfo {
-  color: #222;
-  background: #f3f3f3;
-  border: 1px solid #d1d1e0;
-}
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <link href="css/custom.css" rel="stylesheet">
+    <script>
+        // 登录检查
+        (async function() {
+            try {
+                const r = await fetch('/api/auth/check');
+                const j = await r.json();
+                if (!j.success) {
+                    window.location.href = '/login.html';
+                } else {
+                    window.currentUser = j.username;
+                    // 等待DOM加载后更新
+                    function updateDisplay() {
+                         const userDisplay = document.getElementById('userDisplay');
+                         if (userDisplay) userDisplay.textContent = j.username;
+                    }
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', updateDisplay);
+                    } else {
+                        updateDisplay();
+                    }
+                }
+            } catch(e) {
+                window.location.href = '/login.html';
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="container mt-4" style="max-width:1200px;">
-        <h1 class="mb-2 text-center" style="color:#6f42c1;letter-spacing:2px;">IPTV组播检测工具</h1>
-        <div class="text-center mb-4" style="color:#888;font-size:1.08rem;">工具只能在IPTV同局域网内进行使用检测</div>
-        <div class="row mb-4" style="max-width:100%;">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0" style="color:#6f42c1;letter-spacing:1px;font-weight:700;">IPTV Checker-组播单播检测</h1>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
+                        <i class="bi bi-person-circle"></i> <span id="userDisplay">Admin</span>
+                    </button>
+                    <ul class="dropdown-menu" style="width: 100%; min-width: 100%;">
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePwdModal">修改密码</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()">退出登录</a></li>
+                    </ul>
+                </div>
+                <a class="btn btn-outline-primary" href="/results">检测结果</a>
+            </div>
+        </div>
+        
+        <div class="alert alert-light text-center mb-4 border" role="alert" style="color:#666;">
+            <i class="bi bi-info-circle"></i> 本工具基于 <a href="https://github.com/stackia/rtp2httpd" target="_blank" class="text-decoration-none fw-bold" style="color:#6f42c1;">rtp2httpd</a> 软件进行使用（或者其他组播类工具），必须能够访问IPTV认证后的线路，才能在局域网内进行使用检测
+        </div>
+
+        <div class="row mb-4">
             <div class="col-md-4">
-                <div class="stat-card">
+                <div class="stat-card stat-total">
                     <div class="stat-title">总数</div>
                     <div class="stat-value" id="stat-total">0</div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="stat-card" style="background:#28a745;">
+                <div class="stat-card stat-online">
                     <div class="stat-title">在线</div>
                     <div class="stat-value" id="stat-online">0</div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="stat-card" style="background:#dc3545;">
+                <div class="stat-card stat-offline">
                     <div class="stat-title">离线</div>
                     <div class="stat-value" id="stat-offline">0</div>
                 </div>
             </div>
         </div>
-        <div class="main-card" style="margin:0 auto;max-width:100%;">
-            <h5 class="mb-3 text-center">组播检测</h5>
-            <form id="streamForm" class="row g-3 align-items-end justify-content-center">
-                <div class="col-md-5 col-lg-5 col-12">
-                    <label for="udpxyUrl" class="form-label">UDPXY服务器地址 <span style="color:#888;font-size:0.98rem;">（请自行搭建服务）</span></label>
-                    <input type="text" class="form-control" id="udpxyUrl" placeholder="http://ip:port" value="http://192.168.88.1:8333" required>
+        <div class="main-card">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-gear-fill me-2"></i>检测配置</h5>
+                
+                <div class="input-group input-group-sm shadow-sm" style="width: auto;">
+                    <span class="input-group-text bg-white text-muted"><i class="bi bi-clock-history"></i></span>
+                    <select class="form-select border-start-0" id="versionsSelectIndex" style="max-width: 320px; min-width: 260px;"></select>
+                    <button class="btn btn-outline-success btn-icon" id="saveBtnIndex" title="保存当前配置"><i class="bi bi-hdd-fill"></i></button>
+                    <button class="btn btn-outline-primary btn-icon" id="loadBtnIndex" title="加载选中版本"><i class="bi bi-folder2-open"></i></button>
+                    <button class="btn btn-outline-secondary btn-icon" id="refreshVersionsBtnIndex" title="刷新列表"><i class="bi bi-arrow-repeat"></i></button>
+                    <button class="btn btn-outline-danger btn-icon" id="deletePersistBtnIndex" title="删除选中版本"><i class="bi bi-trash-fill"></i></button>
                 </div>
-                <div class="col-md-5 col-lg-5 col-12 mt-2">
-                    <label for="singleInput" class="form-label">单条组播（格式：频道名,rtp://ip:port，仅支持单条组播地址）</label>
-                    <input type="text" class="form-control" id="singleInput" placeholder="CCTV1,rtp://239.77.0.30:5146" required>
+            </div>
+
+            <div class="section-card input-compact form-grid-tight p-0 border-0 bg-transparent">
+            <form id="streamForm" class="row g-4 align-items-stretch">
+                <div class="col-lg-6">
+                    <div class="card h-100 border shadow-sm">
+                        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-primary"><i class="bi bi-hdd-network me-2"></i>RTP2HTTPD 服务器</span>
+                                <small class="text-muted">代理组播、rtsp单播服务器管理</small>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">选择服务器</label>
+                                <select class="form-select" id="udpxySelect"></select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">添加新服务器</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="udpxyNameInput" placeholder="名称 (如: 默认)">
+                                    <input type="text" class="form-control addr-mono" id="udpxyAddInput" placeholder="http://ip:port">
+                                    <button type="button" class="btn btn-outline-primary btn-icon" id="addUdpxyBtn" title="添加服务器"><i class="bi bi-plus-lg"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="mt-auto">
+                                <label for="udpxyUrl" class="form-label small text-muted">当前使用地址</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control addr-mono bg-light" id="udpxyUrl" readonly>
+                                    <button type="button" class="btn btn-outline-danger btn-icon" id="delUdpxyBtn" title="删除当前服务器"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-2 col-lg-2 col-12 d-grid mt-2">
-                    <button type="submit" class="btn btn-primary btn-action" style="font-weight:bold;letter-spacing:1px;">单条检测</button>
+                
+                <div class="col-lg-6">
+                    <div class="card h-100 border shadow-sm">
+                        <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-success"><i class="bi bi-radar me-2"></i>组播范围检测</span>
+                                <small class="text-muted">rtp://239.77.x.x:port</small>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end mb-3">
+                                <div class="col-8">
+                                    <label class="form-label small text-muted">组播CIDR生成</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control addr-mono" id="cidrInput" placeholder="239.x.x.x/24">
+                                        <input type="number" class="form-control" id="portInput" placeholder="Port" style="max-width: 80px;">
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small text-muted">并发数</label>
+                                    <select class="form-select" id="concurrencySelect">
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5" selected>5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                        <option value="9">9</option>
+                                        <option value="10">10</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">起始地址</label>
+                                    <input type="text" class="form-control addr-mono" id="rangeStart" placeholder="rtp://...">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">结束地址</label>
+                                    <input type="text" class="form-control addr-mono" id="rangeEnd" placeholder="rtp://...">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="form-label small text-muted">检测范围预览</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control addr-mono bg-light border-0" id="rangeSummary" readonly>
+                                    <button type="button" class="btn btn-outline-secondary btn-icon" id="applyCidrBtn" title="应用CIDR范围"><i class="bi bi-arrow-right-circle"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
-            <hr>
-            <h5 class="mt-4 mb-2 text-center"></h5>
-            <div class="row g-3 align-items-end justify-content-center">
-                <div class="col-md-10 col-lg-10 col-12">
-                    <label for="batchInput" class="form-label">批量组播（格式：频道名,rtp://ip:port，一行一条组播地址）</label>
-                    <textarea class="form-control" id="batchInput" rows="4" placeholder="CCTV1,rtp://239.77.0.30:5146\nCCTV2,rtp://239.77.0.31:5146\n..."></textarea>
-                </div>
-                <div class="col-md-2 col-lg-2 col-12 d-grid">
-                    <button class="btn btn-success btn-action" id="batchCheckBtn" style="font-weight:bold;letter-spacing:1px;">批量检测</button>
-                </div>
             </div>
-            <div id="currentCheckInfo" class="alert alert-info mt-3" style="display:none;margin-bottom:8px;padding:8px 16px;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span id="currentCheckText" style="font-size:0.95rem;"></span>
-                </div>
-            </div>
-            <div class="progress mt-2" style="height: 28px; display:none;" id="progressBarWrap">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" role="progressbar" style="width: 0%; font-size:0.95rem; line-height:1.2; text-align:center;">0%</div>
-            </div>
-            <div id="progressNextInfo" style="margin-top:8px;color:#6f42c1;font-weight:bold;display:none;"></div>
-        </div>
-        <div class="main-card mt-4" style="margin:0 auto;max-width:100%;">
-            <div class="d-flex flex-wrap align-items-center mb-3" style="gap:12px;">
-                <input class="form-control search-bar me-2" id="searchInput" placeholder="搜索频道名/地址..." style="max-width:260px;min-width:180px;">
-                <div class="dropdown d-inline-block me-2">
-                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        导出数据
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="exportDropdown" style="min-width:220px;">
-                        <li class="px-3 py-2">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" id="exportOnline" checked>
-                                <label class="form-check-label" for="exportOnline">在线</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" id="exportOffline">
-                                <label class="form-check-label" for="exportOffline">离线</label>
-                            </div>
-                        </li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><button class="dropdown-item" onclick="exportData('txt');return false;">导出为TXT格式</button></li>
-                        <li><button class="dropdown-item" onclick="exportData('m3u');return false;">导出为M3U格式</button></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="row mb-2">
-                <div class="col-12 d-flex align-items-center justify-content-between">
-                    <div>
-                        <button class="btn btn-secondary btn-action me-1" id="filterAll">全部</button>
-                        <button class="btn btn-success btn-action me-1" id="filterOnline">在线</button>
-                        <button class="btn btn-danger btn-action me-1" id="filterOffline">离线</button>
-                        <button class="btn btn-dark btn-action" id="clearAllBtn">清除</button>
+            <hr class="my-5">
+            
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom-0 pt-4 px-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-list-check me-2"></i>组播、单播批量检测</h5>
+                        <span class="badge bg-light text-dark border">支持 TXT / M3U</span>
                     </div>
-                    <div id="pagination" class="d-flex"></div>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="mb-4">
+                        <textarea class="form-control" id="batchInput" style="height: 220px; font-family: monospace; font-size: 0.85rem;" placeholder="示例与说明: 
+ 1) 名称,地址: CCTV1,rtp://239.77.0.30:5146 
+ 2) 仅地址: http://14.232.231.172:8089/000000003000/301500000204/index.m3u8 
+ 3) 支持协议: rtp://、udp://、http(s):// 
+ 4) 单播范围: http://14.232.231.172:8089/000000003000/[301500000004-301500000204]/index.m3u8
+ 5) 加载按钮: 在输入框填入网络txt或m3u地址(http/https)，点击“网络加载”将抓取解析并填充; 
+    粘贴后点击“开始检测”，并发可在上方选择; 也支持“本地上传”txt/m3u文件"></textarea>
+                    </div>
+                    
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3" id="unifiedActions">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary btn-action" id="loadFileBtn">
+                                <i class="bi bi-cloud-download me-1"></i> 网络加载
+                            </button>
+                            <button class="btn btn-outline-secondary btn-action" id="uploadFileBtn">
+                                <i class="bi bi-upload me-1"></i> 本地上传
+                            </button>
+                            <input type="file" id="uploadFileInput" accept=".m3u,.txt" style="display:none;">
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success btn-action px-4 fw-bold shadow-sm" id="startDetectBtn">
+                                <i class="bi bi-play-circle-fill me-1"></i> 开始检测
+                            </button>
+                            <button class="btn btn-outline-danger btn-action px-4 shadow-sm" id="stopDetectBtn">
+                                <i class="bi bi-stop-circle me-1"></i> 停止检测
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="currentCheckInfo" class="alert alert-info mt-4 d-flex align-items-center shadow-sm border-0" style="display:none; background-color: #e7f1ff; color: #0c63e4;">
+                        <i class="bi bi-activity me-2 spinner-grow spinner-grow-sm"></i>
+                        <span id="currentCheckText" class="fw-medium"></span>
+                    </div>
+                    
+                    <div class="progress mt-3 shadow-sm" style="height: 24px; display:none; border-radius: 12px;" id="progressBarWrap">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-gradient" id="progressBar" role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                    <div id="progressNextInfo" class="mt-2 text-primary fw-bold small text-end" style="display:none;"></div>
                 </div>
             </div>
+        </div>
+        <div class="main-card mt-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-card-list me-2"></i>组播单播预览列表</h5>
+                
+                <div class="d-flex gap-2 flex-grow-1 justify-content-end">
+                    <div class="input-group" style="max-width: 300px;">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input class="form-control border-start-0 ps-0" id="searchInput" placeholder="搜索频道...">
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-box-arrow-up me-1"></i> 导出
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li class="px-3 py-2">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="exportOnline" checked>
+                                    <label class="form-check-label" for="exportOnline">在线</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" id="exportOffline">
+                                    <label class="form-check-label" for="exportOffline">离线</label>
+                                </div>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><button class="dropdown-item" onclick="exportData('txt');return false;"><i class="bi bi-file-text me-2"></i>导出 TXT</button></li>
+                            <li><button class="dropdown-item" onclick="exportData('m3u');return false;"><i class="bi bi-file-earmark-play me-2"></i>导出 M3U</button></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-light p-3 rounded-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" id="filterAll">全部</button>
+                    <button class="btn btn-outline-success active" id="filterOnline">在线</button>
+                    <button class="btn btn-outline-danger" id="filterOffline">离线</button>
+                </div>
+                
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check mb-0 user-select-none">
+                        <input class="form-check-input" type="checkbox" id="selectAllIndexPage">
+                        <label class="form-check-label" for="selectAllIndexPage">全选</label>
+                    </div>
+                    
+                    <div class="btn-group">
+                         <button class="btn btn-outline-danger" id="batchDeleteBtn"><i class="bi bi-trash me-1"></i>删除</button>
+                         <button class="btn btn-outline-secondary" id="clearAllBtn"><i class="bi bi-x-circle me-1"></i>清空</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col-12" id="streams-list"></div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                <div class="d-flex align-items-center gap-2">
+                    <select class="form-select form-select-sm" id="pageSizeSelect" style="width: auto;">
+                        <option value="20" selected>20条/页</option>
+                        <option value="50">50条/页</option>
+                        <option value="100">100条/页</option>
+                        <option value="all">全部显示</option>
+                    </select>
+                    <span id="pageInfo" class="text-muted small"></span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn"><i class="bi bi-chevron-left"></i> 上一页</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn">下一页 <i class="bi bi-chevron-right"></i></button>
+                </div>
             </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let allStreams = [];
+        let detectCancel = false;
+        let detectRunning = false;
+        function getGroupTitles() {
+            try { return JSON.parse(localStorage.getItem('groupTitles') || '[]'); } catch(e) { return []; }
+        }
+        function saveGroupTitles(list) {
+            localStorage.setItem('groupTitles', JSON.stringify(list));
+        }
+        function ensureDefaultGroups() {
+            const list = getGroupTitles();
+            if (list.length === 0) saveGroupTitles(['默认']);
+        }
+        function getLogoTemplate() {
+            return localStorage.getItem('logoTemplate') || 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png';
+        }
+        function saveLogoTemplate(tpl) {
+            localStorage.setItem('logoTemplate', tpl);
+        }
+        function nameVariants(name) {
+            const n = (name || '').trim();
+            const plain = n.replace(/\s+/g, '');
+            const base = [n, plain];
+            const extras = ['4K', '高清', 'HD'];
+            const vars = [];
+            base.forEach(b => { vars.push(b); extras.forEach(ex => vars.push(b + ex)); });
+            return [...new Set(vars)];
+        }
+        function buildLogoCandidates(name) {
+            const tpl = getLogoTemplate();
+            const names = nameVariants(name);
+            const exts = ['.png', '.jpg', '.jpeg'];
+            const urls = [];
+            names.forEach(nn => {
+                exts.forEach(ext => {
+                    let u = tpl.replace('{name}', nn);
+                    u = u.replace(/\.(png|jpg|jpeg)$/i, ext);
+                    urls.push(u);
+                });
+            });
+            return [...new Set(urls)];
+        }
+        function chooseLogoCandidate(name, resolution) {
+            const cands = buildLogoCandidates(name);
+            if ((resolution || '').toLowerCase() === '3840x2160') {
+                const i = cands.findIndex(u => /4k/i.test(u));
+                if (i >= 0) return cands[i];
+            }
+            return cands[0] || '';
+        }
         let lastSearch = '';
-        let filterStatus = 'all'; // all/online/offline
+        let selectedSet = new Set();
+        let pageSize = 20;
+        let currentPage = 1;
+        let filterStatus = 'online'; // all/online/offline
 // 在进度条下方显示上一条检测结果
 function showLastResult(data, name, multicastUrl) {
     let lastResultDiv = document.getElementById('lastResultInfo');
@@ -176,7 +380,7 @@ function showLastResult(data, name, multicastUrl) {
         progressBarWrap.parentNode.insertBefore(lastResultDiv, progressBarWrap.nextSibling);
     }
     lastResultDiv.style.display = '';
-    lastResultDiv.innerHTML = `最近检测：<b>${name || data.name || '-'}</b> | <span style='color:#888;'>${multicastUrl || data.multicastUrl || '-'}</span> | 视频:<b>${data.resolution || '-'}</b> | 编码:<b>${data.codec || '-'}</b> | 帧率:<b>${data.frameRate || '-'}</b> | <span style='color:${data.isAvailable ? '#28a745' : '#dc3545'};font-weight:bold;'>${data.isAvailable ? '在线' : '离线'}</span>`;
+        lastResultDiv.innerHTML = `最近检测：<b>${name || data.name || '-'}</b> | <span style='color:#888;'>${multicastUrl || data.multicastUrl || '-'}</span> | 分辨率:<b>${data.resolution || '-'}</b> | 编码:<b>${data.codec || '-'}</b> | 帧率:<b>${data.frameRate || '-'}</b> | <span style='color:${data.isAvailable ? '#28a745' : '#dc3545'};font-weight:bold;'>${data.isAvailable ? '在线' : '离线'}</span>`;
 }
 // 检查流
 async function checkStream(udpxyUrl, multicastUrl, name = '') {
@@ -191,7 +395,7 @@ async function checkStream(udpxyUrl, multicastUrl, name = '') {
         const data = await response.json();
         if (!data.success) throw new Error(data.message || '检测失败');
         // 检测完成后立即显示本条数据
-        showProgress(1, 1, `检测完成: ${name || '-'} | 视频:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+        showProgress(1, 1, `检测完成: ${name || '-'} | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
         showLastResult(data, name, multicastUrl);
         setTimeout(() => {
             // 检测完成后统计并显示详细数据
@@ -199,7 +403,7 @@ async function checkStream(udpxyUrl, multicastUrl, name = '') {
             const online = data.isAvailable ? 1 : 0;
             const offline = data.isAvailable ? 0 : 1;
             const usedSec = ((Date.now() - startTime) / 1000).toFixed(2);
-            showProgress(1, 1, `检测完成 | 总数: ${total} 在线: ${online} 离线: ${offline} 耗时: ${usedSec}s | 视频:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+            showProgress(1, 1, `检测完成 | 总数: ${total} 在线: ${online} 离线: ${offline} 耗时: ${usedSec}s | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
             getStreams();
         }, 1800);
         return data;
@@ -246,6 +450,7 @@ async function batchCheckStreams(udpxyUrl, batchText) {
     try {
         let lastSuccess = null;
         for (let i = 0; i < multicastList.length; i++) {
+            if (detectCancel) { showProgress(i, multicastList.length, '检测已停止'); break; }
             const item = multicastList[i];
             showProgress(i, multicastList.length, `正在检测: ${item.name || '-'}`);
             // 检测本条
@@ -256,7 +461,7 @@ async function batchCheckStreams(udpxyUrl, batchText) {
             });
             const data = await response.json();
             // 检测后立即显示本条数据
-            showProgress(i + 1, multicastList.length, `检测: ${item.name || '-'} | 视频:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+            showProgress(i + 1, multicastList.length, `检测: ${item.name || '-'} | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
             if (data.success) lastSuccess = { ...data, name: item.name, multicastUrl: item.multicastUrl };
             if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
             await new Promise(r => setTimeout(r, 400)); // 短暂延迟便于观察进度
@@ -266,12 +471,190 @@ async function batchCheckStreams(udpxyUrl, batchText) {
         const allData = await responseAll.json();
         const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
         const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
-        showProgress(multicastList.length, multicastList.length, `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
+        showProgress(multicastList.length, multicastList.length, detectCancel ? `检测停止 | 已完成: ${onlineCount+offlineCount} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
         getStreams();
     } catch (error) {
         showProgress(1, 1, '批量检测请求失败');
         setTimeout(hideProgress, 1800);
         console.error('Error:', error);
+    }
+}
+function parsePlaylistText(t) {
+    const lines = t.split('\n').map(s => s.trim()).filter(s => s);
+    const out = [];
+    if (t.includes('#EXTM3U')) {
+        let curName = '';
+        for (let i = 0; i < lines.length; i++) {
+            const ln = lines[i];
+            if (ln.startsWith('#EXTINF')) {
+                const idx = ln.lastIndexOf(',');
+                curName = idx !== -1 ? ln.slice(idx + 1).trim() : '';
+            } else if (!ln.startsWith('#')) {
+                const uRaw = ln.trim();
+                const u = uRaw.replace(/^[`'"]+|[`'"]+$/g, '');
+                const nm = (curName || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                out.push({ name: nm, url: u });
+            }
+        }
+    } else {
+        for (const ln of lines) {
+            if (ln.startsWith('#')) continue;
+            if (ln.includes(',')) {
+                const [n, u] = ln.split(',');
+                const nm = (n || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                const url = (u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                out.push({ name: nm, url: url });
+            } else {
+                const url = ln.trim().replace(/^[`'"]+|[`'"]+$/g, '');
+                out.push({ name: '', url });
+            }
+        }
+    }
+    return out.filter(it => it.url && (it.url.startsWith('rtp://') || it.url.startsWith('http://') || it.url.startsWith('https://')));
+}
+function normalizeKey(url) {
+    if (url.startsWith('rtp://')) {
+        const p = parseRtpUrl(url);
+        return p ? ('rtp:' + p.ip) : ('rtp:' + url);
+    }
+    try {
+        const u = new URL(url);
+        if (u.pathname.includes('/rtp/')) {
+            const seg = u.pathname.split('/rtp/')[1] || '';
+            const ip = seg.split(':')[0] || '';
+            return ip ? ('rtp:' + ip) : ('http:' + u.hostname + u.pathname);
+        }
+        return 'http:' + u.hostname + u.pathname;
+    } catch(e) {
+        return (url.split('?')[0] || url);
+    }
+}
+function unifyChannelNames(items) {
+    const groups = new Map();
+    for (const it of items) {
+        const k = normalizeKey(String(it.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''));
+        const arr = groups.get(k) || [];
+        arr.push(it);
+        groups.set(k, arr);
+    }
+    for (const [k, arr] of groups.entries()) {
+        let canonical = '';
+        for (const x of arr) {
+            if (x.name && x.name.trim()) { canonical = x.name.trim(); break; }
+        }
+        if (!canonical) {
+            if (k.startsWith('rtp:')) canonical = k.slice(4);
+            else canonical = (arr[0].name || '').trim() || '频道';
+        }
+        for (const x of arr) x.name = canonical;
+    }
+    return items;
+}
+async function batchCheckStreamsMixed(udpxyUrl, batchText) {
+    const lines = batchText.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+    const rawList = lines.map(line => {
+        const parts = line.split(',');
+        let nm = '';
+        let u0 = '';
+        if (parts.length <= 1) {
+            u0 = parts[0] ? parts[0].trim() : '';
+        } else {
+            nm = parts[0] ? parts[0].trim() : '';
+            u0 = parts.slice(1).join(',').trim();
+        }
+        nm = nm.replace(/^[`'"]+|[`'"]+$/g, '');
+        u0 = u0.replace(/^[`'"]+|[`'"]+$/g, '');
+        return { name: nm, url: u0 };
+    }).filter(item => item.url && (item.url.startsWith('rtp://') || item.url.startsWith('http://') || item.url.startsWith('https://')));
+    // 扩展单播URL中的 [start-end] 范围
+    function expandBracketRange(u) {
+        const m = u.match(/\[(\d+)\s*-\s*(\d+)\]/);
+        if (!m) return [u];
+        const a = m[1], b = m[2];
+        let start = parseInt(a, 10), end = parseInt(b, 10);
+        if (isNaN(start) || isNaN(end)) return [u];
+        if (start > end) { const t = start; start = end; end = t; }
+        const width = a.length; // 保留原有位数的前导零
+        const prefix = u.slice(0, m.index);
+        const suffix = u.slice(m.index + m[0].length);
+        const out = [];
+        for (let i = start; i <= end; i++) {
+            const num = String(i).padStart(width, '0');
+            out.push(prefix + num + suffix);
+        }
+        return out;
+    }
+    let list = [];
+    rawList.forEach(item => {
+        const urls = expandBracketRange(item.url);
+        urls.forEach(exp => list.push({ name: item.name, url: exp }));
+    });
+    if (list.length === 0) {
+        showCenterConfirm('请粘贴有效的地址', null, true);
+        return;
+    }
+    try {
+        let finished = 0;
+        let lastSuccess = null;
+        const limit = parseInt((document.getElementById('concurrencySelect') && document.getElementById('concurrencySelect').value) || '5', 10);
+        showProgress(0, list.length, `正在检测（单播范围），共${list.length}条`);
+        let idx = 0;
+        async function detectOne(item, index) {
+            if (detectCancel) return;
+            showProgress(finished, list.length, `正在检测: ${item.name || '-'} (${index+1}/${list.length})`);
+            let resp;
+            const isUdpRtpHttp = item.url.startsWith('http://') || item.url.startsWith('https://');
+            let asRtp = null;
+            if (isUdpRtpHttp) {
+                try {
+                    const u = new URL(item.url);
+                    if (u.pathname.includes('/rtp/')) {
+                        const seg = u.pathname.split('/rtp/')[1] || '';
+                        const ipPort = seg.split('?')[0];
+                        if (ipPort && ipPort.includes(':')) {
+                            asRtp = 'rtp://' + ipPort;
+                        }
+                    }
+                } catch(e) {}
+            }
+            if (item.url.startsWith('rtp://') || asRtp) {
+                resp = await fetch('/api/check-stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ udpxyUrl, multicastUrl: asRtp ? asRtp : item.url, name: item.name }),
+                });
+            } else {
+                resp = await fetch('/api/check-http-stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: item.url, name: item.name }),
+                });
+            }
+            const data = await resp.json();
+            finished++;
+            showProgress(finished, list.length, `检测: ${item.name || '-'} | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+            if (data.success) {
+                lastSuccess = { ...data, name: item.name, multicastUrl: item.url };
+            }
+            if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
+        }
+        async function runNext() {
+            if (detectCancel || idx >= list.length) return;
+            const i = idx++;
+            const item = list[i];
+            await detectOne(item, i);
+            await runNext();
+        }
+        await Promise.all(Array(Math.min(limit, list.length)).fill(0).map(() => runNext()));
+        const responseAll = await fetch('/api/streams');
+        const allData = await responseAll.json();
+        const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
+        const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
+        showProgress(list.length, list.length, detectCancel ? `检测停止 | 已完成: ${finished} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${list.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
+        getStreams();
+    } catch (error) {
+        showProgress(1, 1, '批量检测请求失败');
+        setTimeout(hideProgress, 1800);
     }
 }
         // 清除按钮逻辑（普通清除）
@@ -343,62 +726,285 @@ if (opRow) {
             document.getElementById('stat-online').innerText = online.length;
             document.getElementById('stat-offline').innerText = offline.length;
             // 直接显示全部，不分页
-            const pageArr = filtered;
+            const total = filtered.length;
+            const sizeVal = pageSize === 'all' ? total : Number(pageSize);
+            const pages = sizeVal >= total ? 1 : Math.max(1, Math.ceil(total / sizeVal));
+            if (currentPage > pages) currentPage = pages;
+            if (currentPage < 1) currentPage = 1;
+            const start = (sizeVal >= total) ? 0 : (currentPage - 1) * sizeVal;
+            const end = (sizeVal >= total) ? total : Math.min(start + sizeVal, total);
+            const pageArr = filtered.slice(start, end);
             // 单行显示
             const render = arr => arr.map((stream, idx) => `
-    <div class="stream-item d-flex align-items-center justify-content-between ${stream.isAvailable ? 'available' : 'unavailable'}" style="padding:8px 18px;margin-bottom:8px;gap:8px;">
-        <div class="d-flex align-items-center flex-wrap" style="flex:1;min-width:220px;gap:12px;">
-            <div style="min-width:180px;max-width:220px;display:flex;flex-direction:column;align-items:flex-start;">
-                <span style="font-size:1rem;color:#222;">${stream.name || '-'}</span>
-                <span style="font-size:1rem;color:#888;word-break:break-all;">${stream.multicastUrl}</span>
+    <div class="stream-item d-flex align-items-center ${stream.isAvailable ? 'available' : 'unavailable'} p-3 mb-2 rounded border bg-white shadow-sm position-relative overflow-hidden">
+        <div class="d-flex align-items-center flex-grow-1 gap-3 flex-wrap">
+            <div class="form-check mb-0">
+                 <input type="checkbox" class="form-check-input sel-index" data-index="${allStreams.indexOf(stream)}">
             </div>
-            <span style="display:inline-block;padding:2px 12px;border-radius:12px;font-size:1rem;font-weight:normal;background:${stream.isAvailable ? '#e6f4ea':'#fbeaea'};color:${stream.isAvailable ? '#28a745':'#dc3545'};min-width:48px;text-align:center;">${stream.isAvailable ? '在线' : '离线'}</span>
-            <span style="font-size:1rem;min-width:110px;text-align:left;">视频:${stream.isAvailable ? (stream.resolution || '-') : '-'}</span>
-            <span style="font-size:1rem;min-width:110px;text-align:left;">编码:${stream.isAvailable ? (stream.codec || '-') : '-'}</span>
-            <span style="font-size:1rem;min-width:110px;text-align:left;">帧率:${stream.isAvailable && stream.frameRate ? stream.frameRate + 'fps' : '-'}</span>
+            
+            ${stream.logo ? `<img src="${stream.logo}" alt="" class="rounded bg-light border" style="width:48px;height:48px;object-fit:contain;" onerror="if(!this.dataset.err){this.dataset.err=1;this.src='/api/proxy/stream?url='+encodeURIComponent(this.src);}">` : '<div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width:48px;height:48px;"><i class="bi bi-tv"></i></div>'}
+            
+            <div class="d-flex flex-column" style="min-width: 180px; max-width: 300px;">
+                <span class="fw-bold text-dark text-truncate" title="${stream.name || ''}">${stream.name || '未命名频道'}</span>
+                <span class="small text-muted text-truncate font-monospace" title="${stream.multicastUrl}">${stream.multicastUrl}</span>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 align-items-center ms-lg-3">
+                 <span class="badge ${stream.isAvailable ? 'bg-success' : 'bg-danger'} rounded-pill d-flex align-items-center">
+                    ${stream.isAvailable ? '<i class="bi bi-check-circle-fill me-1"></i>在线' : '<i class="bi bi-x-circle-fill me-1"></i>离线'}
+                 </span>
+                 ${stream.isAvailable ? `
+                     <span class="badge bg-light text-dark border">Resolution: ${stream.resolution || '-'}</span>
+                     <span class="badge bg-light text-dark border">FPS: ${stream.frameRate || '-'}</span>
+                     <span class="badge bg-light text-dark border">Codec: ${stream.codec || '-'}</span>
+                 ` : ''}
+                 ${stream.groupTitle ? `<span class="badge bg-info text-dark bg-opacity-10 border border-info">Group: ${stream.groupTitle}</span>` : ''}
+            </div>
         </div>
-        <button class="btn btn-outline-primary btn-action me-1" style="min-width:90px;" onclick="openPotPlayer('${stream.udpxyUrl}/rtp/${(stream.multicastUrl||'').replace('rtp://','')}')">PotPlayer</button>
-        <button class="btn btn-outline-success btn-action me-2" style="min-width:90px;" onclick="openVLC('${stream.udpxyUrl}/rtp/${(stream.multicastUrl||'').replace('rtp://','')}')">VLC</button>
-        <button class="btn btn-danger btn-action" onclick="deleteStream(${allStreams.indexOf(stream)})">删除</button>
+
+        <div class="d-flex gap-2 ms-auto align-self-center">
+            <button class="btn btn-sm btn-outline-success" onclick="openPotPlayer('${stream.udpxyUrl}/rtp/${(stream.multicastUrl||'').replace('rtp://','')}${stream.httpParam ? ('?' + stream.httpParam) : ''}')" title="播放">
+                <i class="bi bi-play-fill"></i> <span class="d-none d-md-inline">播放</span>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteStream(${allStreams.indexOf(stream)})" title="删除">
+                <i class="bi bi-trash"></i> <span class="d-none d-md-inline">删除</span>
+            </button>
+        </div>
     </div>
 `).join('');
             document.getElementById('streams-list').innerHTML = render(pageArr);
+            const info = document.getElementById('pageInfo');
+            const sel = document.getElementById('pageSizeSelect');
+            const prev = document.getElementById('prevPageBtn');
+            const next = document.getElementById('nextPageBtn');
+            if (info) info.textContent = (sizeVal >= total) ? `第 1/1 页（共 ${total} 条）` : `第 ${currentPage}/${pages} 页（共 ${total} 条）`;
+            if (sel) {
+                sel.value = (pageSize === 'all') ? 'all' : String(pageSize);
+                sel.onchange = function() {
+                    pageSize = this.value === 'all' ? 'all' : Number(this.value);
+                    currentPage = 1;
+                    updateStatsAndDisplay();
+                };
+            }
+            if (prev) prev.onclick = function() { if (currentPage > 1) { currentPage--; updateStatsAndDisplay(); } };
+            if (next) next.onclick = function() { if (sizeVal >= total) return; if (currentPage < pages) { currentPage++; updateStatsAndDisplay(); } };
+            const selectAllBox = document.getElementById('selectAllIndexPage');
+            if (selectAllBox) {
+                const boxes = Array.from(document.querySelectorAll('.sel-index'));
+                const allChecked = boxes.length > 0 && boxes.every(b => selectedSet.has(Number(b.dataset.index)));
+                selectAllBox.checked = allChecked;
+                selectAllBox.onchange = function() {
+                    const xs = Array.from(document.querySelectorAll('.sel-index'));
+                    xs.forEach(x => {
+                        const i = Number(x.dataset.index);
+                        if (this.checked) { selectedSet.add(i); x.checked = true; } else { selectedSet.delete(i); x.checked = false; }
+                    });
+                };
+            }
+            const boxes = Array.from(document.querySelectorAll('.sel-index'));
+            boxes.forEach(b => {
+                b.checked = selectedSet.has(Number(b.dataset.index));
+                b.onchange = function() {
+                    const i = Number(this.dataset.index);
+                    if (this.checked) selectedSet.add(i); else selectedSet.delete(i);
+                };
+            });
         }
         // 搜索功能
         document.getElementById('searchInput').addEventListener('input', function() {
             lastSearch = this.value;
             updateStatsAndDisplay();
         });
-        // 表单提交处理
+        // 表单提交处理（范围检测）改为提示使用下方统一按钮
         document.getElementById('streamForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const singleInput = document.getElementById('singleInput').value.trim();
-            if (!singleInput) {
-                showCenterConfirm('请输入频道名和组播地址', null, true); // 只显示确定按钮
-                return;
-            }
-            const [name, multicastUrl] = singleInput.split(',');
-            if (!multicastUrl || !multicastUrl.trim().startsWith('rtp://')) {
-                showCenterConfirm('格式错误，示例：CCTV1,rtp://239.77.0.30:5146', null, true); // 只显示确定按钮
-                return;
-            }
-            const udpxyUrl = document.getElementById('udpxyUrl') ? document.getElementById('udpxyUrl').value : '';
-            showProgress(0, 1, '正在检测', name, multicastUrl);
-            await checkStream(udpxyUrl, multicastUrl.trim(), name ? name.trim() : '');
+            showCenterConfirm('请使用下方“检测”按钮进行统一检测', null, true);
         });
-        // 批量检测按钮
-        document.getElementById('batchCheckBtn').addEventListener('click', async () => {
+        function fillHostSelect(sel, defVal) {
+            sel.innerHTML = '';
+            for (let i = 1; i <= 254; i++) {
+                const opt = document.createElement('option');
+                opt.value = String(i);
+                opt.text = String(i);
+                sel.appendChild(opt);
+            }
+            sel.value = String(defVal);
+        }
+        function parseCIDR(cidrStr) {
+            const parts = (cidrStr || '').trim().split('/');
+            if (parts.length !== 2) return null;
+            const ipStr = parts[0].trim();
+            const maskLen = parseInt(parts[1], 10);
+            if (isNaN(maskLen) || maskLen < 0 || maskLen > 32) return null;
+            const octets = ipStr.split('.').map(n => parseInt(n, 10));
+            if (octets.length !== 4 || octets.some(n => isNaN(n) || n < 0 || n > 255)) return null;
+            const ip = ((octets[0] << 24) >>> 0) | (octets[1] << 16) | (octets[2] << 8) | (octets[3] >>> 0);
+            const mask = maskLen === 0 ? 0 : ((0xFFFFFFFF << (32 - maskLen)) >>> 0);
+            const network = (ip & mask) >>> 0;
+            const hostmask = (~mask) >>> 0;
+            let start = network;
+            let end = (network | hostmask) >>> 0;
+            if (maskLen <= 30) {
+                start = (network + 1) >>> 0;
+                end = (end - 1) >>> 0;
+            }
+            function toIpString(v) {
+                return [(v >>> 24) & 0xFF, (v >>> 16) & 0xFF, (v >>> 8) & 0xFF, v & 0xFF].join('.');
+            }
+            return { start: toIpString(start), end: toIpString(end) };
+        }
+        function parseRtpUrl(u) {
+            const s = (u || '').trim();
+            if (!s.startsWith('rtp://')) return null;
+            const body = s.slice(6);
+            const parts = body.split(':');
+            if (parts.length !== 2) return null;
+            const ip = parts[0];
+            const port = parseInt(parts[1], 10);
+            const octets = ip.split('.').map(n => parseInt(n, 10));
+            if (octets.length !== 4 || octets.some(n => isNaN(n) || n < 0 || n > 255)) return null;
+            if (isNaN(port) || port < 1 || port > 65535) return null;
+            return { ip, port };
+        }
+        function ipv4ToInt(ip) {
+            const o = ip.split('.').map(n => parseInt(n, 10));
+            return ((o[0] << 24) >>> 0) | (o[1] << 16) | (o[2] << 8) | (o[3] >>> 0);
+        }
+        function updateRangeSummary() {
+            const startEl = document.getElementById('rangeStart');
+            const endEl = document.getElementById('rangeEnd');
+            const sumEl = document.getElementById('rangeSummary');
+            const cidrEl = document.getElementById('cidrInput');
+            if (!startEl || !endEl || !sumEl) return;
+            const s = parseRtpUrl(startEl.value);
+            const e = parseRtpUrl(endEl.value);
+            if (!s || !e) {
+                const cidrStr = cidrEl ? cidrEl.value.trim() : '';
+                const parts = cidrStr.split('/');
+                if (parts.length === 2) {
+                    const maskLen = parseInt(parts[1], 10);
+                    if (!isNaN(maskLen) && maskLen >= 0 && maskLen <= 32) {
+                        const total = maskLen === 32 ? 1 : (1 << (32 - maskLen));
+                        const count = maskLen <= 30 ? Math.max(total - 2, 0) : total;
+                        sumEl.value = `${cidrStr}  组播数量：${count}`;
+                        return;
+                    }
+                }
+                sumEl.value = '';
+                return;
+            }
+            const si = ipv4ToInt(s.ip);
+            const ei = ipv4ToInt(e.ip);
+            if (si > ei) {
+                sumEl.value = `${s.ip} - ${e.ip}  组播数量：-`;
+                return;
+            }
+            const count = (ei - si + 1);
+            sumEl.value = `${s.ip} - ${e.ip}  组播数量：${count}`;
+        }
+        window.addEventListener('DOMContentLoaded', function() {
+            const applyBtn = document.getElementById('applyCidrBtn');
+            if (applyBtn) {
+                applyBtn.addEventListener('click', function() {
+                    const cidr = document.getElementById('cidrInput').value.trim();
+                    const portVal = document.getElementById('portInput')?.value.trim();
+                    const port = portVal ? parseInt(portVal, 10) : 9000;
+                    if (isNaN(port) || port < 1 || port > 65535) {
+                        showCenterConfirm('端口需为1-65535之间的数字', null, true);
+                        return;
+                    }
+                    const rng = parseCIDR(cidr);
+                    if (!rng) {
+                        showCenterConfirm('CIDR格式不正确，示例：239.76.250.1/24', null, true);
+                        return;
+                    }
+                    const startEl = document.getElementById('rangeStart');
+                    const endEl = document.getElementById('rangeEnd');
+                    const startEmpty = !(startEl && startEl.value.trim());
+                    const endEmpty = !(endEl && endEl.value.trim());
+                    if (startEmpty && endEmpty) {
+                        if (startEl) startEl.value = `rtp://${rng.start}:${port}`;
+                        if (endEl) endEl.value = `rtp://${rng.end}:${port}`;
+                    }
+                    const sParsed = parseRtpUrl(startEl?.value || '');
+                    const eParsed = parseRtpUrl(endEl?.value || '');
+                    const appliedStart = sParsed ? sParsed.ip : rng.start;
+                    const appliedEnd = eParsed ? eParsed.ip : rng.end;
+                    let countStr = '-';
+                    if (sParsed && eParsed) {
+                        const si = ipv4ToInt(sParsed.ip);
+                        const ei = ipv4ToInt(eParsed.ip);
+                        if (si <= ei) countStr = String(ei - si + 1);
+                    } else {
+                        const parts = cidr.split('/');
+                        if (parts.length === 2) {
+                            const maskLen = parseInt(parts[1], 10);
+                            if (!isNaN(maskLen) && maskLen >= 0 && maskLen <= 32) {
+                                const total = maskLen === 32 ? 1 : (1 << (32 - maskLen));
+                                const count = maskLen <= 30 ? Math.max(total - 2, 0) : total;
+                                countStr = String(count);
+                            }
+                        }
+                    }
+                    showStatusInfo(`组播检测已应用CIDR：${cidr} → ${appliedStart} - ${appliedEnd}  检测组播数量：${countStr}`);
+                    updateRangeSummary();
+                });
+            }
+            const rs = document.getElementById('rangeStart');
+            const re = document.getElementById('rangeEnd');
+            const ci = document.getElementById('cidrInput');
+            if (rs) rs.addEventListener('input', updateRangeSummary);
+            if (re) re.addEventListener('input', updateRangeSummary);
+            if (ci) ci.addEventListener('input', function() {
+                const cidr = ci.value.trim();
+                const rng = parseCIDR(cidr);
+                const portVal = document.getElementById('portInput')?.value.trim();
+                const port = portVal ? parseInt(portVal, 10) : 9000;
+                const startEl = document.getElementById('rangeStart');
+                const endEl = document.getElementById('rangeEnd');
+                if (rng) {
+                    if (startEl) startEl.value = `rtp://${rng.start}:${port}`;
+                    if (endEl) endEl.value = `rtp://${rng.end}:${port}`;
+                }
+                updateRangeSummary();
+            });
+            updateRangeSummary();
+        });
+        // 统一检测与停止按钮
+        document.getElementById('startDetectBtn').addEventListener('click', async () => {
+            if (detectRunning) return;
+            const startBtn = document.getElementById('startDetectBtn');
+            const stopBtn = document.getElementById('stopDetectBtn');
+            detectCancel = false;
+            detectRunning = true;
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = false;
             const udpxyUrl = document.getElementById('udpxyUrl').value;
             const batchText = document.getElementById('batchInput').value;
+            const startUrl = document.getElementById('rangeStart').value.trim();
+            const endUrl = document.getElementById('rangeEnd').value.trim();
             if (!udpxyUrl) {
                 showCenterConfirm('请先填写UDPXY服务器地址', null, true);
+                detectRunning = false;
+                if (startBtn) startBtn.disabled = false;
                 return;
             }
-            if (!batchText.trim()) {
-                showCenterConfirm('请粘贴组播地址', null, true);
-                return;
+            try {
+                if (batchText.trim()) {
+                    await batchCheckStreamsMixed(udpxyUrl, batchText);
+                } else if (startUrl && endUrl) {
+                    await rangeCheckStreams(udpxyUrl, startUrl, endUrl);
+                } else {
+                    showCenterConfirm('请粘贴组播地址或填写范围再点击检测', null, true);
+                }
+            } finally {
+                detectRunning = false;
+                if (startBtn) startBtn.disabled = false;
             }
-            await batchCheckStreams(udpxyUrl, batchText);
+        });
+        document.getElementById('stopDetectBtn').addEventListener('click', () => {
+            detectCancel = true;
+            showStatusInfo('检测已请求停止，稍后结束当前任务');
         });
         // 导出功能
         function exportData(type) {
@@ -431,13 +1037,42 @@ if (opRow) {
                         showCenterConfirm('没有可导出的数据', null, true);
                         return;
                     }
+                    function qualityLabel(resolution) {
+                        const r = (resolution || '').toLowerCase();
+                        if (r === '720x576' || r === '1280x720') return '标清';
+                        if (r === '1920x1080') return '高清';
+                        if (r === '3840x2160') return '超高清';
+                        return '未知';
+                    }
                     let content = '';
                     let filename = '';
                     if (type === 'txt') {
-                        content = filtered.map(s => `${s.name || ''},${s.multicastUrl}`).join('\r\n');
+                        content = filtered.map(s => {
+                            const q = qualityLabel(s.resolution);
+                            return `${s.name || ''},${s.multicastUrl},${q}`;
+                        }).join('\r\n');
                         filename = (onlineChecked && !offlineChecked) ? 'iptv_online.txt' : (!onlineChecked && offlineChecked) ? 'iptv_offline.txt' : 'iptv_all.txt';
                     } else if (type === 'm3u') {
-                        content = '#EXTM3U\r\n' + filtered.map(s => `#EXTINF:-1,${s.name || ''}\r\n${s.udpxyUrl}/rtp/${(s.multicastUrl||'').replace('rtp://','')}`).join('\r\n');
+                        content = '#EXTM3U\r\n' + filtered.map(s => {
+                            const q = qualityLabel(s.resolution);
+                            const httpUrlBase = `${s.udpxyUrl}/rtp/${(s.multicastUrl||'').replace('rtp://','')}`;
+                            const fpsStr = s.frameRate ? `${s.frameRate}fps` : '-';
+                            const suffix = `$${q}-${fpsStr}`;
+                            const httpUrl = httpUrlBase + '?' + (s.httpParam ? s.httpParam : '') + (s.httpParam ? '' : '') + suffix;
+                            const tvgId = s.tvgId || '';
+                            const tvgName = s.tvgName || s.name || '';
+                            const tvgLogo = s.logo || '';
+                            const groupTitle = s.groupTitle || '';
+                            let catchupAttr = '';
+                            if (s.catchupBase) {
+                                if ((s.catchupFormat || 'ku9') === 'ku9') {
+                                    catchupAttr = ` catchup="default" catchup-source="${s.catchupBase}?starttime=${'${(b)yyyyMMdd|UTC}'}T${'${(b)HHmmss|UTC}'}&endtime=${'${(e)yyyyMMdd|UTC}'}T${'${(e)HHmmss|UTC}'}"`;
+                                } else {
+                                    catchupAttr = ` catchup="default" catchup-source="${s.catchupBase}?starttime={utc:yyyyMMddHHmmss}&endtime={utcend:yyyyMMddHHmmss}"`;
+                                }
+                            }
+                            return `#EXTINF:-1 tvg-id="${tvgId}" tvg-name="${tvgName}" tvg-logo="${tvgLogo}" group-title="${groupTitle}"${catchupAttr},${s.name || ''}\r\n${httpUrl}`;
+                        }).join('\r\n');
                         filename = (onlineChecked && !offlineChecked) ? 'iptv_online.m3u' : (!onlineChecked && offlineChecked) ? 'iptv_offline.m3u' : 'iptv_all.m3u';
                     }
                     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -454,6 +1089,79 @@ if (opRow) {
                     }, 100);
                 });
             }, true);
+        }
+        // 范围检测工具与入口
+        function ipToInt(ip) {
+            const parts = ip.split('.').map(Number);
+            if (parts.length !== 4 || parts.some(n => isNaN(n) || n < 0 || n > 255)) return null;
+            return (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
+        }
+        function intToIp(intv) {
+            const a = (intv >>> 24) & 255, b = (intv >>> 16) & 255, c = (intv >>> 8) & 255, d = intv & 255;
+            return `${a}.${b}.${c}.${d}`;
+        }
+        function parseRtp(url) {
+            const u = (url || '').trim();
+            if (!u.startsWith('rtp://')) return null;
+            const hostPort = u.replace('rtp://', '');
+            const [host, portStr] = hostPort.split(':');
+            const port = Number(portStr);
+            const ipInt = ipToInt(host);
+            if (!ipInt || !port) return null;
+            return { ipInt, port, host };
+        }
+        async function rangeCheckStreams(udpxyUrl, startUrl, endUrl) {
+            if (!udpxyUrl) { showCenterConfirm('请先选择UDPXY服务器', null, true); return; }
+            const s = parseRtp(startUrl);
+            const e = parseRtp(endUrl);
+            if (!s || !e) { showCenterConfirm('请输入正确的范围（rtp://ip:port）', null, true); return; }
+            if (s.port !== e.port) { showCenterConfirm('起止端口需一致', null, true); return; }
+            let a = s.ipInt, b = e.ipInt;
+            if (a > b) [a, b] = [b, a];
+            const total = (b - a + 1);
+            let count = total;
+            showProgress(0, count, `正在范围检测，共${count}条`);
+            const multicastList = [];
+            for (let i = 0; i < count; i++) {
+                const ip = intToIp(a + i);
+                multicastList.push({ name: '', multicastUrl: `rtp://${ip}:${s.port}` });
+            }
+            try {
+                let lastSuccess = null;
+                let idx = 0;
+                let finished = 0;
+                const limit = parseInt((document.getElementById('concurrencySelect') && document.getElementById('concurrencySelect').value) || '5', 10);
+                async function detectOne(item) {
+                    if (detectCancel) return;
+                    const resp = await fetch('/api/check-stream', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ udpxyUrl, multicastUrl: item.multicastUrl, name: '' })
+                    });
+                    const data = await resp.json();
+                    finished++;
+                    showProgress(finished, multicastList.length, `检测: (${udpxyUrl}/rtp/${item.multicastUrl.replace('rtp://','')}) | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+                    if (data.success) lastSuccess = { ...data, name: '', multicastUrl: item.multicastUrl };
+                    if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
+                }
+                async function runNext() {
+                    if (detectCancel || idx >= multicastList.length) return;
+                    const item = multicastList[idx++];
+                    showProgress(finished, multicastList.length, `正在检测: (${udpxyUrl}/rtp/${item.multicastUrl.replace('rtp://','')})`);
+                    await detectOne(item);
+                    await runNext();
+                }
+                await Promise.all(Array(Math.min(limit, multicastList.length)).fill(0).map(() => runNext()));
+                const responseAll = await fetch('/api/streams');
+                const allData = await responseAll.json();
+                const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
+                const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
+                showProgress(multicastList.length, multicastList.length, detectCancel ? `检测停止 | 已完成: ${finished} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
+                getStreams();
+            } catch (err) {
+                showProgress(1, 1, '范围检测请求失败');
+                setTimeout(hideProgress, 1800);
+            }
         }
         // 进度条上方、下方、进度条本身样式统一美化
 function showStatusInfo(text) {
@@ -497,30 +1205,402 @@ function hideProgress() {
     let currentCheckInfo = document.getElementById('currentCheckInfo');
     if (currentCheckInfo) currentCheckInfo.style.display = 'none';
 }
-// 页面加载时设置UDPXY服务器地址默认值
-        window.addEventListener('DOMContentLoaded', function() {
-            let udpxyInput = document.getElementById('udpxyUrl');
-            if (!udpxyInput) {
-                // 若页面没有该输入框则动态插入
-                const form = document.getElementById('streamForm');
-                const udpxyDiv = document.createElement('div');
-                udpxyDiv.className = 'col-md-10';
-                udpxyDiv.innerHTML = '<label for="udpxyUrl" class="form-label">UDPXY服务器地址</label>' +
-                    '<input type="text" class="form-control" id="udpxyUrl" placeholder="http://ip:port" value="http://192.168.88.1:8333" required>';
-                form.insertBefore(udpxyDiv, form.firstChild);
+// UDPXY服务器管理：多服务器添加、删除与选择（localStorage 持久化）
+const UDPS_KEY = 'udpxyServers';
+const UDP_CURR_KEY = 'udpxyCurrentId';
+function getUdpxyServers() {
+    try {
+        const raw = localStorage.getItem(UDPS_KEY);
+        let list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        if (list.length === 0) {
+            list = [{ id: String(Date.now()), name: '默认服务器', url: 'http://192.168.88.1:8333' }];
+            localStorage.setItem(UDPS_KEY, JSON.stringify(list));
+            localStorage.setItem(UDP_CURR_KEY, list[0].id);
+        }
+        return list;
+    } catch (e) {
+        const list = [{ id: String(Date.now()), name: '默认服务器', url: 'http://192.168.88.1:8333' }];
+        localStorage.setItem(UDPS_KEY, JSON.stringify(list));
+        localStorage.setItem(UDP_CURR_KEY, list[0].id);
+        return list;
+    }
+}
+function saveUdpxyServers(list) {
+    localStorage.setItem(UDPS_KEY, JSON.stringify(list));
+}
+function getCurrentUdpxyId() {
+    return localStorage.getItem(UDP_CURR_KEY);
+}
+function setCurrentUdpxyId(id) {
+    localStorage.setItem(UDP_CURR_KEY, id);
+}
+function getCurrentUdpxyUrl() {
+    const list = getUdpxyServers();
+    const curr = getCurrentUdpxyId();
+    const found = list.find(s => s.id === curr) || list[0];
+    return found ? found.url : '';
+}
+function renderUdpxySelect() {
+    const select = document.getElementById('udpxySelect');
+    const input = document.getElementById('udpxyUrl');
+    const list = getUdpxyServers();
+    const curr = getCurrentUdpxyId() || (list[0] && list[0].id);
+    select.innerHTML = list.map(s => `<option value="${s.id}">${s.name} (${s.url})</option>`).join('');
+    if (curr) select.value = curr;
+    const url = getCurrentUdpxyUrl();
+    if (input) input.value = url || '';
+}
+async function syncUdpxyServersBackend() {
+    const list = getUdpxyServers();
+    const curr = getCurrentUdpxyId();
+    await fetch('/api/config/udpxy-servers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ servers: list, currentId: curr }) });
+}
+async function loadUdpxyServersBackend() {
+    try {
+        const r = await fetch('/api/config/udpxy-servers');
+        const j = await r.json();
+        if (j.success && Array.isArray(j.servers) && j.servers.length > 0) {
+            localStorage.setItem(UDPS_KEY, JSON.stringify(j.servers));
+            if (j.currentId) localStorage.setItem(UDP_CURR_KEY, j.currentId);
+        }
+    } catch(e) {}
+}
+function addUdpxy(name, url) {
+    name = (name || '').trim();
+    url = (url || '').trim();
+    if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
+        showCenterConfirm('请填写正确的服务器地址（http://或https://）', null, true);
+        return;
+    }
+    if (!name) name = '未命名服务器';
+    const list = getUdpxyServers();
+    const id = String(Date.now());
+    list.push({ id, name, url });
+    saveUdpxyServers(list);
+    setCurrentUdpxyId(id);
+    renderUdpxySelect();
+    syncUdpxyServersBackend();
+}
+function deleteCurrentUdpxy() {
+    const list = getUdpxyServers();
+    if (list.length <= 1) {
+        showCenterConfirm('至少保留一个服务器', null, true);
+        return;
+    }
+    const curr = getCurrentUdpxyId();
+    const idx = list.findIndex(s => s.id === curr);
+    if (idx >= 0) list.splice(idx, 1);
+    saveUdpxyServers(list);
+    setCurrentUdpxyId(list[0].id);
+    renderUdpxySelect();
+    syncUdpxyServersBackend();
+}
+// 页面加载时：初始化服务器选择与只读地址
+window.addEventListener('DOMContentLoaded', function() {
+    // 从后端恢复设置到本地缓存（分组、Logo模板、FCC服务器）
+    fetch('/api/settings').then(r => r.json()).then(j => {
+        if (j.success && j.settings) {
+            if (Array.isArray(j.settings.groupTitles)) localStorage.setItem('groupTitles', JSON.stringify(j.settings.groupTitles));
+            if (typeof j.settings.logoTemplate === 'string') localStorage.setItem('logoTemplate', j.settings.logoTemplate);
+            if (Array.isArray(j.settings.fccServers)) localStorage.setItem('fccServers', JSON.stringify(j.settings.fccServers));
+        }
+    }).catch(() => {});
+    fetch('/api/config/group-titles').then(r => r.json()).then(j => {
+        if (!j || !j.success) return;
+        const localListRaw = localStorage.getItem('groupTitles');
+        const localList = (() => { try { return JSON.parse(localListRaw || '[]'); } catch(e) { return []; } })();
+        const localObjs = Array.isArray(localList) ? localList.map(it => (typeof it === 'string') ? { name: it, color: '' } : it) : [];
+        let serverList = [];
+        if (Array.isArray(j.titlesObj) && j.titlesObj.length > 0) {
+            serverList = j.titlesObj.map(it => {
+                if (typeof it === 'string') return { name: it, color: '' , matchers: [] };
+                const name = it && it.name ? it.name : '';
+                const color = it && it.color ? it.color : '';
+                const matchers = Array.isArray(it && it.matchers) ? it.matchers : [];
+                return name ? { name, color, matchers } : null;
+            }).filter(x => x);
+        } else if (Array.isArray(j.titles) && j.titles.length > 0) {
+            serverList = j.titles.map(it => {
+                if (typeof it === 'string') {
+                    const prevObj = localObjs.find(x => x.name === it);
+                    const color = prevObj && prevObj.color ? prevObj.color : '';
+                    return { name: it, color, matchers: [] };
+                }
+                const name = it && it.name ? it.name : '';
+                const color = it && it.color ? it.color : '';
+                const matchers = Array.isArray(it && it.matchers) ? it.matchers : [];
+                return name ? { name, color, matchers } : null;
+            }).filter(x => x);
+        }
+        if (serverList.length > 0) {
+            // 合并保留本地未出现在服务端的项
+            localObjs.forEach(x => { if (!serverList.find(m => m.name === x.name)) serverList.push(x); });
+            localStorage.setItem('groupTitles', JSON.stringify(serverList));
+        }
+    }).catch(() => {});
+    // 版本列表初始化与事件
+    function getCurrentVersionFile() { try { return localStorage.getItem('currentVersionFile') || ''; } catch(e) { return ''; } }
+    function setCurrentVersionFile(f) { try { localStorage.setItem('currentVersionFile', f || ''); } catch(e) {} }
+    async function refreshVersionsIndex(selectedFile, quiet) {
+        try {
+            const r = await fetch('/api/persist/list');
+            const j = await r.json();
+            const sel = document.getElementById('versionsSelectIndex');
+            if (!sel) return;
+            sel.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.text = '请选择版本';
+            sel.appendChild(placeholder);
+            sel.value = '';
+            if (j.success && Array.isArray(j.versions) && j.versions.length > 0) {
+                j.versions.forEach(v => { const opt = document.createElement('option'); opt.value = v.file; opt.text = v.file; sel.appendChild(opt); });
+                if (selectedFile) {
+                    const has = j.versions.find(v => v.file === selectedFile);
+                    sel.value = has ? selectedFile : '';
+                }
+                if (!quiet) showCenterConfirm('刷新成功：共 ' + j.versions.length + ' 个版本', null, true);
             } else {
-                udpxyInput.value = 'http://192.168.88.1:8333';
+                if (!quiet) showCenterConfirm('刷新成功：暂无版本', null, true);
             }
+        } catch(e) {}
+    }
+    async function loadSelectedVersionIndex() {
+        const sel = document.getElementById('versionsSelectIndex');
+        if (!sel || !sel.value) { showCenterConfirm('请先选择要加载的版本', null, true); return; }
+        const filename = sel.value;
+        const r = await fetch('/api/persist/load-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
+        const j = await r.json();
+        if (j.success) {
+            setCurrentVersionFile(filename);
+            await refreshVersionsIndex(filename, true);
+            await getStreams();
+            if (Array.isArray(j.settings?.groupTitles)) localStorage.setItem('groupTitles', JSON.stringify(j.settings.groupTitles));
+            if (typeof j.settings?.logoTemplate === 'string') localStorage.setItem('logoTemplate', j.settings.logoTemplate);
+            if (Array.isArray(j.settings?.fccServers)) localStorage.setItem('fccServers', JSON.stringify(j.settings.fccServers));
+            try {
+                const total = Array.isArray(allStreams) ? allStreams.length : 0;
+                const online = Array.isArray(allStreams) ? allStreams.filter(s => s.isAvailable).length : 0;
+                const offline = total - online;
+                showCenterConfirm('已加载版本：' + filename + '（总 ' + total + '，在线 ' + online + '，离线 ' + offline + '）', null, true);
+            } catch(e) {}
+        }
+    }
+    async function deleteSelectedVersionIndex() {
+        const sel = document.getElementById('versionsSelectIndex');
+        const filename = sel && sel.value ? sel.value : '';
+        if (!filename) { showCenterConfirm('请先选择要删除的版本', null, true); return; }
+        const r = await fetch('/api/persist/delete-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
+        const j = await r.json();
+        if (j && j.success) {
+            if (getCurrentVersionFile() === filename) setCurrentVersionFile('');
+            await refreshVersionsIndex('', true);
+            showCenterConfirm('已删除版本：' + filename, null, true);
+        } else {
+            showCenterConfirm('删除失败：' + (j && j.message ? j.message : '未知错误'), null, true);
+        }
+    }
+    async function persistSaveIndex() {
+        const r = await fetch('/api/persist/save', { method: 'POST' });
+        const j = await r.json();
+        if (j.success) {
+            try {
+                const lr = await fetch('/api/persist/list');
+                const lj = await lr.json();
+                const latest = (lj.success && Array.isArray(lj.versions) && lj.versions[0]) ? lj.versions[0].file : '';
+                await refreshVersionsIndex(getCurrentVersionFile(), true);
+                showCenterConfirm(latest ? ('保存成功：streams.json 与 ' + latest) : '保存成功：streams.json', null, true);
+            } catch(e) { showCenterConfirm('保存成功：streams.json', null, true); }
+        }
+    }
+    async function doPageRefreshIndex() {
+        const curr = getCurrentVersionFile();
+        let verCount = 0;
+        try {
+            const r = await fetch('/api/persist/list');
+            const j = await r.json();
+            if (j.success && Array.isArray(j.versions)) verCount = j.versions.length;
+        } catch(e) {}
+        await refreshVersionsIndex(curr, true);
+        await getStreams();
+        const total = Array.isArray(allStreams) ? allStreams.length : 0;
+        const online = Array.isArray(allStreams) ? allStreams.filter(s => s.isAvailable).length : 0;
+        const offline = total - online;
+        const currLabel = curr && curr.length ? curr : 'streams.json';
+        showCenterConfirm('刷新成功：当前版本 ' + currLabel + '，版本 ' + verCount + ' 个，当前数据条数 ' + total + '（在线 ' + online + '，离线 ' + offline + '）', null, true);
+    }
+    const btnRefresh = document.getElementById('refreshVersionsBtnIndex');
+    const btnLoad = document.getElementById('loadBtnIndex');
+    const btnDelete = document.getElementById('deletePersistBtnIndex');
+    const btnSave = document.getElementById('saveBtnIndex');
+    if (btnRefresh) btnRefresh.onclick = doPageRefreshIndex;
+    if (btnLoad) btnLoad.onclick = loadSelectedVersionIndex;
+    if (btnDelete) btnDelete.onclick = deleteSelectedVersionIndex;
+    if (btnSave) btnSave.onclick = persistSaveIndex;
+    refreshVersionsIndex(getCurrentVersionFile(), true);
+    loadUdpxyServersBackend().then(() => { renderUdpxySelect(); });
+    const select = document.getElementById('udpxySelect');
+    const nameInput = document.getElementById('udpxyNameInput');
+    const addInput = document.getElementById('udpxyAddInput');
+    const addBtn = document.getElementById('addUdpxyBtn');
+    const delBtn = document.getElementById('delUdpxyBtn');
+    const urlInput = document.getElementById('udpxyUrl');
+    if (select) {
+        select.onchange = function() {
+            setCurrentUdpxyId(this.value);
+            if (urlInput) urlInput.value = getCurrentUdpxyUrl();
+        };
+    }
+    if (addBtn) addBtn.onclick = function() {
+        addUdpxy(nameInput ? nameInput.value : '', addInput ? addInput.value : '');
+        if (nameInput) nameInput.value = '';
+        if (addInput) addInput.value = '';
+    };
+    if (delBtn) delBtn.onclick = function() {
+        showCenterConfirm('确定删除当前选中服务器？', function(ok) {
+            if (ok) deleteCurrentUdpxy();
         });
+    };
+    // 台标模板在检测页不再提供UI，仍保留localStorage中的logoTemplate用于自动匹配
+});
         // 页面加载时获取流列表
         getStreams();
         // 页面加载时初始化统计
         updateInputCount();
         function openPotPlayer(url) {
-    window.location.href = 'potplayer://' + url;
+    const schemes = [
+        'potplayer://' + url,
+        'potplayer://play?url=' + encodeURIComponent(url)
+    ];
+    let opened = false;
+    try {
+        window.location.href = schemes[0];
+        opened = true;
+    } catch(e) {}
+    setTimeout(() => {
+        if (!opened) {
+            try {
+                window.location.href = schemes[1];
+            } catch(e) {}
+        }
+    }, 200);
 }
-function openVLC(url) {
-    window.location.href = 'vlc://' + url;
+function openEditModal(index) {
+    const s = allStreams[index];
+    let modal = document.getElementById('editModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'editModal';
+        modal.innerHTML = `
+        <div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.25);z-index:9999;">
+          <div class="modal-dialog">
+            <div class="modal-content" style="border-radius:12px;">
+              <div class="modal-header">
+                <h5 class="modal-title">编辑频道信息</h5>
+                <button type="button" class="btn-close" id="editClose"></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-2"><label class="form-label">频道名称</label><input class="form-control" id="editName"></div>
+                <div class="mb-2"><label class="form-label">tvg-id</label><input class="form-control" id="editTvgId"></div>
+                <div class="mb-2"><label class="form-label">tvg-name</label><input class="form-control" id="editTvgName"></div>
+                <div class="mb-2"><label class="form-label">频道台标 URL</label><input class="form-control" id="editLogo"></div>
+                <div class="mb-2"><label class="form-label">频道分组（group-title）</label><div class="d-flex" style="gap:8px;"><select class="form-select" id="editGroupSelect"></select><input class="form-control" id="newGroupInput" placeholder="新分组"><button class="btn btn-outline-secondary" id="addGroupBtn">添加</button></div></div>
+                <div class="mb-2"><label class="form-label">台标模板</label><div class="d-flex" style="gap:8px;"><input class="form-control" id="editLogoTemplate" placeholder="http://host/LOGO/{name}.png"><button class="btn btn-outline-secondary" id="autoLogoBtn">自动匹配</button></div></div>
+                <div class="mb-2">
+                  <label class="form-label">回放格式</label>
+                  <select class="form-select" id="editCatchupFmt">
+                    <option value="ku9">ku9</option>
+                    <option value="mytv">mytv</option>
+                  </select>
+                </div>
+                <div class="mb-2"><label class="form-label">回放源基础URL</label><input class="form-control" id="editCatchupBase" placeholder="http://host/path"></div>
+                <div class="mb-2"><label class="form-label">HTTP参数（示例：fcc=1.2.3.4:15970）</label><input class="form-control" id="editHttpParam" placeholder="fcc=ip:port"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="editSave">保存</button>
+                <button type="button" class="btn btn-secondary" id="editCancel">取消</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('editName').value = s.name || '';
+    document.getElementById('editTvgId').value = s.tvgId || '';
+    document.getElementById('editTvgName').value = s.tvgName || '';
+    document.getElementById('editLogo').value = s.logo || '';
+    ensureDefaultGroups();
+    const groupSel = document.getElementById('editGroupSelect');
+    groupSel.innerHTML = '';
+    getGroupTitles().forEach(g => { const opt = document.createElement('option'); opt.value = g; opt.text = g; groupSel.appendChild(opt); });
+    groupSel.value = s.groupTitle || (groupSel.options[0] ? groupSel.options[0].value : '');
+    document.getElementById('editLogoTemplate').value = getLogoTemplate();
+    document.getElementById('editCatchupFmt').value = s.catchupFormat || 'ku9';
+    document.getElementById('editCatchupBase').value = s.catchupBase || '';
+    document.getElementById('editHttpParam').value = s.httpParam || '';
+    modal.style.display = 'block';
+    modal.querySelector('.modal').classList.add('show');
+    function close() {
+        modal.style.display = 'none';
+        modal.querySelector('.modal').classList.remove('show');
+    }
+    document.getElementById('editClose').onclick = close;
+    document.getElementById('editCancel').onclick = close;
+    document.getElementById('addGroupBtn').onclick = function() {
+        const v = (document.getElementById('newGroupInput').value || '').trim();
+        if (!v) return;
+        const list = getGroupTitles();
+        if (!list.includes(v)) {
+            list.push(v);
+            saveGroupTitles(list);
+        }
+        groupSel.innerHTML = '';
+        getGroupTitles().forEach(g => { const opt = document.createElement('option'); opt.value = g; opt.text = g; groupSel.appendChild(opt); });
+        groupSel.value = v;
+        document.getElementById('newGroupInput').value = '';
+    };
+    document.getElementById('editLogoTemplate').addEventListener('change', function() {
+        const tpl = this.value || '';
+        if (tpl) saveLogoTemplate(tpl);
+    });
+    document.getElementById('autoLogoBtn').onclick = function() {
+        const name = document.getElementById('editName').value || s.name || '';
+        const cand = chooseLogoCandidate(name, s.resolution || '');
+        if (cand) document.getElementById('editLogo').value = cand;
+    };
+    document.getElementById('editSave').onclick = async function() {
+        const payload = {
+            udpxyUrl: s.udpxyUrl,
+            multicastUrl: s.multicastUrl,
+            update: {
+                name: document.getElementById('editName').value || '',
+                tvgId: document.getElementById('editTvgId').value || '',
+                tvgName: document.getElementById('editTvgName').value || '',
+                logo: document.getElementById('editLogo').value || '',
+                groupTitle: document.getElementById('editGroupSelect').value || '',
+                catchupFormat: document.getElementById('editCatchupFmt').value || 'ku9',
+                catchupBase: document.getElementById('editCatchupBase').value || '',
+                httpParam: document.getElementById('editHttpParam').value || ''
+            }
+        };
+        try {
+            const resp = await fetch('/api/stream/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                close();
+                getStreams();
+            } else {
+                showCenterConfirm('保存失败', null, true);
+            }
+        } catch (e) {
+            showCenterConfirm('请求失败', null, true);
+        }
+    };
 }
 // 居中弹窗函数（美化为与删除弹窗一致的样式）
 function showCenterConfirm(msg, callback, onlyOk = false) {
@@ -564,33 +1644,353 @@ function showCenterConfirm(msg, callback, onlyOk = false) {
 }
 // 统计输入框数据总数并显示到顶部统计卡片
 function updateInputCount() {
-    let singleInput = document.getElementById('singleInput').value.trim();
-    let batchInput = document.getElementById('batchInput').value.trim();
+    let rangeStart = (document.getElementById('rangeStart').value || '').trim();
+    let rangeEnd = (document.getElementById('rangeEnd').value || '').trim();
+    let batchInput = (document.getElementById('batchInput').value || '').trim();
     let count = 0;
-    if (batchInput) {
+    if (rangeStart && rangeEnd) {
+        const s = parseRtp(rangeStart);
+        const e = parseRtp(rangeEnd);
+        if (s && e) {
+            let a = s.ipInt, b = e.ipInt;
+            if (a > b) [a, b] = [b, a];
+            count = Math.min(b - a + 1, 1000);
+        }
+    } else if (batchInput) {
         count = batchInput.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#')).length;
-    } else if (singleInput) {
-        count = 1;
     }
     document.getElementById('stat-total').innerText = count;
     document.getElementById('stat-online').innerText = 0;
     document.getElementById('stat-offline').innerText = 0;
 }
 // 绑定输入事件
-const singleInputEl = document.getElementById('singleInput');
 const batchInputEl = document.getElementById('batchInput');
-singleInputEl.addEventListener('input', function() {
-    if (!batchInputEl.value.trim()) updateInputCount();
-});
+const rangeStartEl = document.getElementById('rangeStart');
+const rangeEndEl = document.getElementById('rangeEnd');
+rangeStartEl.addEventListener('input', function() { if (!batchInputEl.value.trim()) updateInputCount(); });
+rangeEndEl.addEventListener('input', function() { if (!batchInputEl.value.trim()) updateInputCount(); });
 batchInputEl.addEventListener('input', updateInputCount);
-        // 移除input和textarea的required属性，完全用自定义弹窗校验
-const singleInput = document.getElementById('singleInput');
-if (singleInput) singleInput.removeAttribute('required');
 const batchInput = document.getElementById('batchInput');
 if (batchInput) batchInput.removeAttribute('required');
-document.getElementById('filterAll').onclick = function() { filterStatus = 'all'; updateStatsAndDisplay(); };
-document.getElementById('filterOnline').onclick = function() { filterStatus = 'online'; updateStatsAndDisplay(); };
-document.getElementById('filterOffline').onclick = function() { filterStatus = 'offline'; updateStatsAndDisplay(); };
+const filterBtns = {
+    all: document.getElementById('filterAll'),
+    online: document.getElementById('filterOnline'),
+    offline: document.getElementById('filterOffline')
+};
+function updateFilterActive(status) {
+    if (filterBtns.all) filterBtns.all.classList.remove('active');
+    if (filterBtns.online) filterBtns.online.classList.remove('active');
+    if (filterBtns.offline) filterBtns.offline.classList.remove('active');
+    if (status === 'all' && filterBtns.all) filterBtns.all.classList.add('active');
+    if (status === 'online' && filterBtns.online) filterBtns.online.classList.add('active');
+    if (status === 'offline' && filterBtns.offline) filterBtns.offline.classList.add('active');
+}
+if (filterBtns.all) filterBtns.all.onclick = function() { filterStatus = 'all'; updateFilterActive('all'); updateStatsAndDisplay(); };
+if (filterBtns.online) filterBtns.online.onclick = function() { filterStatus = 'online'; updateFilterActive('online'); updateStatsAndDisplay(); };
+if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus = 'offline'; updateFilterActive('offline'); updateStatsAndDisplay(); };
+        const loadBtn = document.getElementById('loadFileBtn');
+        async function loadFromNetwork() {
+            const ta = document.getElementById('batchInput');
+            const raw = (ta.value || '').trim();
+            const urls = raw.split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#') && (s.startsWith('http://') || s.startsWith('https://')));
+            if (urls.length === 0) {
+                showCenterConfirm('请在输入框中填入m3u或txt的网络地址（http/https）后再点击“加载”', null, true);
+                return;
+            }
+            try {
+                const resp = await fetch('/api/fetch-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+                const data = await resp.json();
+                const texts = (data.results || []).filter(r => r.ok).map(r => r.text);
+                let items = [];
+                for (const t of texts) {
+                    const parsed = parsePlaylistText(t);
+                    if (parsed && parsed.length) items = items.concat(parsed);
+                }
+                if (items.length) items = unifyChannelNames(items);
+                if (items.length === 0) {
+                    showCenterConfirm('未解析到有效地址', null, true);
+                    return;
+                }
+                const lines = items.map(it => `${it.name || ''},${it.url}`);
+                ta.value = lines.join('\n');
+                updateInputCount();
+                const okCount = texts.length;
+                const failCount = urls.length - okCount;
+                showCenterConfirm(`网络源：成功${okCount} 失败${failCount}；解析到地址：${items.length} 条`, null, true);
+            } catch (e) {
+                showCenterConfirm('加载网络文件失败（代理错误或网络问题）', null, true);
+            }
+        }
+        if (loadBtn) loadBtn.onclick = loadFromNetwork;
+        const uploadBtn = document.getElementById('uploadFileBtn');
+        const uploadInput = document.getElementById('uploadFileInput');
+        if (uploadBtn && uploadInput) {
+            uploadBtn.onclick = function() { uploadInput.click(); };
+            uploadInput.onchange = async function(e) {
+                const f = e.target.files && e.target.files[0];
+                if (!f) return;
+                const txt = await f.text();
+                const items = parsePlaylistText(txt);
+                const itemsFixed = items && items.length ? unifyChannelNames(items) : [];
+                if (!itemsFixed || itemsFixed.length === 0) {
+                    showCenterConfirm('未解析到有效地址', null, true);
+                    return;
+                }
+                const lines = itemsFixed.map(it => `${it.name || ''},${it.url}`);
+                const ta = document.getElementById('batchInput');
+                ta.value = lines.join('\n');
+                updateInputCount();
+                showCenterConfirm(`已上传并解析：${itemsFixed.length} 条地址`, null, true);
+            };
+        }
+        document.getElementById('batchDeleteBtn').onclick = async function() {
+            const arr = Array.from(selectedSet);
+            if (arr.length === 0) return;
+            for (const i of arr) {
+                try { await fetch(`/api/stream/${i}`, { method: 'DELETE' }); } catch(e) {}
+            }
+            selectedSet = new Set();
+            getStreams();
+        };
     </script>
+    <!-- 修改密码弹窗 -->
+    <div class="modal fade" id="changePwdModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改密码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePwdForm">
+                        <div class="mb-3">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="newUsername" placeholder="留空则不修改">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">旧密码</label>
+                            <input type="password" class="form-control" id="oldPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">新密码</label>
+                            <input type="password" class="form-control" id="newPassword" placeholder="留空则不修改">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="doChangePwd()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isDockerEnv = false;
+        
+        // 加载版本信息
+        async function loadSystemInfo() {
+            try {
+                const r = await fetch('/api/system/info');
+                const j = await r.json();
+                if (j.success) {
+                    document.getElementById('footerVersion').textContent = 'v' + j.version;
+                    document.getElementById('modalCurrentVersion').textContent = 'v' + j.version;
+                    if (j.isDocker) {
+                        isDockerEnv = true;
+                        document.getElementById('dockerBadge').style.display = 'inline-block';
+                    }
+                }
+            } catch(e) {}
+        }
+        
+        // 显示弹窗并检查更新
+        async function showVersionModal() {
+            const modal = new bootstrap.Modal(document.getElementById('versionModal'));
+            modal.show();
+            await checkGithubUpdate();
+        }
+        
+        async function checkGithubUpdate() {
+            const notesDiv = document.getElementById('releaseNotes');
+            const latestSpan = document.getElementById('modalLatestVersion');
+            const btnUpdate = document.getElementById('btnUpdate');
+            
+            try {
+                const r = await fetch('https://api.github.com/repos/cgg888/iptv-checker/releases/latest');
+                if (r.status === 200) {
+                    const data = await r.json();
+                    latestSpan.textContent = data.tag_name;
+                    // 简单的 Markdown 转 HTML
+                    notesDiv.innerHTML = data.body.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+                    
+                    const currentVer = document.getElementById('modalCurrentVersion').textContent.replace('v', '').trim();
+                    const remoteVer = data.tag_name.replace('v', '').trim();
+                    
+                    if (remoteVer !== currentVer) {
+                        btnUpdate.textContent = isDockerEnv ? 'Docker 更新指引' : '立即更新';
+                        btnUpdate.disabled = false;
+                        btnUpdate.classList.remove('btn-secondary');
+                        btnUpdate.classList.add('btn-success');
+                    } else {
+                        btnUpdate.textContent = '已是最新版本';
+                        btnUpdate.disabled = true;
+                        btnUpdate.classList.remove('btn-success');
+                        btnUpdate.classList.add('btn-secondary');
+                    }
+                } else {
+                    latestSpan.textContent = '获取失败';
+                    notesDiv.textContent = '无法连接到 GitHub API';
+                }
+            } catch(e) {
+                latestSpan.textContent = '网络错误';
+                notesDiv.textContent = '检查更新失败';
+            }
+        }
+        
+        async function doUpdate() {
+            if (isDockerEnv) {
+                alert('Docker 环境无法直接通过网页更新。\n\n请在服务器执行以下命令更新：\ndocker-compose pull && docker-compose up -d');
+                return;
+            }
+            
+            if (!confirm('确定要尝试自动更新吗？\n请确保已保存数据。')) return;
+            
+            const btn = document.getElementById('btnUpdate');
+            btn.disabled = true;
+            btn.textContent = '更新中...';
+            
+            try {
+                const r = await fetch('/api/system/update', { method: 'POST' });
+                const j = await r.json();
+                alert(j.message);
+                if (j.success) {
+                    location.reload();
+                }
+            } catch(e) {
+                alert('请求失败');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '立即更新';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadSystemInfo);
+
+        async function doLogout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login.html';
+        }
+        async function doChangePwd() {
+            const username = document.getElementById('newUsername').value;
+            const oldPassword = document.getElementById('oldPassword').value;
+            const password = document.getElementById('newPassword').value;
+            if (!oldPassword) {
+                alert('请输入旧密码');
+                return;
+            }
+            try {
+                const r = await fetch('/api/auth/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, oldPassword, password })
+                });
+                const j = await r.json();
+                if (j.success) {
+                    alert('修改成功');
+                    const modalEl = document.getElementById('changePwdModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+                    document.getElementById('changePwdForm').reset();
+                    if (j.username) document.getElementById('userDisplay').textContent = j.username;
+                } else {
+                    alert(j.message || '修改失败');
+                }
+            } catch(e) {
+                alert('网络错误');
+            }
+        }
+    </script>
+    
+    <!-- 底部版本信息 -->
+    <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
+        <div class="container text-center">
+            <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.0.0</span>
+            </span>
+        </div>
+    </footer>
+
+    <!-- 版本信息弹窗 -->
+    <div class="modal fade" id="versionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+                <!-- 头部背景图或渐变 -->
+                <div class="modal-header border-0 pb-0 pt-4 px-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center">
+                        <span class="bg-white p-2 rounded-circle shadow-sm me-2 d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                        </span>
+                        关于 IPTV Checker
+                    </h5>
+                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body p-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <!-- 项目简介卡片 -->
+                    <div class="bg-white p-3 rounded-3 shadow-sm mb-3">
+                        <p class="text-secondary small mb-0" style="line-height: 1.6;">
+                            一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能。
+                        </p>
+                    </div>
+
+                    <!-- 版本对比区域 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="bg-white p-3 rounded-3 shadow-sm h-100 text-center position-relative overflow-hidden">
+                                <div class="text-uppercase text-muted fw-bold" style="font-size:0.7rem; letter-spacing:1px;">当前版本</div>
+                                <div class="mt-1 fw-bolder text-dark fs-4" id="modalCurrentVersion" style="font-family: 'Segoe UI', Roboto, sans-serif;">-</div>
+                                <span id="dockerBadge" class="position-absolute top-0 end-0 badge bg-danger m-2 rounded-pill shadow-sm" style="display:none; font-size:0.6em; transform:scale(0.9);">Docker</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-white p-3 rounded-3 shadow-sm h-100 text-center border border-primary border-opacity-10" style="background-color: #f8fbff !important;">
+                                <div class="text-uppercase text-primary fw-bold opacity-75" style="font-size:0.7rem; letter-spacing:1px;">最新版本</div>
+                                <div class="mt-1 fw-bolder text-primary fs-4" id="modalLatestVersion" style="font-family: 'Segoe UI', Roboto, sans-serif;">...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 更新日志区域 -->
+                    <div class="bg-white rounded-3 shadow-sm overflow-hidden">
+                        <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                            <strong class="small text-muted"><i class="bi bi-journal-text me-1"></i>更新日志</strong>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill" style="font-weight:normal; font-size:0.7em;">Release Notes</span>
+                        </div>
+                        <div id="releaseNotes" class="p-3" style="max-height: 180px; overflow-y: auto; font-size: 0.85rem; color: #495057; line-height: 1.6; font-family: Consolas, Monaco, 'Courier New', monospace;">
+                            <div class="text-center text-muted py-3">
+                                <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+                                <div>正在获取更新信息...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div class="modal-footer border-0 p-3 bg-white justify-content-center">
+                    <a href="https://github.com/cgg888/iptv-checker" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
+                        <i class="bi bi-github me-1"></i> GitHub
+                    </a>
+                    <button type="button" class="btn btn-primary shadow-sm rounded-pill px-4 ms-2 fw-medium hover-shadow transition-all" id="btnUpdate" onclick="doUpdate()">
+                        <i class="bi bi-arrow-repeat me-1"></i> 检查更新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

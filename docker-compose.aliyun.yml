@@ -1,6 +1,6 @@
 services:
   iptv-checker:
-    image: registry.cn-hongkong.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+    image: registry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
     container_name: iptv-checker
     ports:
       - "3000:3000"
@@ -9,7 +9,10 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       - ./data:/app/data
-      - ./logs:/app/logs
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./package.json:/app/package.json
+      - ./.git:/app/.git
     restart: unless-stopped
     networks:
       - iptv-network

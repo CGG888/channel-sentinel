@@ -3,11 +3,15 @@ FROM node:18-alpine AS builder
 
 WORKDIR /build
 
-# 只复制 package 文件
+# 设置环境变量
+ENV NODE_ENV=production
+
+# 复制 package 文件
 COPY package*.json ./
 
 # 安装生产环境依赖
-RUN npm install --omit=dev --no-optional
+# 使用 npm ci 确保依赖版本一致性，速度更快
+RUN npm ci --omit=dev --no-optional || npm install --omit=dev --no-optional
 
 # 复制源代码
 COPY . .
@@ -15,8 +19,9 @@ COPY . .
 # 最终阶段
 FROM node:18-alpine
 
-# 安装 ffmpeg，使用 --no-cache 避免保存 apk 缓存
-RUN apk add --no-cache ffmpeg
+# 安装 ffmpeg, tini 和 git (用于在线更新)
+# --no-cache 避免缓存占用空间
+RUN apk add --no-cache ffmpeg tini git
 
 # 创建 app 用户，避免使用 root 运行应用
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
@@ -29,8 +34,8 @@ COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/src ./src
 COPY --from=builder /build/public ./public
 
-# 设置应用目录的所有权
-RUN chown -R appuser:appgroup /app
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data && chown -R appuser:appgroup /app
 
 # 切换到非 root 用户
 USER appuser
@@ -40,6 +45,9 @@ EXPOSE 3000
 
 # 设置环境变量
 ENV NODE_ENV=production
+
+# 使用 tini 作为入口点，处理信号转发（如 Ctrl+C）
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # 启动应用
 CMD ["npm", "start"]

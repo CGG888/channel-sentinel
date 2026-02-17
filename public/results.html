@@ -1,0 +1,2712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTV Checker - 检测结果</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27><rect width=%2716%27 height=%2716%27 rx=%273%27 fill=%27%236f42c1%27/></svg>">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+<link href="css/custom.css" rel="stylesheet">
+<style>
+/* Page specific styles */
+.col-select { width: 50px; text-align: center; }
+.col-status { width: 80px; text-align: center; }
+.col-type { width: 80px; text-align: center; }
+.col-name { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.col-resolution { width: 100px; text-align: center; }
+.col-fps { width: 80px; text-align: center; }
+.col-codec { width: 100px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-group { width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-logo { width: 60px; text-align: center; }
+.col-addr { max-width: 150px; font-family: monospace; font-size: 0.85rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-http { max-width: 120px; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-ops { width: 160px; text-align: right; }
+
+.logo-img { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; border: 1px solid #dee2e6; background: #f8f9fa; }
+
+/* Table hover effect */
+.table-hover tbody tr:hover { background-color: rgba(111, 66, 193, 0.03); }
+
+/* Sticky header */
+.table-responsive { max-height: calc(100vh - 350px); overflow-y: auto; }
+thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+/* API Links Modal */
+.api-link-item { border:1px solid #e9ecef; border-radius:10px; padding:16px; background:#fff; transition: all 0.2s; display: flex; flex-direction: column; height: 100%; }
+.api-link-item:hover { border-color: #6f42c1; box-shadow: 0 6px 16px rgba(111, 66, 193, 0.1); transform: translateY(-2px); }
+.api-links-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:16px; }
+
+.api-link-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+.api-link-label { font-weight:600; color:#333; font-size: 1rem; }
+.api-link-badge { font-size:0.75rem; padding:4px 10px; border-radius:999px; background:#f8f9fa; color:#6f42c1; font-weight: 600; border: 1px solid #e9ecef; }
+
+.api-link-url {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85rem;
+    color: #555;
+    word-break: break-all;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    margin-bottom: 16px;
+    flex-grow: 1; /* Push actions to bottom */
+    min-height: 80px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.api-link-actions { display:flex; gap:8px; margin-top: auto; }
+.api-link-actions .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 登录检查
+        (async function() {
+            try {
+                const r = await fetch('/api/auth/check');
+                const j = await r.json();
+                if (!j.success) {
+                    window.location.href = '/login.html';
+                } else {
+                    window.currentUser = j.username;
+                    // 等待DOM加载后更新
+                    function updateDisplay() {
+                         const userDisplay = document.getElementById('userDisplay');
+                         if (userDisplay) userDisplay.textContent = j.username;
+                    }
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', updateDisplay);
+                    } else {
+                        updateDisplay();
+                    }
+                }
+            } catch(e) {
+                window.location.href = '/login.html';
+            }
+        })();
+    </script>
+</head>
+<body>
+<div class="container-fluid px-4 py-4" style="max-width: 1400px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 fw-bold text-dark mb-0"><i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>IPTV Checker-组播单播检测结果</h1>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
+                    <i class="bi bi-person-circle"></i> <span id="userDisplay">Admin</span>
+                </button>
+                <ul class="dropdown-menu" style="width: 100%; min-width: 100%;">
+                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePwdModal">修改密码</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()">退出登录</a></li>
+                </ul>
+            </div>
+            <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i>返回主页</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card stat-total">
+                <div class="stat-title">总数</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-online">
+                <div class="stat-title">在线</div>
+                <div class="stat-value" id="stat-online">0</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-offline">
+                <div class="stat-title">离线</div>
+                <div class="stat-value" id="stat-offline">0</div>
+            </div>
+        </div>
+    </div>
+  
+  
+  
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                 <h5 class="mb-0 fw-bold me-3 text-secondary"><i class="bi bi-hdd me-2"></i>数据管理</h5>
+                 <div class="input-group input-group-sm shadow-sm">
+                     <button class="btn btn-outline-success btn-icon" id="saveBtn" title="保存"><i class="bi bi-hdd-fill"></i></button>
+                     <button class="btn btn-outline-primary btn-icon" id="loadBtn" title="加载"><i class="bi bi-folder2-open"></i></button>
+                     <button class="btn btn-outline-danger btn-icon" id="deletePersistBtn" title="删除"><i class="bi bi-trash-fill"></i></button>
+                     <button class="btn btn-outline-secondary btn-icon" id="refreshVersionsBtn" title="刷新"><i class="bi bi-arrow-repeat"></i></button>
+                 </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="netScopeSwitchR">
+                    <label class="form-check-label" for="netScopeSwitchR" id="netScopeLabelR">外网模式</label>
+                </div>
+                <select class="form-select form-select-sm" id="versionsSelect" style="max-width: 320px; min-width: 260px;"></select>
+            </div>
+        </div>
+    </div>
+  </div>
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <!-- Toolbar Header -->
+        <div class="p-3 border-bottom bg-light">
+             <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-3">
+                 <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary active" id="filterAll">全部</button>
+                    <button class="btn btn-outline-success" id="filterOnline">在线</button>
+                    <button class="btn btn-outline-danger" id="filterOffline">离线</button>
+                 </div>
+                 <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" id="filterMulticast">组播</button>
+                    <button class="btn btn-outline-primary" id="filterUnicast">单播</button>
+                 </div>
+                
+                 
+                 <div class="btn-group btn-group-sm ms-auto">
+                    <button class="btn btn-outline-secondary" id="appSettingsBtn"><i class="bi bi-gear me-1"></i>设置</button>
+                 </div>
+             </div>
+
+             <div class="d-flex flex-wrap gap-2 align-items-center">
+                 <button class="btn btn-sm btn-outline-dark" id="fccBtn">FCC</button>
+                 <button class="btn btn-sm btn-outline-dark" id="groupBtn">分组</button>
+                 <button class="btn btn-sm btn-outline-dark" id="logoBtn">台标</button>
+                 <button class="btn btn-sm btn-outline-dark" id="proxyBtn">代理</button>
+                 <button class="btn btn-sm btn-outline-dark" id="apiLinksBtn">接口</button>
+                 <button class="btn btn-sm btn-outline-dark" id="epgBtn">EPG</button>
+             </div>
+        </div>
+        
+        <!-- Search and Actions -->
+        <div class="p-3 d-flex flex-wrap gap-3 align-items-center justify-content-between border-bottom">
+             <div class="input-group" style="max-width: 400px;">
+                 <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                 <input class="form-control border-start-0 ps-0" id="searchInputResults" placeholder="搜索: 名称/分组/地址/tvg/FCC">
+             </div>
+
+             <div class="d-flex align-items-center gap-2">
+                  <select class="form-select form-select-sm" id="resPageSizeSelect" style="width: auto; min-width: 110px;">
+                    <option value="20" selected>20条/页</option>
+                    <option value="50">50条/页</option>
+                    <option value="100">100条/页</option>
+                    <option value="200">200条/页</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span id="resPageInfo" class="text-muted small mx-2"></span>
+                  <div class="btn-group btn-group-sm">
+                      <button class="btn btn-outline-secondary" id="resPrevPageBtn"><i class="bi bi-chevron-left"></i></button>
+                      <button class="btn btn-outline-secondary" id="resNextPageBtn"><i class="bi bi-chevron-right"></i></button>
+                  </div>
+                  <button class="btn btn-outline-danger btn-sm ms-2" id="batchDeleteBtnResults"><i class="bi bi-trash"></i>删除</button>
+             </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0" style="font-size: 0.9rem;">
+              <thead class="bg-light text-secondary">
+                <tr>
+                  <th class="col-select ps-3"><input class="form-check-input" type="checkbox" id="selectAllResPage"></th>
+                  <th class="col-status">状态</th>
+                  <th class="col-type">类型</th>
+                  <th class="col-name" id="thName" style="cursor:pointer;">名称 <i class="bi bi-arrow-down-up small text-muted"></i></th>
+                  <th class="col-resolution" id="thResolution" style="cursor:pointer;">分辨率</th>
+                  <th class="col-fps" id="thFrameRate" style="cursor:pointer;">帧率</th>
+                  <th class="col-codec" id="thCodec" style="cursor:pointer;">编码</th>
+                  <th class="col-group" id="thGroupTitle" style="cursor:pointer;">分组</th>
+                  <th class="col-logo">台标</th>
+                  <th class="col-addr" id="thAddr">地址</th>
+                  <th class="col-http">FCC服务器</th>
+                  <th class="col-ops pe-3">操作</th>
+                </tr>
+              </thead>
+              <tbody id="resultsTbody"></tbody>
+            </table>
+        </div>
+        
+        <!-- Bottom Pagination -->
+        <div class="p-3 border-top d-flex justify-content-between align-items-center bg-light">
+             <div class="d-flex align-items-center gap-2">
+                 <input class="form-check-input" type="checkbox" id="selectAllResPageBottom">
+                 <label class="form-check-label text-muted small" for="selectAllResPageBottom">全选</label>
+                 <button class="btn btn-outline-danger btn-sm ms-3" id="batchDeleteBtnResultsB"><i class="bi bi-trash me-1"></i>删除</button>
+             </div>
+             
+             <div class="d-flex align-items-center gap-2">
+                  <select class="form-select form-select-sm" id="resPageSizeSelectB" style="width: auto; min-width: 110px;">
+                    <option value="20" selected>20条/页</option>
+                    <option value="50">50条/页</option>
+                    <option value="100">100条/页</option>
+                    <option value="all">全部显示</option>
+                  </select>
+                  <span id="resPageInfoB" class="text-muted small mx-2"></span>
+                  <div class="btn-group btn-group-sm">
+                      <button class="btn btn-outline-secondary" id="resPrevPageBtnB"><i class="bi bi-chevron-left"></i></button>
+                      <button class="btn btn-outline-secondary" id="resNextPageBtnB"><i class="bi bi-chevron-right"></i></button>
+                  </div>
+             </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let streams = [];
+let filterStatus = 'all';
+let filterType = 'all';
+let searchQuery = '';
+let appSettings = { logoTemplate: 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png', groupTitles: ['默认'], fccServers: [], globalFcc: '' };
+let __debugVisible = false;
+const LOGO_TPLS_KEY = 'logoTemplates';
+const LOGO_CURR_KEY = 'logoTemplateCurrentId';
+let selectedRes = new Set();
+let resPageSize = 20;
+let resCurrentPage = 1;
+let groupRulesMap = {};
+function getGroupRulesFromLocal() {
+  const list = getGroupTitles();
+  const arr = Array.isArray(list) ? list : [];
+  return arr.map(x => ({ name: x && x.name ? x.name : '', matchers: Array.isArray(x && x.matchers) ? x.matchers : [] })).filter(x => x.name);
+}
+async function loadGroupRules() {
+  try {
+    const r = await fetch('/api/config/group-rules');
+    const j = await r.json();
+    const rules = Array.isArray(j.rules) ? j.rules : [];
+    const map = {};
+    rules.forEach(it => {
+      const n = it && it.name ? it.name : '';
+      if (!n) return;
+      map[n] = Array.isArray(it.matchers) ? it.matchers : [];
+    });
+    groupRulesMap = map;
+    const list = getGroupTitles();
+    const merged = (Array.isArray(list) ? list : []).map(g => {
+      const ms = Array.isArray(map[g && g.name]) ? map[g.name] : (Array.isArray(g && g.matchers) ? g.matchers : []);
+      return { name: g.name, color: g.color || '', matchers: ms };
+    });
+    localStorage.setItem('groupTitles', JSON.stringify(merged));
+    appSettings.groupTitles = merged;
+  } catch(e) {}
+}
+async function saveGroupRulesFromLocal() {
+  const rules = getGroupRulesFromLocal();
+  try { await fetch('/api/config/group-rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rules }) }); } catch(e) {}
+}
+function setDebugVisible(v) {
+  const w = document.getElementById('debugWrap');
+  if (w) w.style.display = v ? '' : 'none';
+  __debugVisible = v;
+}
+function dbg(msg, obj) {
+  try { console.log('[RESULTS]', msg, obj !== undefined ? obj : ''); } catch(e) {}
+  const pre = document.getElementById('debugPre');
+  const st = document.getElementById('debugStatus');
+  if (st) st.textContent = msg;
+  if (!pre) return;
+  const ts = new Date().toISOString().slice(11,19);
+  let line = `[${ts}] ${msg}`;
+  if (obj !== undefined) {
+    try { line += ' ' + JSON.stringify(obj); } catch(e) {}
+  }
+  pre.textContent += line + '\n';
+  pre.scrollTop = pre.scrollHeight;
+}
+function showCenterConfirm(msg, callback, isError) {
+  let modal = document.getElementById('centerConfirmModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'centerConfirmModal';
+    modal.innerHTML = `
+    <div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10002;">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:12px;">
+          <div class="modal-body text-center pt-4 pb-4">
+            <div class="mb-3">
+              <i class="bi bi-exclamation-circle text-warning display-4" id="centerConfirmIcon"></i>
+            </div>
+            <h5 class="fw-bold mb-3" id="centerConfirmText"></h5>
+            <div class="d-flex justify-content-center gap-2 mt-4" id="centerConfirmBtns">
+               <button class="btn btn-secondary btn-sm px-4" id="centerConfirmCancel">取消</button>
+               <button class="btn btn-primary btn-sm px-4" id="centerConfirmOk">确定</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  const icon = document.getElementById('centerConfirmIcon');
+  const txt = document.getElementById('centerConfirmText');
+  const btns = document.getElementById('centerConfirmBtns');
+  const btnOk = document.getElementById('centerConfirmOk');
+  const btnCancel = document.getElementById('centerConfirmCancel');
+  
+  if (isError) {
+    if (icon) icon.className = 'bi bi-x-circle text-danger display-4';
+  } else {
+    if (icon) icon.className = 'bi bi-exclamation-circle text-warning display-4';
+  }
+  
+  if (txt) txt.textContent = msg || '';
+  
+  if (typeof callback === 'function') {
+      if (btns) btns.style.display = 'flex';
+      if (btnCancel) btnCancel.style.display = 'block';
+      if (btnOk) {
+        btnOk.textContent = '确定';
+        btnOk.onclick = function() {
+            modal.style.display = 'none';
+            modal.querySelector('.modal').classList.remove('show');
+            callback(true);
+        };
+      }
+      if (btnCancel) {
+        btnCancel.onclick = function() {
+            modal.style.display = 'none';
+            modal.querySelector('.modal').classList.remove('show');
+            callback(false);
+        };
+      }
+  } else {
+      // Info mode (no cancel)
+      if (btns) btns.style.display = 'flex';
+      if (btnCancel) btnCancel.style.display = 'none';
+      if (btnOk) {
+        btnOk.textContent = '关闭';
+        btnOk.onclick = function() {
+            modal.style.display = 'none';
+            modal.querySelector('.modal').classList.remove('show');
+        };
+      }
+  }
+  
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+}
+function showCenterLinks(title, links) {
+  let modal = document.getElementById('centerModalLinksR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'centerModalLinksR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark" id="centerModalLinksTitleR"></h5><button type="button" class="btn-close" id="centerModalLinksCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>生成播放器直连的接口链接，选择下拉后可复制或打开链接。</span></div><div class="d-flex flex-wrap align-items-center gap-3"><div class="d-flex align-items-center"><label for="centerLinksStatusSelect" class="text-muted small me-2 fw-bold">状态:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksStatusSelect" style="min-width:140px;"><option value="all">全部频道</option><option value="online" selected>在线频道</option><option value="offline">离线频道</option></select></div><div class="d-flex align-items-center"><label for="centerLinksScopeSelect" class="text-muted small me-2 fw-bold">范围:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksScopeSelect" style="min-width:120px;"><option value="internal" selected>内网</option><option value="external">外网</option></select></div><div class="d-flex align-items-center gap-2"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="centerLinksTokenSwitch"><label class="form-check-label small text-muted fw-bold" for="centerLinksTokenSwitch">Token验证</label></div><div class="input-group input-group-sm shadow-sm" style="width:auto;"><input type="text" class="form-control border-0" id="centerLinksToken" placeholder="安全令牌" style="max-width: 120px;" title="仅外网链接生效"><button class="btn btn-outline-secondary bg-white" type="button" id="centerLinksTokenRand" title="生成随机Token"><i class="bi bi-shuffle"></i></button></div></div></div></div><div id="centerModalLinksBodyR" class="api-links-grid"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+    document.getElementById('centerModalLinksCloseR').onclick = function(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); };
+  }
+  var titleEl = document.getElementById('centerModalLinksTitleR');
+  var bodyEl = document.getElementById('centerModalLinksBodyR');
+  var statusSel = document.getElementById('centerLinksStatusSelect');
+  var scopeSel = document.getElementById('centerLinksScopeSelect');
+  var tokenInput = document.getElementById('centerLinksToken');
+  var tokenSwitch = document.getElementById('centerLinksTokenSwitch');
+  var tokenRand = document.getElementById('centerLinksTokenRand');
+  
+  if (titleEl) titleEl.textContent = title || 'API接口';
+  
+  // Load token settings
+  if (tokenInput && tokenSwitch) {
+      tokenInput.value = appSettings ? (appSettings.securityToken || '') : '';
+      tokenSwitch.checked = appSettings ? !!appSettings.enableToken : false;
+      
+      const saveSettings = function() {
+          if (appSettings) {
+              appSettings.securityToken = tokenInput.value.trim();
+              appSettings.enableToken = tokenSwitch.checked;
+              fetch('/api/config/app-settings', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(appSettings)
+              }).catch(()=>{});
+          }
+          renderLinks(statusSel ? (statusSel.value || 'online') : 'online');
+      };
+
+      tokenInput.onchange = saveSettings;
+      tokenSwitch.onchange = saveSettings;
+      
+      if (tokenRand) {
+          tokenRand.onclick = function() {
+              const rand = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+              tokenInput.value = rand;
+              saveSettings();
+          };
+      }
+  }
+
+  function buildLinks(status, scope) {
+    return [
+      { label: 'M3U（无回看参数）', href: '/api/export/m3u?status='+status+'&fmt=default&scope='+scope },
+      { label: 'M3U（酷9回看参数）', href: '/api/export/m3u?status='+status+'&fmt=ku9&scope='+scope },
+      { label: 'M3U（mytv回看参数）', href: '/api/export/m3u?status='+status+'&fmt=mytv&scope='+scope },
+      { label: 'TXT', href: '/api/export/txt?status='+status+'&scope='+scope },
+      { label: 'JSON', href: '/api/export/json?status='+status+'&scope='+scope }
+    ];
+  }
+  function renderLinks(status) {
+    if (!bodyEl) return;
+    function getApiBase(scopeVal) {
+      try {
+        const iu = localStorage.getItem('internalUrl') || (appSettings.internalUrl || '');
+        const eu = localStorage.getItem('externalUrl') || (appSettings.externalUrl || '');
+        if (scopeVal === 'external') return eu && /^https?:\/\//i.test(eu) ? eu : location.origin;
+        return iu && /^https?:\/\//i.test(iu) ? iu : location.origin;
+      } catch(e) { return location.origin; }
+    }
+    const scopeVal = scopeSel ? (scopeSel.value || 'internal') : 'internal';
+    const arr = buildLinks(status, scopeVal);
+    
+    // Only use token if enabled AND scope is external
+    const useToken = tokenSwitch && tokenSwitch.checked && scopeVal === 'external';
+    const token = (useToken && tokenInput) ? (tokenInput.value.trim()) : '';
+
+    bodyEl.innerHTML = arr.map(l => {
+      const base = getApiBase(scopeVal);
+      const href = l.href.startsWith('http') ? l.href : (base + l.href);
+      let label = l.label || href;
+      const badge = href.includes('m3u') ? 'M3U' : (href.includes('txt') ? 'TXT' : (href.includes('json') ? 'JSON' : '接口'));
+      
+      function addParam(u, k, v) { return u + (u.includes('?') ? '&' : '?') + k + '=' + encodeURIComponent(v); }
+      
+      let finalHref = href;
+      if (token) {
+          finalHref = addParam(finalHref, 'token', token);
+      }
+      
+      const cleanedHref = (badge==='M3U') ? addParam(finalHref, 'stripSuffix', '1') : finalHref;
+      const potHref = 'potplayer://' + cleanedHref;
+      const playBtn = (badge==='M3U') ? ('<a class="btn btn-sm btn-outline-primary" href="'+potHref+'"><i class="bi bi-play-fill me-1"></i>播放</a>') : '';
+      return '<div class="api-link-item"><div class="api-link-head"><div class="api-link-label">'+label+'</div><span class="api-link-badge">'+badge+'</span></div><div class="api-link-url" title="'+finalHref+'">'+finalHref+'</div><div class="api-link-actions"><button class="btn btn-sm btn-outline-secondary btn-copy" data-href="'+finalHref+'"><i class="bi bi-clipboard me-1"></i>复制</button><a class="btn btn-sm btn-outline-secondary btn-open" href="'+finalHref+'" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>打开</a>'+playBtn+'</div></div>';
+    }).join('');
+    Array.from(bodyEl.querySelectorAll('.btn-copy')).forEach(btn => {
+      btn.addEventListener('click', function() {
+        const v = this.getAttribute('data-href') || '';
+        if (!v) return;
+        const self = this;
+        const oldText = self.textContent;
+        function ok() {
+          try {
+            self.textContent = '已复制';
+            self.disabled = true;
+            setTimeout(() => { self.textContent = oldText; self.disabled = false; }, 1200);
+          } catch(e) {}
+        }
+        function fallback() {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = v;
+            ta.style.position = 'fixed';
+            ta.style.top = '-1000px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try { document.execCommand('copy'); ok(); } catch(e) {}
+            document.body.removeChild(ta);
+          } catch(e) {}
+        }
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(v).then(ok).catch(fallback);
+          } else {
+            fallback();
+          }
+        } catch(e) {
+          fallback();
+        }
+      });
+    });
+    Array.from(bodyEl.querySelectorAll('.btn-play')).forEach(btn => {
+      btn.addEventListener('click', async function() {
+        const href = this.getAttribute('data-href') || '';
+        const typ = (this.getAttribute('data-type') || '').toUpperCase();
+        if (!href) return;
+        if (typ === 'JSON') {
+          try {
+            const r = await fetch(href);
+            const j = await r.json();
+            const list = Array.isArray(j.streams) ? j.streams : [];
+            openApiPlayer(list);
+          } catch(e) {}
+        } else {
+          window.open(href, '_blank');
+        }
+      });
+    });
+  }
+  const initStatus = statusSel ? (statusSel.value || 'online') : 'online';
+  renderLinks(initStatus);
+  if (statusSel) statusSel.onchange = function(){ renderLinks(this.value || 'online'); };
+  if (scopeSel) scopeSel.onchange = function(){ renderLinks(statusSel ? (statusSel.value || 'online') : 'online'); };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+}
+function openApiLinks() { showCenterLinks('播放器直链接口'); }
+function openApiPlayer(streamsList) {
+  let modal = document.getElementById('apiPlayerModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'apiPlayerModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.35);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content" style="border-radius:14px;"><div class="modal-header"><h5 class="modal-title">播放测试</h5><button type="button" class="btn-close" id="apiPlayerCloseR"></button></div><div class="modal-body"><div class="row"><div class="col-7"><video id="apiPlayerVideoR" controls autoplay style="width:100%;height:360px;background:#000;border-radius:8px;"></video></div><div class="col-5"><div class="table-responsive" style="max-height:360px;overflow:auto;"><table class="table table-sm"><thead><tr><th>名称</th><th style="width:90px;">操作</th></tr></thead><tbody id="apiPlayerTbodyR"></tbody></table></div></div></div></div><div class="modal-footer justify-content-center"><button type="button" class="btn btn-open px-4" id="apiPlayerCancelR">关闭</button></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('apiPlayerCloseR').onclick = close;
+  document.getElementById('apiPlayerCancelR').onclick = close;
+  const tbody = document.getElementById('apiPlayerTbodyR');
+  const video = document.getElementById('apiPlayerVideoR');
+  tbody.innerHTML = '';
+  const arr = Array.isArray(streamsList) ? streamsList : [];
+  arr.slice(0, 50).forEach((s, i) => {
+    const name = s && (s.name || s.tvgName) ? (s.name || s.tvgName) : ('频道'+(i+1));
+    const url = s && s.httpUrl ? s.httpUrl : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+name+'</td><td><button class="btn btn-outline-primary btn-sm" id="apiPlayBtn-'+i+'">播放</button></td>';
+    tbody.appendChild(tr);
+    const btn = document.getElementById('apiPlayBtn-'+i);
+    if (btn) btn.onclick = function(){ if (video && url) { video.src = url; video.play().catch(()=>{}); } };
+    if (i === 0 && video && url) { video.src = url; }
+  });
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+}
+async function openEpgModal() {
+  let modal = document.getElementById('epgModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'epgModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">EPG源管理</h5><button type="button" class="btn-close" id="epgCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>支持xmltv格式，支持自建EPG系统，推荐使用<a href="https://github.com/taksssss/iptv-tool" target="_blank">iptv-tool</a></span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="epgAddBtn"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="epgSaveBtn"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="epgListWrapR"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close() { modal.style.display = 'none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('epgCloseR').onclick = close;
+  // Removed footer close button binding
+
+  const listWrap = document.getElementById('epgListWrapR');
+  async function fetchList() {
+    try {
+      const r = await fetch('/api/config/epg-sources');
+      const j = await r.json();
+      const list = Array.isArray(j.sources) ? j.sources : [];
+      renderList(list);
+    } catch(e) { renderList([]); }
+  }
+  function renderList(list) {
+    const origin = location.origin;
+    listWrap.innerHTML = '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th style="width:160px;">名称</th><th>地址</th><th style="width:120px;">分类</th><th style="width:120px;">操作</th></tr></thead><tbody id="epgTbodyR"></tbody></table></div>';
+    const tbody = document.getElementById('epgTbodyR');
+    tbody.innerHTML = '';
+    list.forEach(item => {
+      const href = item.url && !item.url.startsWith('http') ? (origin + item.url) : item.url;
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><input class="form-control form-control-sm" id="epgName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="epgUrl-'+item.id+'" value="'+(href||'')+'"></td><td><select class="form-select form-select-sm" id="epgScope-'+item.id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="epgDel-'+item.id+'">删除</button></td>';
+      tbody.appendChild(tr);
+      const sel = document.getElementById('epgScope-'+item.id);
+      if (sel) sel.value = (item.scope === '外网') ? '外网' : '内网';
+      const delBtn = document.getElementById('epgDel-'+item.id);
+      if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+    });
+  }
+  function uuid() { return 'epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  document.getElementById('epgAddBtn').onclick = function() {
+    const tbody = document.getElementById('epgTbodyR');
+    if (!tbody) return;
+    const id = uuid();
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input class="form-control form-control-sm" id="epgName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="epgUrl-'+id+'" placeholder="http://... 或 https://..."></td><td><select class="form-select form-select-sm" id="epgScope-'+id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="epgDel-'+id+'">删除</button></td>';
+    tbody.appendChild(tr);
+    const delBtn = document.getElementById('epgDel-'+id);
+    if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+  };
+  document.getElementById('epgSaveBtn').onclick = async function() {
+    const tbody = document.getElementById('epgTbodyR');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const list = rows.map(tr => {
+      const nameEl = tr.querySelector('input[id^="epgName-"]');
+      const urlEl = tr.querySelector('input[id^="epgUrl-"]');
+      const scopeEl = tr.querySelector('select[id^="epgScope-"]');
+      const id = (nameEl && nameEl.id ? nameEl.id.replace('epgName-','') : uuid());
+      const name = nameEl ? (nameEl.value || '').trim() : '';
+      const url = urlEl ? (urlEl.value || '').trim() : '';
+      const scope = scopeEl ? scopeEl.value : '内网';
+      return { id, name: name || '未命名EPG', url, scope };
+    }).filter(x => x.url && /^https?:\/\//i.test(x.url));
+    try {
+      await fetch('/api/config/epg-sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: list }) });
+      close();
+    } catch(e) {}
+  };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+  await fetchList();
+}
+function openFccModal() {
+  let modal = document.getElementById('fccModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'fccModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">FCC服务器管理</h5><button type="button" class="btn-close" id="fccCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>支持 ip:port 或 fcc=ip:port，保存后将同步到服务端</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="fccAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="fccSaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="fccListWrapR"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('fccCloseR').onclick = close;
+  // Removed footer close button binding
+
+  const listWrap = document.getElementById('fccListWrapR');
+  function uuid(){ return 'fcc-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  function renderList(list) {
+    listWrap.innerHTML = '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th style="width:160px;">名称</th><th>地址</th><th style="width:120px;">操作</th></tr></thead><tbody id="fccTbodyR"></tbody></table></div>';
+    const tbody = document.getElementById('fccTbodyR');
+    tbody.innerHTML = '';
+    list.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><input class="form-control form-control-sm" id="fccName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="fccAddr-'+item.id+'" value="'+(item.addr||'')+'"></td><td><div class="d-flex" style="gap:8px;"><button class="btn btn-outline-primary btn-sm" id="fccSync-'+item.id+'">同步FCC</button><button class="btn btn-outline-danger btn-sm" id="fccDel-'+item.id+'">删除</button></div></td>';
+      tbody.appendChild(tr);
+      const delBtn = document.getElementById('fccDel-'+item.id);
+      if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+      const syncBtn = document.getElementById('fccSync-'+item.id);
+      if (syncBtn) syncBtn.onclick = async function(){
+        const addrEl = document.getElementById('fccAddr-'+item.id);
+        const addr = addrEl ? (addrEl.value || '').trim() : '';
+        if (!addr) return;
+        setCurrentFccId(item.id);
+        try {
+          const r = await fetch('/api/set-fcc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fcc: addr }) });
+          const j = await r.json();
+          if (j && j.success) { await fetchStreams(); }
+        } catch(e) {}
+      };
+    });
+  }
+  function fetchList() { const list = getFccServers(); renderList(Array.isArray(list) ? list : []); }
+  const addBtn = document.getElementById('fccAddBtnR');
+  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('fccTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><input class="form-control form-control-sm" id="fccName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="fccAddr-'+id+'" placeholder="ip:port 或 fcc=ip:port"></td><td><button class="btn btn-outline-danger btn-sm" id="fccDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('fccDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
+  const saveBtn = document.getElementById('fccSaveBtnR');
+  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('fccTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); const list = rows.map(tr => { const nameEl = tr.querySelector('input[id^="fccName-"]'); const addrEl = tr.querySelector('input[id^="fccAddr-"]'); const id = (nameEl && nameEl.id ? nameEl.id.replace('fccName-','') : uuid()); const name = nameEl ? (nameEl.value||'').trim() : ''; const addr = addrEl ? (addrEl.value||'').trim() : ''; return { id, name: name || '未命名FCC', addr }; }).filter(x => x.addr); await saveFccServers(list); setCurrentFccId(list[0] ? list[0].id : ''); close(); };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+  fetchList();
+}
+async function openGroupModal() {
+  let modal = document.getElementById('groupModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'groupModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">分组管理</h5><button type="button" class="btn-close" id="groupCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>分组用于统一导出与编辑中的 group-title</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="groupAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="groupSaveBtnR"><i class="bi bi-save me-1"></i>保存</button><button class="btn btn-info btn-sm text-white" id="groupApplyMatchBtnR"><i class="bi bi-magic me-1"></i>应用匹配</button></div></div><div id="groupListWrapR"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('groupCloseR').onclick = close;
+  // Removed footer close button binding
+
+  const listWrap = document.getElementById('groupListWrapR');
+  function uuid(){ return 'grp-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  function textColor(hex) {
+    const h = String(hex || '').replace('#','');
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return '#fff';
+    const r = parseInt(h.substring(0,2),16);
+    const g = parseInt(h.substring(2,4),16);
+    const b = parseInt(h.substring(4,6),16);
+    const yiq = ((r*299)+(g*587)+(b*114))/1000;
+    return yiq >= 128 ? '#000' : '#fff';
+  }
+  function renderList(list) {
+    listWrap.innerHTML = '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>名称</th><th style="width:120px;">颜色</th><th style="width:200px;">操作</th></tr></thead><tbody id="groupTbodyR"></tbody></table></div>';
+    const tbody = document.getElementById('groupTbodyR');
+    tbody.innerHTML = '';
+    list.forEach((item, idx) => {
+      const id = 'grp-' + idx;
+      const tr = document.createElement('tr');
+      const nm = (item && item.name ? item.name : '');
+      const clr = (item && item.color ? item.color : '#64748b');
+      tr.innerHTML = '<td><div class="d-flex align-items-center" style="gap:8px;"><span class="badge badge-tag" id="groupBadge-'+id+'"></span><input class="form-control form-control-sm" id="groupName-'+id+'" value="'+nm+'" style="flex:1; min-width:160px;"></div></td><td><input type="color" class="form-control form-control-sm" id="groupColor-'+id+'" value="'+clr+'"></td><td><div class="d-flex" style="gap:8px;"><button class="btn btn-outline-primary btn-sm" id="groupRule-'+id+'">规则</button><button class="btn btn-outline-danger btn-sm" id="groupDel-'+id+'">删除</button></div></td>';
+      tr.dataset.oldName = (item && item.name ? item.name : '');
+      tbody.appendChild(tr);
+      const badge = document.getElementById('groupBadge-'+id);
+      const nameEl = document.getElementById('groupName-'+id);
+      const colorEl = document.getElementById('groupColor-'+id);
+      if (badge) { badge.textContent = nm; badge.style.backgroundColor = clr; badge.style.color = textColor(clr); }
+      if (nameEl) nameEl.oninput = function(){ if (badge) badge.textContent = (this.value || '').trim(); };
+      if (colorEl) colorEl.oninput = function(){ const v = (this.value || '').trim(); if (badge) { badge.style.backgroundColor = v; badge.style.color = textColor(v); } };
+      const ruleBtn = document.getElementById('groupRule-'+id);
+      if (ruleBtn) ruleBtn.onclick = function(){ openGroupRuleModal(nm); };
+      const delBtn = document.getElementById('groupDel-'+id);
+      if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+      if (item && Array.isArray(item.matchers)) groupRulesMap[nm] = item.matchers;
+    });
+  }
+  function fetchList() { const list = getGroupTitles(); renderList(Array.isArray(list) ? list : []); }
+  const addBtn = document.getElementById('groupAddBtnR');
+  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('groupTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><div class="d-flex align-items-center" style="gap:8px;"><span class="badge badge-tag" id="groupBadge-'+id+'"></span><input class="form-control form-control-sm" id="groupName-'+id+'" placeholder="分组名称" style="flex:1; min-width:160px;"></div></td><td><input type="color" class="form-control form-control-sm" id="groupColor-'+id+'" value="#64748b"></td><td><div class="d-flex" style="gap:8px;"><button class="btn btn-outline-primary btn-sm" id="groupRule-'+id+'">规则</button><button class="btn btn-outline-danger btn-sm" id="groupDel-'+id+'">删除</button></div></td>'; tbody.appendChild(tr); const badge = document.getElementById('groupBadge-'+id); if (badge) { badge.textContent = ''; badge.style.backgroundColor = '#64748b'; badge.style.color = textColor('#64748b'); } const nameEl = document.getElementById('groupName-'+id); const colorEl = document.getElementById('groupColor-'+id); if (nameEl) nameEl.oninput = function(){ if (badge) badge.textContent = (this.value || '').trim(); }; if (colorEl) colorEl.oninput = function(){ const v = (this.value || '').trim(); if (badge) { badge.style.backgroundColor = v; badge.style.color = textColor(v); } }; const ruleBtn = document.getElementById('groupRule-'+id); if (ruleBtn) ruleBtn.onclick = function(){ const nmEl = document.getElementById('groupName-'+id); const nm = nmEl ? (nmEl.value || '').trim() : ''; openGroupRuleModal(nm || ''); }; const delBtn = document.getElementById('groupDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
+  const saveBtn = document.getElementById('groupSaveBtnR');
+  if (saveBtn) saveBtn.onclick = async function(){
+    const tbody = document.getElementById('groupTbodyR');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const renameMap = {};
+    const list = rows.map(tr => {
+      const nameEl = tr.querySelector('input[id^="groupName-"]');
+      const colorEl = tr.querySelector('input[id^="groupColor-"]');
+      const oldName = (tr.dataset && tr.dataset.oldName) ? tr.dataset.oldName : '';
+      const name = nameEl ? (nameEl.value||'').trim() : '';
+      const color = colorEl ? (colorEl.value||'').trim() : '';
+      if (oldName && name && oldName !== name) renameMap[oldName] = name;
+      if (!name) return null;
+      const matchers = groupRulesMap[oldName] || groupRulesMap[name] || [];
+      return { name, color: color || '', matchers: Array.isArray(matchers) ? matchers : [] };
+    }).filter(x => x);
+    await saveGroupTitles(list);
+    await saveGroupRulesFromLocal();
+    renderTable();
+    const keys = Object.keys(renameMap);
+    if (keys.length > 0) {
+      keys.forEach(k => {
+        const nn = renameMap[k];
+        if (groupRulesMap[k]) { groupRulesMap[nn] = groupRulesMap[k]; delete groupRulesMap[k]; }
+      });
+      await saveGroupRulesFromLocal();
+      for (const s of streams) {
+        const gt = s.groupTitle || '';
+        const nn = renameMap[gt];
+        if (nn) {
+          const payload = { udpxyUrl: s.udpxyUrl, multicastUrl: s.multicastUrl, update: { groupTitle: nn } };
+          try { await fetch('/api/stream/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch(e) {}
+        }
+      }
+      await fetchStreams();
+    }
+    close();
+  };
+  const applyBtn = document.getElementById('groupApplyMatchBtnR');
+  if (applyBtn) applyBtn.onclick = async function(){
+    const list = getGroupTitles();
+    const arr = Array.isArray(list) ? list : [];
+    for (const s of streams) {
+      let target = '';
+      for (const g of arr) {
+        const ms = Array.isArray(g.matchers) ? g.matchers : [];
+        let ok = ms.length > 0;
+        for (const m of ms) {
+          const f = String(m.field || '').toLowerCase();
+          const op = String(m.op || '').toLowerCase();
+          const val = String(m.value || '');
+          let src = '';
+          if (f === 'name') src = String(s.name || '');
+          else if (f === 'tvgname') src = String(s.tvgName || '');
+          else if (f === 'tvgid') src = String(s.tvgId || '');
+          else if (f === 'addr') src = String(s.multicastUrl || '');
+          else if (f === 'codec') src = String(s.codec || '');
+          else if (f === 'resolution') src = String(s.resolution || '');
+          else if (f === 'grouptitle') src = String(s.groupTitle || '');
+          const a = src.toLowerCase();
+          const b = val.toLowerCase();
+          let cond = false;
+          if (op === 'contains') cond = a.includes(b);
+          else if (op === 'not_contains') cond = !a.includes(b);
+          else if (op === 'equals') cond = a === b;
+          else if (op === 'prefix') cond = a.startsWith(b);
+          else if (op === 'suffix') cond = a.endsWith(b);
+          else if (op === 'regex') {
+            try { cond = new RegExp(val, 'i').test(src); } catch(e) { cond = false; }
+          }
+          if (!cond) { ok = false; break; }
+        }
+        if (ok) { target = g.name; break; }
+      }
+      if (target && s.groupTitle !== target) {
+        const payload = { udpxyUrl: s.udpxyUrl, multicastUrl: s.multicastUrl, update: { groupTitle: target } };
+        try { await fetch('/api/stream/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); } catch(e) {}
+      }
+    }
+    await fetchStreams();
+    close();
+  };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+  await loadGroupTitles();
+  await loadGroupRules();
+  fetchList();
+}
+function openGroupRuleModal(groupName) {
+  let modal = document.getElementById('groupRuleModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'groupRuleModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.3);z-index:10000;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:14px;"><div class="modal-header"><h5 class="modal-title">匹配规则</h5><button type="button" class="btn-close" id="groupRuleCloseR"></button></div><div class="modal-body"><div id="groupRuleListWrapR"></div><div class="d-flex justify-content-between mt-2"><button class="btn btn-outline-primary btn-sm" id="groupRuleAddBtnR">添加规则</button><button class="btn btn-outline-success btn-sm" id="groupRuleSaveBtnR">保存</button></div></div><div class="modal-footer justify-content-center"><button class="btn btn-outline-secondary" id="groupRuleCancelR">关闭</button></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  const listWrap = document.getElementById('groupRuleListWrapR');
+  const rules = Array.isArray(groupRulesMap[groupName]) ? groupRulesMap[groupName] : [];
+  function renderRules(rs) {
+    listWrap.innerHTML = '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th style="width:120px;">字段</th><th style="width:120px;">条件</th><th>值</th><th style="width:100px;">操作</th></tr></thead><tbody id="groupRuleTbodyR"></tbody></table></div>';
+    const tbody = document.getElementById('groupRuleTbodyR');
+    tbody.innerHTML = '';
+    rs.forEach((r, i) => {
+      const id = 'grm-' + i;
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><select class="form-select form-select-sm" id="ruleField-'+id+'"><option value="name">名称</option><option value="tvgName">tvg-name</option><option value="tvgId">tvg-id</option><option value="addr">地址</option><option value="codec">编码</option><option value="resolution">分辨率</option><option value="groupTitle">分组</option></select></td><td><select class="form-select form-select-sm" id="ruleOp-'+id+'"><option value="contains">包含</option><option value="not_contains">不包含</option><option value="equals">等于</option><option value="prefix">前缀</option><option value="suffix">后缀</option><option value="regex">正则</option></select></td><td><input class="form-control form-control-sm" id="ruleVal-'+id+'" value="'+(r.value||'')+'"></td><td><button class="btn btn-outline-danger btn-sm" id="ruleDel-'+id+'">删除</button></td>';
+      tbody.appendChild(tr);
+      const f = document.getElementById('ruleField-'+id);
+      const o = document.getElementById('ruleOp-'+id);
+      if (f) f.value = r.field || 'name';
+      if (o) o.value = r.op || 'contains';
+      const del = document.getElementById('ruleDel-'+id);
+      if (del) del.onclick = function(){ tr.remove(); };
+    });
+  }
+  renderRules(rules);
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('groupRuleCloseR').onclick = close;
+  document.getElementById('groupRuleCancelR').onclick = close;
+  const addBtn = document.getElementById('groupRuleAddBtnR');
+  if (addBtn) addBtn.onclick = function(){
+    const tbody = document.getElementById('groupRuleTbodyR');
+    if (!tbody) return;
+    const id = 'grm-' + Date.now();
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><select class="form-select form-select-sm" id="ruleField-'+id+'"><option value="name">名称</option><option value="tvgName">tvg-name</option><option value="tvgId">tvg-id</option><option value="addr">地址</option><option value="codec">编码</option><option value="resolution">分辨率</option><option value="groupTitle">分组</option></select></td><td><select class="form-select form-select-sm" id="ruleOp-'+id+'"><option value="contains" selected>包含</option><option value="not_contains">不包含</option><option value="equals">等于</option><option value="prefix">前缀</option><option value="suffix">后缀</option><option value="regex">正则</option></select></td><td><input class="form-control form-control-sm" id="ruleVal-'+id+'" placeholder="匹配值"></td><td><button class="btn btn-outline-danger btn-sm" id="ruleDel-'+id+'">删除</button></td>';
+    tbody.appendChild(tr);
+    const delBtn = document.getElementById('ruleDel-'+id);
+    if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+  };
+  const saveBtn = document.getElementById('groupRuleSaveBtnR');
+  if (saveBtn) saveBtn.onclick = function(){
+    const rows = Array.from(document.querySelectorAll('#groupRuleTbodyR tr'));
+    const rs = rows.map(tr => {
+      const f = tr.querySelector('select[id^="ruleField-"]');
+      const o = tr.querySelector('select[id^="ruleOp-"]');
+      const v = tr.querySelector('input[id^="ruleVal-"]');
+      const field = f ? f.value : 'name';
+      const op = o ? o.value : 'contains';
+      const value = v ? (v.value || '').trim() : '';
+      if (!value) return null;
+      return { field, op, value };
+    }).filter(x => x);
+    groupRulesMap[groupName] = rs;
+    try {
+      const list = getGroupTitles();
+      const arr = Array.isArray(list) ? list.map(g => (g && g.name) === groupName ? { name: g.name, color: g.color || '', matchers: rs } : g) : [];
+      localStorage.setItem('groupTitles', JSON.stringify(arr));
+      appSettings.groupTitles = arr;
+    } catch(e) {}
+    saveGroupRulesFromLocal();
+    close();
+  };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+}
+function openLogoTplModal() {
+  let modal = document.getElementById('logoTplModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'logoTplModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">台标模板管理</h5><button type="button" class="btn-close" id="logoTplCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>用于批量匹配台标，{name} 将替换为频道名</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="logoTplAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="logoTplSaveBtnR"><i class="bi bi-save me-1"></i>保存</button><button class="btn btn-info btn-sm text-white" id="syncLogoTplBtn"><i class="bi bi-arrow-repeat me-1"></i>同步台标</button></div></div><div id="logoTplListWrapR"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('logoTplCloseR').onclick = close;
+  // Removed footer close button binding
+
+  const listWrap = document.getElementById('logoTplListWrapR');
+  function uuid(){ return 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  function renderList(list) {
+    listWrap.innerHTML = '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th style="width:160px;">名称</th><th>URL</th><th style="width:120px;">分类</th><th style="width:120px;">操作</th></tr></thead><tbody id="logoTplTbodyR"></tbody></table></div>';
+    const tbody = document.getElementById('logoTplTbodyR');
+    tbody.innerHTML = '';
+    list.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><input class="form-control form-control-sm" id="logoTplName-'+item.id+'" value="'+(item.name||'')+'"></td><td><input class="form-control form-control-sm" id="logoTplUrl-'+item.id+'" value="'+(item.url||'')+'"></td><td><select class="form-select form-select-sm" id="logoTplCat-'+item.id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="logoTplDel-'+item.id+'">删除</button></td>';
+      tbody.appendChild(tr);
+      const catSel = document.getElementById('logoTplCat-'+item.id);
+      if (catSel) catSel.value = (item.category === '外网') ? '外网' : '内网';
+      const delBtn = document.getElementById('logoTplDel-'+item.id);
+      if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+    });
+  }
+  function fetchList() { const list = getLogoTpls(); renderList(Array.isArray(list) ? list : []); }
+  const addBtn = document.getElementById('logoTplAddBtnR');
+  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('logoTplTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><input class="form-control form-control-sm" id="logoTplName-'+id+'" placeholder="名称"></td><td><input class="form-control form-control-sm" id="logoTplUrl-'+id+'" placeholder="http://host/LOGO/{name}.png"></td><td><select class="form-select form-select-sm" id="logoTplCat-'+id+'"><option value="内网">内网</option><option value="外网">外网</option></select></td><td><button class="btn btn-outline-danger btn-sm" id="logoTplDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('logoTplDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
+  const saveBtn = document.getElementById('logoTplSaveBtnR');
+  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('logoTplTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); let list = rows.map(tr => { const nameEl = tr.querySelector('input[id^="logoTplName-"]'); const urlEl = tr.querySelector('input[id^="logoTplUrl-"]'); const catEl = tr.querySelector('select[id^="logoTplCat-"]'); const id = (nameEl && nameEl.id ? nameEl.id.replace('logoTplName-','') : uuid()); const name = nameEl ? (nameEl.value||'').trim() : ''; const url = urlEl ? (urlEl.value||'').trim() : ''; const category = catEl ? catEl.value : '内网'; return { id, name: name || '未命名模板', url, category }; }).filter(x => x.url); saveLogoTpls(list); const curr = list[0] ? list[0].id : ''; setCurrentLogoTplId(curr); const currItem = list.find(x => x.id === curr) || list[0]; const currUrl = currItem ? currItem.url : getLogoTemplate(); await setLogoTemplate(currUrl, list); close(); };
+  const syncBtn = document.getElementById('syncLogoTplBtn');
+  if (syncBtn) syncBtn.onclick = async function() {
+    const list = getLogoTpls();
+    const currId = getCurrentLogoTplId();
+    const item = list.find(x => x.id === currId) || list[0];
+    const currUrl = item ? item.url : '';
+    const urls = list.map(x => x.url).filter(Boolean);
+    await setLogoTemplate(currUrl, urls);
+    await batchLogo();
+  };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+  fetchList();
+}
+function openProxyModal() {
+  let modal = document.getElementById('proxyModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'proxyModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">代理设置</h5><button type="button" class="btn-close" id="proxyCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>类型说明：外网用于访问组播地址（rtp/udp）（一般使用端口映射或者lucky等工具实现）；代理用于访问单播地址（http/https）或者组播地址。</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="proxyAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="proxySaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="proxyListWrapR"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('proxyCloseR').onclick = close;
+  // Removed footer close button binding
+
+  const listWrap = document.getElementById('proxyListWrapR');
+  function uuid(){ return 'prox-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  function renderList(list) {
+    listWrap.innerHTML = '<div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th style="width:140px;">类型</th><th>地址</th><th style="width:120px;">操作</th></tr></thead><tbody id="proxyTbodyR"></tbody></table></div>';
+    const tbody = document.getElementById('proxyTbodyR');
+    tbody.innerHTML = '';
+    (Array.isArray(list) ? list : []).forEach(item => {
+      const id = item && item.id ? item.id : uuid();
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><select class="form-select form-select-sm" id="proxyType-'+id+'"><option value="外网">外网</option><option value="代理">代理</option></select></td><td><input class="form-control form-control-sm" id="proxyUrl-'+id+'" value="'+(item && item.url ? item.url : '')+'" placeholder="http(s)://域名或IP:端口"></td><td><button class="btn btn-outline-danger btn-sm" id="proxyDel-'+id+'">删除</button></td>';
+      tbody.appendChild(tr);
+      const typeSel = document.getElementById('proxyType-'+id);
+      if (typeSel) typeSel.value = (item && item.type === '代理') ? '代理' : '外网';
+      const delBtn = document.getElementById('proxyDel-'+id);
+      if (delBtn) delBtn.onclick = function(){ tr.remove(); };
+    });
+  }
+  function fetchList() { let arr = []; try { arr = JSON.parse(localStorage.getItem('proxyList') || '[]'); if (!Array.isArray(arr) || arr.length === 0) arr = Array.isArray(appSettings.proxyList) ? appSettings.proxyList : []; } catch(e) {} renderList(arr); }
+  const addBtn = document.getElementById('proxyAddBtnR');
+  if (addBtn) addBtn.onclick = function(){ const tbody = document.getElementById('proxyTbodyR'); if (!tbody) return; const id = uuid(); const tr = document.createElement('tr'); tr.innerHTML = '<td><select class="form-select form-select-sm" id="proxyType-'+id+'"><option value="外网" selected>外网</option><option value="代理">代理</option></select></td><td><input class="form-control form-control-sm" id="proxyUrl-'+id+'" placeholder="http(s)://域名或IP:端口"></td><td><button class="btn btn-outline-danger btn-sm" id="proxyDel-'+id+'">删除</button></td>'; tbody.appendChild(tr); const delBtn = document.getElementById('proxyDel-'+id); if (delBtn) delBtn.onclick = function(){ tr.remove(); }; };
+  const saveBtn = document.getElementById('proxySaveBtnR');
+  if (saveBtn) saveBtn.onclick = async function(){ const tbody = document.getElementById('proxyTbodyR'); if (!tbody) return; const rows = Array.from(tbody.querySelectorAll('tr')); const list = rows.map(tr => { const typeEl = tr.querySelector('select[id^="proxyType-"]'); const urlEl = tr.querySelector('input[id^="proxyUrl-"]'); const type = typeEl ? typeEl.value : '外网'; const url = urlEl ? (urlEl.value||'').trim() : ''; if (!url) return null; return { type, url }; }).filter(x => x); localStorage.setItem('proxyList', JSON.stringify(list)); appSettings.proxyList = list; try { await fetch('/api/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ proxyList: list }) }); } catch(e) {} close(); };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+  fetchList();
+}
+function openAppSettingsModal() {
+  let modal = document.getElementById('appSettingsModalR');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'appSettingsModalR';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">使用设置</h5><button type="button" class="btn-close" id="appSettingsCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>内网用于在同局域网内访问；外网用于互联网访问（需端口映射）。</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-success btn-sm" id="appSettingsSaveR"><i class="bi bi-save me-1"></i>保存</button></div></div><div class="mb-3"><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="useInternalR"><label class="form-check-label" for="useInternalR">启用内网使用</label></div><input class="form-control mt-2" id="internalUrlR" placeholder="内网地址+端口，例如：http://192.168.x.x:port"></div><div class="mb-3"><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="useExternalR"><label class="form-check-label" for="useExternalR">启用外网使用</label></div><input class="form-control mt-2" id="externalUrlR" placeholder="外网地址+端口，例如：http://域名或IP:port"></div></div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('appSettingsCloseR').onclick = close;
+  // Removed footer close button binding
+
+  const useInternalEl = document.getElementById('useInternalR');
+  const useExternalEl = document.getElementById('useExternalR');
+  const internalUrlEl = document.getElementById('internalUrlR');
+  const externalUrlEl = document.getElementById('externalUrlR');
+  try {
+    const ui = localStorage.getItem('useInternal') === 'true';
+    const ue = localStorage.getItem('useExternal') === 'true';
+    const iu = localStorage.getItem('internalUrl') || (appSettings.internalUrl || '');
+    const eu = localStorage.getItem('externalUrl') || (appSettings.externalUrl || '');
+    if (useInternalEl) useInternalEl.checked = !!ui;
+    if (useExternalEl) useExternalEl.checked = !!ue;
+    if (internalUrlEl) internalUrlEl.value = iu;
+    if (externalUrlEl) externalUrlEl.value = eu;
+  } catch(e) {}
+  const saveBtn = document.getElementById('appSettingsSaveR');
+  if (saveBtn) saveBtn.onclick = async function(){
+    const ui = !!(useInternalEl && useInternalEl.checked);
+    const ue = !!(useExternalEl && useExternalEl.checked);
+    const iu = internalUrlEl ? (internalUrlEl.value || '').trim() : '';
+    const eu = externalUrlEl ? (externalUrlEl.value || '').trim() : '';
+    try {
+      localStorage.setItem('useInternal', String(ui));
+      localStorage.setItem('useExternal', String(ue));
+      localStorage.setItem('internalUrl', iu);
+      localStorage.setItem('externalUrl', eu);
+      appSettings.useInternal = ui;
+      appSettings.useExternal = ue;
+      appSettings.internalUrl = iu;
+      appSettings.externalUrl = eu;
+      await fetch('/api/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ useInternal: ui, useExternal: ue, internalUrl: iu, externalUrl: eu }) });
+    } catch(e) {}
+    close();
+  };
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+}
+document.addEventListener('DOMContentLoaded', async function() {
+  const sw = document.getElementById('netScopeSwitchR');
+  if (sw) {
+    try {
+      const ue = (localStorage.getItem('useExternal') === 'true') || !!appSettings.useExternal;
+      sw.checked = !!ue;
+    } catch(e) {}
+    sw.onchange = async function() {
+      try {
+        const ue = !!sw.checked;
+        const ui = !ue;
+        localStorage.setItem('useExternal', String(ue));
+        localStorage.setItem('useInternal', String(ui));
+        appSettings.useExternal = ue;
+        appSettings.useInternal = ui;
+        const iu = localStorage.getItem('internalUrl') || (appSettings.internalUrl || '');
+        const eu = localStorage.getItem('externalUrl') || (appSettings.externalUrl || '');
+        await fetch('/api/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ useInternal: ui, useExternal: ue, internalUrl: iu, externalUrl: eu }) });
+      } catch(e) {}
+      const lbl = document.getElementById('netScopeLabelR');
+      if (lbl) lbl.textContent = sw.checked ? '外网' : '内网';
+      const thAddr = document.getElementById('thAddr');
+      if (thAddr) thAddr.textContent = sw.checked ? '外网地址' : '内网地址';
+      renderTable();
+    };
+    const lbl = document.getElementById('netScopeLabelR');
+    if (lbl) lbl.textContent = sw.checked ? '外网' : '内网';
+    const thAddr = document.getElementById('thAddr');
+    if (thAddr) thAddr.textContent = sw.checked ? '外网地址' : '内网地址';
+  }
+});
+window.addEventListener('error', function(e){ dbg('error', { message: e.message }); });
+window.addEventListener('unhandledrejection', function(e){ dbg('unhandledrejection', { reason: String(e.reason) }); });
+function getLogoTpls() { try { const raw = localStorage.getItem(LOGO_TPLS_KEY); const list = raw ? JSON.parse(raw) : []; return Array.isArray(list) ? list : []; } catch(e) { return []; } }
+function saveLogoTpls(list) { localStorage.setItem(LOGO_TPLS_KEY, JSON.stringify(Array.isArray(list) ? list : [])); }
+function getCurrentLogoTplId() { return localStorage.getItem(LOGO_CURR_KEY) || ''; }
+function setCurrentLogoTplId(id) { localStorage.setItem(LOGO_CURR_KEY, id || ''); }
+function isExternalAccess() {
+  const h = window.location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') return false;
+  if (h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('169.254.')) return false;
+  if (h.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)) return false;
+  return true;
+}
+function getLogoTemplate() {
+  const id = getCurrentLogoTplId();
+  const list = getLogoTpls();
+  if (isExternalAccess()) {
+    const ext = list.find(x => x.category === '外网');
+    if (ext && ext.url) return ext.url;
+  }
+  const item = list.find(x => x.id === id);
+  if (item && item.url) return item.url;
+  return localStorage.getItem('logoTemplate') || 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png';
+}
+async function saveLogoTemplate(tpl) { localStorage.setItem('logoTemplate', tpl); appSettings.logoTemplate = tpl; await fetch('/api/settings/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logoTemplate: tpl }) }); }
+async function loadLogoTemplates() {
+  try {
+    const r = await fetch('/api/config/logo-templates');
+    const j = await r.json();
+    const sel = document.getElementById('logoTplSelect');
+    const nameInput = document.getElementById('logoTplNameInput');
+    const addrInput = document.getElementById('logoTplAddrInput');
+    const serverList = Array.isArray(j.templatesObj) ? j.templatesObj : (Array.isArray(j.templates) ? j.templates : []);
+    const oldList = getLogoTpls();
+    const merged = [];
+    serverList.forEach((t) => {
+      const url = (typeof t === 'string') ? t : (t && t.url) ? t.url : '';
+      if (!url) return;
+      const exist = oldList.find(x => x.url === url);
+      if (exist) {
+        merged.push({ id: exist.id, name: (t && t.name) || exist.name || '未命名模板', url: exist.url, category: (t && t.category) || exist.category || '内网' });
+      } else {
+        const nm = (typeof t === 'object' && t && t.name) ? t.name : (url.replace(/^https?:\/\//,'').split('/')[0] || '未命名模板');
+        const id = (typeof t === 'object' && t && t.id) ? t.id : ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+        const category = (typeof t === 'object' && t && t.category) ? t.category : '内网';
+        merged.push({ id, name: nm, url, category });
+      }
+    });
+    // 保留本地有但服务端没有的模板
+    oldList.forEach(x => {
+      if (!merged.find(m => m.url === x.url)) merged.push(x);
+    });
+    if (merged.length === 0) {
+      const def = getLogoTemplate();
+      merged.push({ id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '默认模板', url: def, category: '内网' });
+    }
+    saveLogoTpls(merged);
+    sel.innerHTML = '';
+    merged.forEach(t => { const opt = document.createElement('option'); opt.value = t.id; opt.text = t.name + ' (' + t.url + ')'; sel.appendChild(opt); });
+    const currId = j.currentId || getCurrentLogoTplId();
+    const currItem = merged.find(x => x.id === currId) || merged.find(x => x.url === (j.current || getLogoTemplate())) || merged[0];
+    if (currItem) { sel.value = currItem.id; setCurrentLogoTplId(currItem.id); localStorage.setItem('logoTemplate', currItem.url); }
+  } catch(e) {}
+}
+async function setLogoTemplate(curr, list) {
+  localStorage.setItem('logoTemplate', curr);
+  appSettings.logoTemplate = curr;
+  const objs = getLogoTpls();
+  const currId = getCurrentLogoTplId();
+  await fetch('/api/config/logo-templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ templates: list, current: curr, templatesObj: objs, currentId: currId }) });
+}
+async function loadGroupTitles() {
+  try {
+    const r = await fetch('/api/config/group-titles');
+    const j = await r.json();
+    let serverList = [];
+    if (Array.isArray(j.titlesObj)) {
+      serverList = j.titlesObj.map(it => {
+        if (typeof it === 'string') return { name: it, color: '' , matchers: [] };
+        const name = it && it.name ? it.name : '';
+        const color = it && it.color ? it.color : '';
+        const matchers = Array.isArray(it && it.matchers) ? it.matchers : [];
+        return name ? { name, color, matchers } : null;
+      }).filter(x => x);
+    } else if (Array.isArray(j.titles)) {
+      serverList = j.titles.map(it => {
+        if (typeof it === 'string') return { name: it, color: '' , matchers: [] };
+        const name = it && it.name ? it.name : '';
+        const color = it && it.color ? it.color : '';
+        const matchers = Array.isArray(it && it.matchers) ? it.matchers : [];
+        return name ? { name, color, matchers } : null;
+      }).filter(x => x);
+    }
+    const localList = getGroupTitles();
+    const merged = [];
+    serverList.forEach(it => {
+      const nm = it && it.name ? it.name : '';
+      if (!nm) return;
+      const exist = localList.find(x => x.name === nm);
+      const color = (it && it.color) || (exist && exist.color) || '';
+      const matchers = Array.isArray(it && it.matchers) ? it.matchers : (Array.isArray(exist && exist.matchers) ? exist.matchers : []);
+      merged.push({ name: nm, color, matchers });
+    });
+    localList.forEach(x => { if (!merged.find(m => m.name === x.name)) merged.push(x); });
+    if (merged.length === 0) merged.push({ name: '默认', color: '' , matchers: [] });
+    localStorage.setItem('groupTitles', JSON.stringify(merged));
+    appSettings.groupTitles = merged;
+  } catch(e) {}
+}
+async function loadUdpxyServers() {
+  try {
+    const r = await fetch('/api/config/udpxy-servers');
+    const j = await r.json();
+    const list = Array.isArray(j.servers) ? j.servers : [];
+    localStorage.setItem('udpxyServers', JSON.stringify(list));
+    if (typeof j.currentId === 'string') localStorage.setItem('udpxyCurrentId', j.currentId);
+    const curr = list.find(x => x.id === j.currentId);
+    appSettings.udpxyCurrentUrl = curr ? (curr.url || '') : '';
+  } catch(e) {}
+}
+function getGroupTitles() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('groupTitles') || '[]');
+    if (Array.isArray(raw) && raw.length > 0) {
+      if (typeof raw[0] === 'string') return raw.map(n => ({ name: n, color: '' }));
+      return raw;
+    }
+    return [];
+  } catch(e) { return []; }
+}
+function mergeGroupTitlesPreserveMatchers(incoming) {
+  const prev = getGroupTitles();
+  const arr = Array.isArray(incoming) ? incoming : [];
+  return arr.map(it => {
+    if (typeof it === 'string') {
+      const prevObj = prev.find(x => x.name === it);
+      const matchers = Array.isArray(prevObj && prevObj.matchers) ? prevObj.matchers : [];
+      const color = (prevObj && prevObj.color) ? prevObj.color : '';
+      return { name: it, color, matchers };
+    }
+    const name = it && it.name ? it.name : '';
+    const prevObj = prev.find(x => x.name === name);
+    const color = (it && it.color) ? it.color : ((prevObj && prevObj.color) ? prevObj.color : '');
+    const matchers = Array.isArray(it && it.matchers) ? it.matchers : (Array.isArray(prevObj && prevObj.matchers) ? prevObj.matchers : []);
+    return { name, color, matchers };
+  }).filter(x => x && x.name);
+}
+async function saveGroupTitles(list) {
+  const arr = Array.isArray(list) ? list : [];
+  localStorage.setItem('groupTitles', JSON.stringify(arr));
+  appSettings.groupTitles = arr;
+  const names = arr.map(x => x && x.name ? x.name : '').filter(Boolean);
+  await fetch('/api/config/group-titles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ titles: names, titlesObj: arr }) });
+}
+function ensureDefaultGroups() { const list = getGroupTitles(); if (list.length === 0) saveGroupTitles([{ name: '默认', color: '' }]); }
+function uuid() { return 'fcc-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+function getFccServers() { try { return JSON.parse(localStorage.getItem('fccServers') || '[]'); } catch(e) { return []; } }
+async function saveFccServers(list) { localStorage.setItem('fccServers', JSON.stringify(list)); appSettings.fccServers = list; await fetch('/api/config/fcc-servers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ servers: list, currentId: getCurrentFccId() }) }); }
+async function syncFccServersBackend() {
+  const list = getFccServers();
+  const curr = getCurrentFccId();
+  await fetch('/api/config/fcc-servers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ servers: list, currentId: curr }) });
+}
+function getCurrentFccId() { return localStorage.getItem('currentFccId') || ''; }
+function setCurrentFccId(id) { localStorage.setItem('currentFccId', id || ''); }
+function renderFccSelect() {
+  const sel = document.getElementById('fccSelect');
+  if (!sel) return;
+  const list = getFccServers();
+  sel.innerHTML = '';
+  list.forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.text = s.name + ' (' + s.addr + ')'; sel.appendChild(opt); });
+  const curr = getCurrentFccId();
+  if (curr) sel.value = curr;
+  if (!sel.value && list[0]) sel.value = list[0].id;
+}
+function addFcc(name, addr) {
+  const n = (name || '').trim();
+  const a = (addr || '').trim();
+  if (!n || !a) return;
+  const list = getFccServers();
+  const id = uuid();
+  list.push({ id, name: n, addr: a });
+  saveFccServers(list);
+  setCurrentFccId(id);
+  renderFccSelect();
+}
+function deleteCurrentFcc() {
+  const curr = getCurrentFccId();
+  if (!curr) return;
+  const list = getFccServers();
+  const idx = list.findIndex(s => s.id === curr);
+  if (idx >= 0) list.splice(idx, 1);
+  saveFccServers(list);
+  setCurrentFccId(list[0] ? list[0].id : '');
+  renderFccSelect();
+}
+function nameVariants(name) {
+  const n = (name || '').trim();
+  const plain = n.replace(/\s+/g, '');
+  const base = [n, plain];
+  const extras = ['4K', '高清', 'HD'];
+  const vars = [];
+  base.forEach(b => { vars.push(b); extras.forEach(ex => vars.push(b + ex)); });
+  return [...new Set(vars)];
+}
+function buildLogoCandidates(name) {
+  const tpl = getLogoTemplate();
+  const names = nameVariants(name);
+  const exts = ['.png', '.jpg', '.jpeg'];
+  const urls = [];
+  names.forEach(nn => {
+    exts.forEach(ext => {
+      let u = tpl.replace('{name}', nn);
+      u = u.replace(/\.(png|jpg|jpeg)$/i, ext);
+      urls.push(u);
+    });
+  });
+  return [...new Set(urls)];
+}
+function chooseLogoCandidate(name, resolution) {
+  const cands = buildLogoCandidates(name);
+  if ((resolution || '').toLowerCase() === '3840x2160') {
+    const i = cands.findIndex(u => /4k/i.test(u));
+    if (i >= 0) return cands[i];
+  }
+  return cands[0] || '';
+}
+async function fetchStreams() {
+  dbg('fetchStreams:start');
+  let list = [];
+  try {
+    const r = await fetch('/api/streams');
+    const j = await r.json();
+    if (j && j.success && Array.isArray(j.streams)) {
+      list = j.streams;
+      dbg('fetchStreams:/api/streams', { ok: true, count: list.length });
+    }
+  } catch(e) {
+    dbg('fetchStreams:/api/streams error', { message: String(e) });
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    dbg('fetchStreams:fallback persist');
+    try {
+      const rp = await fetch('/api/persist/load', { method: 'POST' });
+      const pj = await rp.json();
+      if (pj && pj.success && Array.isArray(pj.streams)) {
+        list = pj.streams;
+        dbg('fetchStreams:/api/persist/load', { ok: true, count: list.length });
+      }
+    } catch(e) {
+      dbg('fetchStreams:/api/persist/load error', { message: String(e) });
+    }
+  }
+  streams = Array.isArray(list) ? list : [];
+  dbg('fetchStreams:done', { count: streams.length });
+  updateStats();
+  renderTable();
+}
+function renderTable() {
+  const tbody = document.getElementById('resultsTbody');
+  let filtered = streams;
+  if (filterStatus === 'online') filtered = streams.filter(s => s.isAvailable);
+  if (filterStatus === 'offline') filtered = streams.filter(s => !s.isAvailable);
+  if (filterType === 'multicast') filtered = filtered.filter(s => {
+    const u = (s.multicastUrl || '').trim();
+    const hasUdpxy = !!s.udpxyUrl;
+    const scheme = u.split(':')[0].toLowerCase();
+    return hasUdpxy || scheme === 'rtp' || scheme === 'udp';
+  });
+  if (String(searchQuery || '').trim()) {
+    const q = String(searchQuery || '').trim().toLowerCase();
+    filtered = filtered.filter(s => {
+      try {
+        const name = String(s.name || '').toLowerCase();
+        const group = String(s.groupTitle || '').toLowerCase();
+        const addr = String(s.multicastUrl || '').toLowerCase();
+        const udpxy = String(s.udpxyUrl || '').toLowerCase();
+        const tvgId = String(s.tvgId || '').toLowerCase();
+        const tvgName = String(s.tvgName || '').toLowerCase();
+        const httpParam = String(s.httpParam || '').toLowerCase();
+        const displayAddr = String(displayUrlBase(s) || '').toLowerCase();
+        return name.includes(q) || group.includes(q) || addr.includes(q) || udpxy.includes(q) || tvgId.includes(q) || tvgName.includes(q) || httpParam.includes(q) || displayAddr.includes(q);
+      } catch(e) { return false; }
+    });
+  }
+  if (filterType === 'unicast') filtered = filtered.filter(s => {
+    const u = (s.multicastUrl || '').trim();
+    const hasUdpxy = !!s.udpxyUrl;
+    const scheme = u.split(':')[0].toLowerCase();
+    return !hasUdpxy && !(scheme === 'rtp' || scheme === 'udp');
+  });
+  filtered = sortList(filtered);
+  const total = filtered.length;
+  const sizeVal = (resPageSize === 'all') ? total : Number(resPageSize || 20);
+  const pages = sizeVal >= total ? 1 : Math.max(1, Math.ceil(total / sizeVal));
+  if (resCurrentPage > pages) resCurrentPage = pages;
+  if (resCurrentPage < 1) resCurrentPage = 1;
+  const start = (sizeVal >= total) ? 0 : (resCurrentPage - 1) * sizeVal;
+  const end = (sizeVal >= total) ? total : Math.min(start + sizeVal, total);
+  const pageData = filtered.slice(start, end);
+  function getStreamIndex(s) {
+    return streams.findIndex(x => x.udpxyUrl === s.udpxyUrl && x.multicastUrl === s.multicastUrl);
+  }
+  function streamType(s) {
+    const u = (s.multicastUrl || '').trim();
+    const hasUdpxy = !!s.udpxyUrl;
+    const scheme = u.split(':')[0].toLowerCase();
+    if (hasUdpxy) return '组播';
+    if (scheme === 'rtp' || scheme === 'udp') return '组播';
+    return '单播';
+  }
+    function displayUrlBase(s) {
+      try {
+        const u = String(s.multicastUrl || '').trim();
+        const scheme = u.split(':')[0].toLowerCase();
+        const isMulticast = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
+        const useExternal = (localStorage.getItem('useExternal') === 'true') || !!appSettings.useExternal;
+      const iu = (function getInternalBase(){
+        try {
+          const list = JSON.parse(localStorage.getItem('udpxyServers') || '[]');
+          const currId = localStorage.getItem('udpxyCurrentId') || '';
+          const item = list.find(x => x.id === currId);
+          const url = item ? (item.url || '') : (appSettings.udpxyCurrentUrl || '');
+          return url || (localStorage.getItem('internalUrl') || (appSettings.internalUrl || ''));
+        } catch(e) {
+          return (appSettings.udpxyCurrentUrl || (localStorage.getItem('internalUrl') || (appSettings.internalUrl || '')));
+        }
+      })();
+        const eu = localStorage.getItem('externalUrl') || (appSettings.externalUrl || '');
+        let proxyList = [];
+        try {
+          const raw = JSON.parse(localStorage.getItem('proxyList') || '[]');
+          proxyList = Array.isArray(raw) ? raw : [];
+        } catch(e) {}
+        if (proxyList.length === 0 && Array.isArray(appSettings.proxyList)) proxyList = appSettings.proxyList;
+        if (isMulticast) {
+          const extBaseItem = proxyList.find(x => x.type === '外网');
+        const base = useExternal ? ((extBaseItem && extBaseItem.url) || eu || s.udpxyUrl || '') : (iu || s.udpxyUrl || '');
+          const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+          return base + path;
+        } else {
+          const proxyItem = proxyList.find(x => x.type === '代理');
+          if (useExternal) {
+            const pb = (proxyItem && proxyItem.url) ? proxyItem.url : '';
+            const stripped = u.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+            return (pb || '').replace(/\/+$/,'') + '/' + stripped;
+          }
+          return u;
+        }
+      } catch(e) {
+        const u = String(s.multicastUrl || '').trim();
+        const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+        return (s.udpxyUrl || '') + path;
+      }
+    }
+  function playUrlFor(s) {
+    const urlBase = displayUrlBase(s);
+    const u = String(s.multicastUrl || '').trim();
+    const scheme = u.split(':')[0].toLowerCase();
+    const isMulticast = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
+    const useExternal = (localStorage.getItem('useExternal') === 'true') || !!appSettings.useExternal;
+    if (!isMulticast) {
+      if (useExternal) return urlBase + '?zte_offset=30&ispcode=2&starttime=$单播';
+      return u;
+    }
+    return urlBase + (s.httpParam ? ('?' + s.httpParam) : '');
+  }
+  function tagClassFrom(t) {
+    const s = String(t || '-');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+    const n = (h % 8) + 1;
+    return 'tag-c' + n;
+  }
+  function groupTagClass(gt) {
+    const s = String(gt || '默认');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+    const n = (h % 8) + 1;
+    return 'tag-c' + n;
+  }
+  function groupBadgeStyle(gt) {
+    const name = String(gt || '默认').trim();
+    let arr = Array.isArray(appSettings.groupTitles) && appSettings.groupTitles.length > 0 ? appSettings.groupTitles : [];
+    if (arr.length === 0) arr = getGroupTitles(); // Fallback to localStorage
+    
+    const obj = arr.find(x => {
+      if (typeof x === 'string') return x.trim() === name;
+      return x && (x.name || '').trim() === name;
+    });
+    const color = obj && typeof obj === 'object' ? (obj.color || '') : '';
+    // 如果没有颜色配置，返回默认样式（灰色背景，深色文字）
+    if (!color) return 'background-color:#e9ecef;color:#495057;';
+    
+    function textColor(hex) {
+      const h = hex.replace('#','');
+      // 处理简写 hex (例如 #fff)
+      if (h.length === 3) {
+          const r = parseInt(h[0]+h[0], 16);
+          const g = parseInt(h[1]+h[1], 16);
+          const b = parseInt(h[2]+h[2], 16);
+          const yiq = ((r*299)+(g*587)+(b*114))/1000;
+          return yiq >= 128 ? '#000' : '#fff';
+      }
+      if (h.length !== 6) return '#000';
+      const r = parseInt(h.substring(0,2),16);
+      const g = parseInt(h.substring(2,4),16);
+      const b = parseInt(h.substring(4,6),16);
+      const yiq = ((r*299)+(g*587)+(b*114))/1000;
+      return yiq >= 128 ? '#000' : '#fff';
+    }
+    const tc = textColor(color);
+    return 'background-color:'+color+';color:'+tc+';';
+  }
+  const html = pageData.map(s => `
+    <tr>
+      <td class="col-select ps-3"><input type="checkbox" class="form-check-input sel-res" data-index="${getStreamIndex(s)}" ${selectedRes.has(getStreamIndex(s)) ? 'checked' : ''}></td>
+      <td class="col-status">${s.isAvailable ? '<span class="badge bg-success rounded-pill"><i class="bi bi-check-circle me-1"></i>在线</span>' : '<span class="badge bg-danger rounded-pill"><i class="bi bi-x-circle me-1"></i>离线</span>'}</td>
+      <td class="col-type"><span class="badge bg-light text-dark border">${streamType(s)}</span></td>
+      <td class="col-name" title="${s.name || '-'}">${s.name || '-'}</td>
+      <td class="col-resolution">${s.resolution ? '<span class="badge bg-light text-dark border">'+s.resolution+'</span>' : '-'}</td>
+      <td class="col-fps">${s.frameRate ? '<span class="badge bg-light text-dark border">'+s.frameRate+'fps</span>' : '-'}</td>
+      <td class="col-codec">${s.codec ? '<span class="badge bg-light text-dark border">'+s.codec+'</span>' : '-'}</td>
+      <td class="col-group"><span class="badge" style="${groupBadgeStyle(s.groupTitle || '-')}">${s.groupTitle || '-'}</span></td>
+      <td class="col-logo">${s.logo ? '<img src="'+s.logo+'" class="logo-img" onerror="if(!this.dataset.err){this.dataset.err=1;this.src=\'/api/proxy/stream?url=\'+encodeURIComponent(this.src);}">' : '<div class="logo-img d-flex align-items-center justify-content-center text-muted"><i class="bi bi-tv"></i></div>'}</td>
+      <td class="col-addr" title="${displayUrlBase(s)}">${displayUrlBase(s)}</td>
+      <td class="col-http" title="${s.httpParam||'-'}">${(function(){ const m=(s.httpParam||'').match(/fcc=([^&]+)/); return m ? m[1].split(':')[0] : '-'; })()}</td>
+      <td class="col-ops pe-3">
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" onclick="openEditModal(${getStreamIndex(s)})" title="编辑"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-outline-success" onclick="openPotPlayer('${playUrlFor(s)}', '${(s.name || s.multicastUrl || '').replace(/'/g, '\\\'')}')"><i class="bi bi-play-fill"></i></button>
+            <button class="btn btn-outline-danger" onclick="deleteStream(${getStreamIndex(s)})" title="删除"><i class="bi bi-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  tbody.innerHTML = html;
+  const info = document.getElementById('resPageInfo');
+  if (info) info.textContent = (sizeVal >= total) ? `第 1/1 页（共 ${total} 条）` : `第 ${resCurrentPage}/${pages} 页（共 ${total} 条）`;
+  const infoB = document.getElementById('resPageInfoB');
+  if (infoB) infoB.textContent = (sizeVal >= total) ? `第 1/1 页（共 ${total} 条）` : `第 ${resCurrentPage}/${pages} 页（共 ${total} 条）`;
+  const sel = document.getElementById('resPageSizeSelect');
+  if (sel) {
+    sel.value = (resPageSize === 'all') ? 'all' : String(resPageSize);
+    sel.onchange = function(){ resPageSize = this.value === 'all' ? 'all' : Number(this.value); resCurrentPage = 1; renderTable(); };
+  }
+  const selB = document.getElementById('resPageSizeSelectB');
+  if (selB) {
+    selB.value = (resPageSize === 'all') ? 'all' : String(resPageSize);
+    selB.onchange = function(){ resPageSize = this.value === 'all' ? 'all' : Number(this.value); resCurrentPage = 1; renderTable(); };
+  }
+  const prev = document.getElementById('resPrevPageBtn');
+  if (prev) prev.onclick = function(){ if (!(sizeVal >= total) && resCurrentPage > 1) { resCurrentPage--; renderTable(); } };
+  const next = document.getElementById('resNextPageBtn');
+  if (next) next.onclick = function(){ if (!(sizeVal >= total) && resCurrentPage < pages) { resCurrentPage++; renderTable(); } };
+  const prevB = document.getElementById('resPrevPageBtnB');
+  if (prevB) prevB.onclick = function(){ if (!(sizeVal >= total) && resCurrentPage > 1) { resCurrentPage--; renderTable(); } };
+  const nextB = document.getElementById('resNextPageBtnB');
+  if (nextB) nextB.onclick = function(){ if (!(sizeVal >= total) && resCurrentPage < pages) { resCurrentPage++; renderTable(); } };
+  const selectAllBox = document.getElementById('selectAllResPage');
+  if (selectAllBox) {
+    const boxesNow = Array.from(document.querySelectorAll('.sel-res'));
+    const allChecked = boxesNow.length > 0 && boxesNow.every(b => selectedRes.has(Number(b.dataset.index)));
+    selectAllBox.checked = allChecked;
+    selectAllBox.onchange = function() {
+      const xs = Array.from(document.querySelectorAll('.sel-res'));
+      xs.forEach(x => {
+        const i = Number(x.dataset.index);
+        if (this.checked) { selectedRes.add(i); x.checked = true; } else { selectedRes.delete(i); x.checked = false; }
+      });
+    };
+  }
+  const selectAllBoxB = document.getElementById('selectAllResPageBottom');
+  if (selectAllBoxB) {
+    const boxesNow = Array.from(document.querySelectorAll('.sel-res'));
+    const allChecked = boxesNow.length > 0 && boxesNow.every(b => selectedRes.has(Number(b.dataset.index)));
+    selectAllBoxB.checked = allChecked;
+    selectAllBoxB.onchange = function() {
+      const xs = Array.from(document.querySelectorAll('.sel-res'));
+      xs.forEach(x => {
+        const i = Number(x.dataset.index);
+        if (this.checked) { selectedRes.add(i); x.checked = true; } else { selectedRes.delete(i); x.checked = false; }
+      });
+    };
+  }
+  Array.from(document.querySelectorAll('.sel-res')).forEach(cb => {
+    cb.onchange = function() {
+      const i = Number(this.dataset.index);
+      if (this.checked) selectedRes.add(i); else selectedRes.delete(i);
+    };
+  });
+  dbg('renderTable', { filtered: filtered.length, total: streams.length });
+}
+function updateStats() {
+  try {
+    const total = streams.length;
+    const online = streams.filter(s => s.isAvailable).length;
+    const offline = total - online;
+    const t = document.getElementById('stat-total');
+    const o = document.getElementById('stat-online');
+    const f = document.getElementById('stat-offline');
+    if (t) t.textContent = String(total);
+    if (o) o.textContent = String(online);
+    if (f) f.textContent = String(offline);
+  } catch(e) {}
+}
+let sortKey = '';
+let sortDir = 'asc';
+function parseResolutionArea(r) {
+  const m = String(r || '').toLowerCase().match(/(\d+)\s*x\s*(\d+)/);
+  if (!m) return 0;
+  const w = parseInt(m[1], 10) || 0;
+  const h = parseInt(m[2], 10) || 0;
+  return w * h;
+}
+function getSortValue(s, key) {
+  if (key === 'resolution') return parseResolutionArea(s.resolution || '');
+  if (key === 'frameRate') return typeof s.frameRate === 'number' ? s.frameRate : parseFloat(s.frameRate || '0') || 0;
+  if (key === 'codec') return String(s.codec || '').toLowerCase();
+  if (key === 'groupTitle') return String(s.groupTitle || '').toLowerCase();
+  if (key === 'name') return String(s.name || '').toLowerCase();
+  return 0;
+}
+function sortList(list) {
+  const key = sortKey || 'resolution';
+  const dir = sortKey ? (sortDir === 'desc' ? -1 : 1) : -1;
+
+  return [...list].sort((a, b) => {
+    // 1. 在线优先 (Online first)
+    if (a.isAvailable !== b.isAvailable) {
+      return a.isAvailable ? -1 : 1;
+    }
+    // 2. 排序键 (Sort key)
+    const va = getSortValue(a, key);
+    const vb = getSortValue(b, key);
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+}
+function updateSortIndicators() {
+  const thRes = document.getElementById('thResolution');
+  const thFps = document.getElementById('thFrameRate');
+  const thCodec = document.getElementById('thCodec');
+  const thGroup = document.getElementById('thGroupTitle');
+  const thName = document.getElementById('thName');
+  thRes.textContent = '分辨率' + (sortKey === 'resolution' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
+  thFps.textContent = '帧率' + (sortKey === 'frameRate' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
+  thCodec.textContent = '编码' + (sortKey === 'codec' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
+  thGroup.textContent = '分组' + (sortKey === 'groupTitle' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
+  if (thName) thName.textContent = '名称' + (sortKey === 'name' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
+}
+async function syncFcc() {
+  const list = getFccServers();
+  const curr = getCurrentFccId();
+  const item = list.find(x => x.id === curr);
+  const v = item ? item.addr : ((document.getElementById('fccAddrInput') && document.getElementById('fccAddrInput').value) ? document.getElementById('fccAddrInput').value.trim() : '');
+  if (!v) return;
+  const payload = { fcc: v };
+  const r = await fetch('/api/set-fcc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const j = await r.json();
+  if (j.success) await fetchStreams();
+}
+async function batchLogo() {
+  const tpl = getLogoTemplate();
+  if (tpl) await saveLogoTemplate(tpl);
+  await Promise.all(streams.map(async (s) => {
+    const nm = s.tvgName || s.tvgId || s.name || '';
+    const cand = chooseLogoCandidate(nm, s.resolution || '');
+    if (!cand) return;
+    const payload = { udpxyUrl: s.udpxyUrl, multicastUrl: s.multicastUrl, update: { logo: cand } };
+    await fetch('/api/stream/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  }));
+  await fetchStreams();
+}
+async function persistSave() {
+  const r = await fetch('/api/persist/save', { method: 'POST' });
+  const j = await r.json();
+  if (j.success) {
+    await refreshVersions();
+    try {
+      const sel = document.getElementById('versionsSelect');
+      const latest = sel && sel.options[0] ? sel.options[0].value : '';
+      showCenterConfirm(latest ? ('保存成功：streams.json 与 ' + latest) : '保存成功：streams.json');
+    } catch(e) {}
+  }
+}
+async function autoloadPersistedLatest() {
+  try {
+    const r = await fetch('/api/persist/list');
+    const j = await r.json();
+    if (j.success && Array.isArray(j.versions) && j.versions.length > 0) {
+      const latest = j.versions[0] && j.versions[0].file ? j.versions[0].file : '';
+      if (latest) {
+        const rv = await fetch('/api/persist/load-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: latest }) });
+        const vj = await rv.json();
+        if (vj.success) {
+          if (vj.settings) {
+            if (Array.isArray(vj.settings.groupTitles)) { const merged = mergeGroupTitlesPreserveMatchers(vj.settings.groupTitles); localStorage.setItem('groupTitles', JSON.stringify(merged)); }
+            if (typeof vj.settings.logoTemplate === 'string') localStorage.setItem('logoTemplate', vj.settings.logoTemplate);
+            if (Array.isArray(vj.settings.fccServers)) localStorage.setItem('fccServers', JSON.stringify(vj.settings.fccServers));
+            renderFccSelect();
+          }
+          if (Array.isArray(vj.streams)) {
+            streams = vj.streams;
+            renderTable();
+          }
+          return true;
+        }
+      }
+    }
+  } catch(e) {}
+  try {
+    const rp = await fetch('/api/persist/load', { method: 'POST' });
+    const pj = await rp.json();
+    if (pj.success) { await fetchStreams(); return true; }
+  } catch(e) {}
+  return false;
+}
+async function persistLoad() {
+  const r = await fetch('/api/persist/load', { method: 'POST' });
+  const j = await r.json();
+  if (j.success) {
+    try {
+      const rs = await fetch('/api/settings');
+      const sj = await rs.json();
+      if (sj.success && sj.settings) {
+        appSettings = sj.settings;
+        if (Array.isArray(appSettings.groupTitles)) { const merged = mergeGroupTitlesPreserveMatchers(appSettings.groupTitles); localStorage.setItem('groupTitles', JSON.stringify(merged)); }
+        if (typeof appSettings.logoTemplate === 'string') localStorage.setItem('logoTemplate', appSettings.logoTemplate);
+        if (Array.isArray(appSettings.fccServers)) localStorage.setItem('fccServers', JSON.stringify(appSettings.fccServers));
+        if (Array.isArray(appSettings.proxyList)) localStorage.setItem('proxyList', JSON.stringify(appSettings.proxyList));
+        if (typeof appSettings.externalUrl === 'string') localStorage.setItem('externalUrl', appSettings.externalUrl);
+      }
+    } catch(e) {}
+    try {
+      const rf = await fetch('/api/config/fcc-servers');
+      const jf = await rf.json();
+      if (jf.success && Array.isArray(jf.servers) && jf.servers.length > 0) {
+        localStorage.setItem('fccServers', JSON.stringify(jf.servers));
+        if (jf.currentId) localStorage.setItem('currentFccId', jf.currentId);
+        renderFccSelect();
+      }
+    } catch(e) {}
+    await loadLogoTemplates();
+    await loadGroupTitles();
+    await loadUdpxyServers();
+    await refreshVersions();
+    await fetchStreams();
+    try {
+      const cnt = Array.isArray(j.streams) ? j.streams.length : 0;
+      showCenterConfirm('加载成功：streams.json（共 ' + cnt + ' 条）');
+    } catch(e) {}
+  }
+}
+async function persistDelete() {
+  try {
+    const r = await fetch('/api/persist/delete', { method: 'POST' });
+    const j = await r.json();
+    if (j && j.success) {
+      await refreshVersions();
+      showCenterConfirm('已删除：streams.json');
+    }
+  } catch(e) {}
+}
+function getCurrentVersionFile() { try { return localStorage.getItem('currentVersionFile') || ''; } catch(e) { return ''; } }
+function setCurrentVersionFile(f) { try { localStorage.setItem('currentVersionFile', f || ''); } catch(e) {} }
+async function refreshVersions(selectedFile, quiet) {
+  try {
+    const r = await fetch('/api/persist/list');
+    const j = await r.json();
+    const sel = document.getElementById('versionsSelect');
+    if (!sel) return;
+    sel.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.text = '请选择版本';
+    sel.appendChild(placeholder);
+    sel.value = '';
+    if (j.success && Array.isArray(j.versions) && j.versions.length > 0) {
+      j.versions.forEach(v => { const opt = document.createElement('option'); opt.value = v.file; opt.text = v.file; sel.appendChild(opt); });
+      if (selectedFile) {
+        const has = j.versions.find(v => v.file === selectedFile);
+        sel.value = has ? selectedFile : '';
+      }
+      if (!quiet) { showCenterConfirm('刷新成功：共 ' + j.versions.length + ' 个版本'); }
+    } else {
+      if (!quiet) { showCenterConfirm('刷新成功：暂无版本'); }
+    }
+  } catch(e) {}
+}
+async function loadSelectedVersion() {
+  const sel = document.getElementById('versionsSelect');
+  if (!sel.value) { showCenterConfirm('请先选择要加载的版本'); return; }
+  const filename = sel.value;
+  const r = await fetch('/api/persist/load-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
+  const j = await r.json();
+  if (j.success) {
+    setCurrentVersionFile(filename);
+    await refreshVersions(filename, true);
+    await fetchStreams();
+    if (j.settings) {
+      if (Array.isArray(j.settings.groupTitles)) { const merged = mergeGroupTitlesPreserveMatchers(j.settings.groupTitles); localStorage.setItem('groupTitles', JSON.stringify(merged)); }
+      if (typeof j.settings.logoTemplate === 'string') localStorage.setItem('logoTemplate', j.settings.logoTemplate);
+      if (Array.isArray(j.settings.fccServers)) localStorage.setItem('fccServers', JSON.stringify(j.settings.fccServers));
+      renderFccSelect();
+    }
+    try {
+      const total = Array.isArray(streams) ? streams.length : 0;
+      const online = Array.isArray(streams) ? streams.filter(s => s.isAvailable).length : 0;
+      const offline = total - online;
+      showCenterConfirm('已加载版本：' + filename + '（总 ' + total + '，在线 ' + online + '，离线 ' + offline + '）');
+    } catch(e) {}
+  }
+}
+async function deleteSelectedVersion() {
+  const sel = document.getElementById('versionsSelect');
+  const filename = sel && sel.value ? sel.value : '';
+  if (!filename) { showCenterConfirm('请先选择要删除的版本'); return; }
+  const r = await fetch('/api/persist/delete-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
+  const j = await r.json();
+  if (j && j.success) {
+    if (getCurrentVersionFile() === filename) setCurrentVersionFile('');
+    await refreshVersions('', true);
+    showCenterConfirm('已删除版本：' + filename);
+  } else {
+    showCenterConfirm('删除失败：' + (j && j.message ? j.message : '未知错误'));
+  }
+}
+async function doPageRefresh() {
+  const curr = getCurrentVersionFile();
+  let verCount = 0;
+  try {
+    const r = await fetch('/api/persist/list');
+    const j = await r.json();
+    if (j.success && Array.isArray(j.versions)) verCount = j.versions.length;
+  } catch(e) {}
+  await refreshVersions(curr, true);
+  await fetchStreams();
+  const total = Array.isArray(streams) ? streams.length : 0;
+  const online = Array.isArray(streams) ? streams.filter(s => s.isAvailable).length : 0;
+  const offline = total - online;
+  const currLabel = curr && curr.length ? curr : 'streams.json';
+  showCenterConfirm('刷新成功：当前版本 ' + currLabel + '，版本 ' + verCount + ' 个，当前数据条数 ' + total + '（在线 ' + online + '，离线 ' + offline + '）');
+}
+function qualityLabel(resolution) {
+  const r = (resolution || '').toLowerCase();
+  if (r === '720x576' || r === '1280x720') return '标清';
+  if (r === '1920x1080') return '高清';
+  if (r === '3840x2160') return '超高清';
+  return '未知';
+}
+function openPotPlayer(url, title) {
+  const schemes = [
+    'potplayer://' + url,
+    'potplayer://play?url=' + encodeURIComponent(url) + (title ? ('&title=' + encodeURIComponent(String(title))) : '')
+  ];
+  let opened = false;
+  try { window.location.href = schemes[0]; opened = true; } catch(e) {}
+  setTimeout(() => { if (!opened) { try { window.location.href = schemes[1]; } catch(e) {} } }, 200);
+}
+function deleteStream(index) {
+  showCenterConfirm('确定要删除该频道吗？', async function(ok) {
+    if (!ok) return;
+    try {
+      await fetch(`/api/stream/${index}`, { method: 'DELETE' });
+      selectedRes.delete(index); // Remove from selection if present
+      await fetchStreams();
+    } catch (e) {}
+  });
+}
+function openEditModal(index) {
+  const s = streams[index];
+  let modal = document.getElementById('editModalResults');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'editModalResults';
+    modal.innerHTML = `
+    <div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:12px;">
+          <div class="modal-header border-bottom-0 pb-0">
+            <h5 class="modal-title fw-bold text-dark"><i class="bi bi-pencil-square me-2 text-primary"></i>编辑频道信息</h5>
+            <button type="button" class="btn-close" id="editCloseR"></button>
+          </div>
+          <div class="modal-body pt-4 px-4">
+            
+            <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-info-circle me-1"></i>基本信息</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted">频道名称</label>
+                    <input class="form-control" id="editNameR">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-muted">频道分组</label>
+                    <select class="form-select" id="editGroupSelectR"></select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small text-muted">频道台标 URL</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="input-group">
+                            <input class="form-control" id="editLogoR">
+                            <span class="input-group-text bg-light"><i class="bi bi-image"></i></span>
+                        </div>
+                        <img id="editLogoPreviewR" src="" alt="Logo" class="border rounded bg-light" style="height: 38px; width: auto; min-width: 38px; object-fit: contain; padding: 2px;" onerror="if(!this.dataset.err){this.dataset.err=1;this.src='/api/proxy/stream?url='+encodeURIComponent(this.src);}else{this.style.display='none';}" onload="this.style.display='block'">
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-broadcast me-1"></i>EPG 与 流信息</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">tvg-id</label>
+                    <input class="form-control" id="editTvgIdR">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">tvg-name</label>
+                    <input class="form-control" id="editTvgNameR">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">流类型</label>
+                    <input class="form-control bg-light" id="editTypeR" disabled readonly>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small text-muted">频道地址 (只读)</label>
+                    <div class="input-group">
+                        <input class="form-control font-monospace bg-light" id="editMulticastR" disabled readonly>
+                        <button class="btn btn-outline-primary" type="button" id="editPlayBtnR"><i class="bi bi-play-fill"></i> 播放</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion" id="editAdvancedAccordion">
+                <div class="accordion-item border-0 bg-light rounded-3">
+                    <h2 class="accordion-header" id="headingAdvanced">
+                        <button class="accordion-button collapsed bg-transparent shadow-none fw-bold text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdvanced">
+                            <i class="bi bi-sliders me-2"></i>高级设置 (回放/FCC/台标模板)
+                        </button>
+                    </h2>
+                    <div id="collapseAdvanced" class="accordion-collapse collapse" data-bs-parent="#editAdvancedAccordion">
+                        <div class="accordion-body pt-0">
+                             <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">台标模板匹配</label>
+                                    <div class="input-group">
+                                        <input class="form-control" id="editLogoTemplateR" placeholder="http://host/LOGO/{name}.png">
+                                        <button class="btn btn-outline-primary" id="autoLogoBtnR">自动匹配</button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">回放格式</label>
+                                    <input class="form-control bg-white" id="editCatchupFmtR" value="由接口选择（默认/酷9/mytv）" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">FCC 服务器参数</label>
+                                    <input class="form-control" id="editHttpParamR" placeholder="fcc=ip:port">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">回放源基础 URL</label>
+                                    <input class="form-control" id="editCatchupBaseR" placeholder="http://host/path">
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+          </div>
+          <div class="modal-footer border-top-0 pb-4 px-4 justify-content-end">
+            <button type="button" class="btn btn-light px-4 me-2" id="editCancelR">取消</button>
+            <button type="button" class="btn btn-primary px-4" id="editSaveR"><i class="bi bi-check-lg me-1"></i>保存</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  ensureDefaultGroups();
+  document.getElementById('editNameR').value = s.name || '';
+  document.getElementById('editTvgIdR').value = s.tvgId || '';
+  document.getElementById('editTvgNameR').value = s.tvgName || '';
+  document.getElementById('editLogoR').value = s.logo || '';
+  const editLogoPreview = document.getElementById('editLogoPreviewR');
+  const editLogoInput = document.getElementById('editLogoR');
+  if (editLogoPreview) {
+      editLogoPreview.src = s.logo || '';
+      editLogoPreview.style.display = s.logo ? 'block' : 'none';
+  }
+  if (editLogoInput && editLogoPreview) {
+      editLogoInput.oninput = function() {
+          editLogoPreview.src = this.value;
+          editLogoPreview.style.display = this.value ? 'block' : 'none';
+      };
+  }
+  
+  const editPlayBtn = document.getElementById('editPlayBtnR');
+  if (editPlayBtn) {
+      editPlayBtn.onclick = function() {
+          const u = document.getElementById('editMulticastR').value;
+          const n = document.getElementById('editNameR').value;
+          if (u) openPotPlayer(u, n);
+      };
+  }
+  const groupSel = document.getElementById('editGroupSelectR');
+  groupSel.innerHTML = '';
+  getGroupTitles().forEach(g => { const opt = document.createElement('option'); opt.value = g.name; opt.text = g.name; groupSel.appendChild(opt); });
+  groupSel.value = s.groupTitle || (groupSel.options[0] ? groupSel.options[0].value : '');
+  document.getElementById('editLogoTemplateR').value = getLogoTemplate();
+  document.getElementById('editMulticastR').value = s.multicastUrl || '';
+  document.getElementById('editTypeR').value = (function(){ const u=(s.multicastUrl||'').trim(); const hasUdpxy=!!s.udpxyUrl; const scheme=u.split(':')[0].toLowerCase(); if(hasUdpxy) return '组播'; if(scheme==='rtp'||scheme==='udp') return '组播'; return '单播'; })();
+  document.getElementById('editCatchupFmtR').value = '由接口选择（默认/酷9/mytv）';
+  (function applyScopeParams(){
+    const useExternal = (localStorage.getItem('useExternal') === 'true') || !!appSettings.useExternal;
+    const catchEl = document.getElementById('editCatchupBaseR');
+    const httpEl = document.getElementById('editHttpParamR');
+    const baseVal = s.catchupBase || '';
+    let scopedCatch = baseVal;
+    if (useExternal && baseVal) {
+      let proxyList = [];
+      try { proxyList = JSON.parse(localStorage.getItem('proxyList') || '[]'); } catch(e) { proxyList = []; }
+      if (proxyList.length === 0 && Array.isArray(appSettings.proxyList)) proxyList = appSettings.proxyList;
+      const proxyItem = proxyList.find(x => x.type === '代理');
+      let pb = proxyItem && proxyItem.url ? proxyItem.url : '';
+      if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
+      if (pb) {
+        const stripped = String(baseVal).replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+        scopedCatch = pb.replace(/\/+$/,'') + '/' + stripped;
+      }
+    }
+    if (catchEl) catchEl.value = scopedCatch;
+    if (httpEl) httpEl.value = s.httpParam || '';
+    try {
+      const list = getLogoTpls();
+      const pick = useExternal ? (list.find(x => x.category === '外网') || null) : (list.find(x => x.category === '内网') || null);
+      const logoEl = document.getElementById('editLogoTemplateR');
+      if (logoEl && pick && pick.url) logoEl.value = pick.url;
+      // 同步“频道台标URL”为当前范围的模板地址
+      const nm = document.getElementById('editNameR').value || s.tvgName || s.tvgId || s.name || '';
+      if (pick && pick.url) {
+        const cand = pick.url.replace('{name}', nm);
+        const logoUrlEl = document.getElementById('editLogoR');
+        if (logoUrlEl && cand) logoUrlEl.value = cand;
+      }
+    } catch(e) {}
+    // 外网/内网下修正显示（仅单播按规则处理）
+    try {
+      let proxyList = [];
+      try { proxyList = JSON.parse(localStorage.getItem('proxyList') || '[]'); } catch(e) { proxyList = []; }
+      if (proxyList.length === 0 && Array.isArray(appSettings.proxyList)) proxyList = appSettings.proxyList;
+      const proxyItem = proxyList.find(x => x.type === '代理');
+      let pb = proxyItem && proxyItem.url ? proxyItem.url : '';
+      if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
+      const typeVal = (function(){ const u=(s.multicastUrl||'').trim(); const hasUdpxy=!!s.udpxyUrl; const scheme=u.split(':')[0].toLowerCase(); if(hasUdpxy) return '组播'; if(scheme==='rtp'||scheme==='udp') return '组播'; return '单播'; })();
+      if (httpEl && typeVal === '单播') { httpEl.value = ''; httpEl.disabled = true; httpEl.placeholder = '单播不需要FCC服务器'; try { httpEl.style.backgroundColor = '#e9ecef'; httpEl.style.cursor = 'not-allowed'; } catch(e) {} }
+      const addrEl = document.getElementById('editMulticastR');
+      const orig = String(s.multicastUrl || '').trim();
+      const origNoQuery = orig.split('?')[0];
+      if (useExternal && pb && typeVal === '单播') {
+        const stripped = origNoQuery.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+        const baseUrl = pb.replace(/\/+$/,'') + '/' + stripped;
+        const addrEl = document.getElementById('editMulticastR');
+        if (addrEl) addrEl.value = baseUrl + '?zte_offset=30&ispcode=2&starttime=$单播';
+        if (catchEl) catchEl.value = baseUrl;
+      } else if (!useExternal && typeVal === '单播') {
+        if (!baseVal && catchEl) catchEl.value = origNoQuery;
+      } else if (typeVal === '组播') {
+        const u = String(s.multicastUrl || '').trim();
+        const strippedRtp = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+        if (useExternal) {
+          // 外网：使用“代理设置”中类型为“外网”的地址
+          const extBaseItem = proxyList.find(x => x.type === '外网');
+          const extBase = extBaseItem && extBaseItem.url ? extBaseItem.url : '';
+          if (extBase && addrEl) addrEl.value = extBase.replace(/\/+$/,'') + strippedRtp;
+        } else {
+          // 内网：使用 rtp2httpd（udpxy服务器）当前地址
+          let internalBase = '';
+          try {
+            const list = JSON.parse(localStorage.getItem('udpxyServers') || '[]');
+            const currId = localStorage.getItem('udpxyCurrentId') || '';
+            const item = list.find(x => x.id === currId);
+            internalBase = item ? (item.url || '') : (appSettings.udpxyCurrentUrl || '');
+          } catch(e) {}
+          if (!internalBase) internalBase = appSettings.udpxyCurrentUrl || '';
+          if (internalBase && addrEl) addrEl.value = internalBase.replace(/\/+$/,'') + strippedRtp;
+        }
+        try {
+          const nm = String(document.getElementById('editNameR').value || s.tvgName || s.name || '').trim();
+          const rs = String(s.resolution || '').trim();
+          const frStr = String(s.frameRate || '').trim();
+          const frNum = frStr ? (parseFloat(frStr) || null) : null;
+          const candidates = (Array.isArray(streams) ? streams : []).filter(x => {
+            const uu = String(x.multicastUrl || '').trim();
+            const scheme = uu.split(':')[0].toLowerCase();
+            return scheme === 'http' || scheme === 'https';
+          });
+          const normalizeName = (s) => String(s || '').trim().replace(/\s+/g, '').replace(/4K$/i, '');
+          const nmBase = normalizeName(nm);
+          let nameCandidates = candidates.filter(x => String(x.tvgName || x.name || '').trim() === nm);
+          if (nameCandidates.length === 0) {
+            nameCandidates = candidates.filter(x => normalizeName(String(x.tvgName || x.name || '').trim()) === nmBase);
+          }
+          const eqRes = (x) => String(x.resolution || '').trim() === rs;
+          const eqFps = (x) => {
+            const xf = String(x.frameRate || '').trim();
+            if (!xf || !frStr) return false;
+            const a = parseFloat(xf);
+            const b = frNum;
+            if (!isNaN(a) && b !== null) return Math.abs(a - b) <= 0.1;
+            return xf === frStr;
+          };
+          const areaOf = (r) => {
+            const m = String(r || '').trim().match(/^(\d+)\s*x\s*(\d+)$/i);
+            if (!m) return 0;
+            const w = parseInt(m[1], 10);
+            const h = parseInt(m[2], 10);
+            if (isNaN(w) || isNaN(h)) return 0;
+            return w * h;
+          };
+          let match = null;
+          if (nameCandidates.length > 0) {
+            const exactRF = nameCandidates.filter(x => eqRes(x) && eqFps(x));
+            if (exactRF.length > 0) match = exactRF[0];
+            if (!match) {
+              const exactR = nameCandidates.filter(eqRes);
+              if (exactR.length > 0) {
+                const withFps = exactR.filter(eqFps);
+                match = withFps.length > 0 ? withFps[0] : exactR[0];
+              }
+            }
+            if (!match) {
+              const is4k = rs === '3840x2160';
+              const withFps = nameCandidates.filter(eqFps);
+              if (is4k) {
+                if (withFps.length > 0) {
+                  const fourKFps = withFps.filter(x => String(x.resolution || '').trim() === '3840x2160');
+                  match = fourKFps.length > 0 ? fourKFps[0] : withFps.sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                } else {
+                  const fourK = nameCandidates.filter(x => String(x.resolution || '').trim() === '3840x2160');
+                  match = fourK.length > 0 ? fourK[0] : [...nameCandidates].sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                }
+              } else {
+                if (withFps.length > 0) {
+                  match = withFps.sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                } else {
+                  match = [...nameCandidates].sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                }
+              }
+            }
+          }
+          function stripQuery(u0){ return String(u0||'').split('?')[0]; }
+          function stripScheme(u0){ return String(u0||'').replace(/^https?:\/\//i, '').replace(/^\/+/, ''); }
+          if (match && catchEl) {
+            const raw = stripQuery(match.multicastUrl || '');
+            if (useExternal && pb) {
+              catchEl.value = pb.replace(/\/+$/,'') + '/' + stripScheme(raw);
+            } else if (!useExternal) {
+              catchEl.value = raw;
+            }
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+  })();
+  modal.style.display = 'block';
+  modal.querySelector('.modal').classList.add('show');
+  function close() {
+    modal.style.display = 'none';
+    modal.querySelector('.modal').classList.remove('show');
+  }
+  document.getElementById('editCloseR').onclick = close;
+  document.getElementById('editCancelR').onclick = close;
+  document.getElementById('editLogoTemplateR').addEventListener('change', function() {
+    const tpl = this.value || '';
+    if (tpl) saveLogoTemplate(tpl);
+  });
+  document.getElementById('autoLogoBtnR').onclick = function() {
+    const nm = document.getElementById('editNameR').value || s.tvgName || s.tvgId || s.name || '';
+    const cand = chooseLogoCandidate(nm, s.resolution || '');
+    if (cand) {
+        document.getElementById('editLogoR').value = cand;
+        const prev = document.getElementById('editLogoPreviewR');
+        if (prev) { prev.src = cand; prev.style.display = 'block'; }
+    }
+  };
+  document.getElementById('editSaveR').onclick = async function() {
+    const payload = {
+      udpxyUrl: s.udpxyUrl,
+      multicastUrl: s.multicastUrl,
+      update: {
+        name: document.getElementById('editNameR').value || '',
+        tvgId: document.getElementById('editTvgIdR').value || '',
+        tvgName: document.getElementById('editTvgNameR').value || '',
+        logo: document.getElementById('editLogoR').value || '',
+        groupTitle: document.getElementById('editGroupSelectR').value || '',
+        catchupBase: document.getElementById('editCatchupBaseR').value || '',
+        httpParam: document.getElementById('editHttpParamR').value || ''
+      }
+    };
+    await fetch('/api/stream/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    close();
+    await fetchStreams();
+  };
+}
+async function __initResults(){
+  if (window.__resultsInitDone) return;
+  try {
+    const logoTplInputEl = document.getElementById('logoTplInput');
+    if (logoTplInputEl) logoTplInputEl.value = getLogoTemplate();
+    const syncFccBtn = document.getElementById('syncFccBtn');
+    if (syncFccBtn) syncFccBtn.onclick = syncFcc;
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) saveBtn.onclick = persistSave;
+    const loadBtn = document.getElementById('loadBtn');
+    if (loadBtn) loadBtn.onclick = loadSelectedVersion;
+    const delBtn = document.getElementById('deletePersistBtn');
+    if (delBtn) delBtn.onclick = deleteSelectedVersion;
+    const refreshVersionsBtn = document.getElementById('refreshVersionsBtn');
+    if (refreshVersionsBtn) refreshVersionsBtn.onclick = doPageRefresh;
+    const appSettingsBtn = document.getElementById('appSettingsBtn');
+    if (appSettingsBtn) appSettingsBtn.onclick = openAppSettingsModal;
+    const searchInput = document.getElementById('searchInputResults');
+    if (searchInput) searchInput.oninput = function(){ searchQuery = this.value || ''; resCurrentPage = 1; renderTable(); };
+    const loadVersionBtn = document.getElementById('loadVersionBtn');
+    if (loadVersionBtn) loadVersionBtn.onclick = loadSelectedVersion;
+    const renameGroupBtn = document.getElementById('renameGroupBtn');
+    if (renameGroupBtn) renameGroupBtn.onclick = async function(){
+      const from = (document.getElementById('renameFromInput').value || '').trim();
+      const to = (document.getElementById('renameToInput').value || '').trim();
+      if (!from || !to) return;
+      const r = await fetch('/api/settings/rename-group', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to }) });
+      const j = await r.json();
+      if (j.success) {
+        if (Array.isArray(j.groupTitles)) { const merged = mergeGroupTitlesPreserveMatchers(j.groupTitles); localStorage.setItem('groupTitles', JSON.stringify(merged)); }
+        await fetchStreams();
+      }
+    };
+    async function getAllEpgSources() {
+      try { const r = await fetch('/api/config/epg-sources'); const j = await r.json(); return Array.isArray(j.sources) ? j.sources : []; } catch(e) { return []; }
+    }
+    async function refreshEpgExternalSelect() {
+      const list = await getAllEpgSources();
+      const ext = list.filter(x => x.scope === '外网');
+      const sel = document.getElementById('epgExternalSelect');
+      if (!sel) return;
+      sel.innerHTML = '';
+      ext.forEach(x => { const opt = document.createElement('option'); opt.value = x.id; opt.text = x.name + ' (' + x.url + ')'; sel.appendChild(opt); });
+      const nameEl = document.getElementById('epgExternalName');
+      const urlEl = document.getElementById('epgExternalUrl');
+      if (ext[0]) { if (nameEl) nameEl.value = ext[0].name || ''; if (urlEl) urlEl.value = ext[0].url || ''; }
+      else { if (nameEl) nameEl.value = ''; if (urlEl) urlEl.value = ''; }
+    }
+    const epgSel = document.getElementById('epgExternalSelect');
+    if (epgSel) epgSel.onchange = async function() {
+      const list = await getAllEpgSources();
+      const id = this.value;
+      const item = list.find(x => x.id === id);
+      const nameEl = document.getElementById('epgExternalName');
+      const urlEl = document.getElementById('epgExternalUrl');
+      if (item) { if (nameEl) nameEl.value = item.name || ''; if (urlEl) urlEl.value = item.url || ''; }
+    };
+    const epgAddBtn = document.getElementById('epgExternalAddBtn');
+    if (epgAddBtn) epgAddBtn.onclick = async function() {
+      const nameEl = document.getElementById('epgExternalName');
+      const urlEl = document.getElementById('epgExternalUrl');
+      const name = nameEl ? (nameEl.value || '').trim() : '';
+      const url = urlEl ? (urlEl.value || '').trim() : '';
+      if (!/^https?:\/\//i.test(url)) return;
+      const list = await getAllEpgSources();
+      const id = 'epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      list.push({ id, name: name || '未命名EPG', url, scope: '外网' });
+      await fetch('/api/config/epg-sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: list }) });
+      await refreshEpgExternalSelect();
+    };
+    const epgUpdateBtn = document.getElementById('epgExternalUpdateBtn');
+    if (epgUpdateBtn) epgUpdateBtn.onclick = async function() {
+      const sel = document.getElementById('epgExternalSelect');
+      if (!sel || !sel.value) return;
+      const nameEl = document.getElementById('epgExternalName');
+      const urlEl = document.getElementById('epgExternalUrl');
+      const name = nameEl ? (nameEl.value || '').trim() : '';
+      const url = urlEl ? (urlEl.value || '').trim() : '';
+      if (!/^https?:\/\//i.test(url)) return;
+      const list = await getAllEpgSources();
+      const idx = list.findIndex(x => x.id === sel.value);
+      if (idx >= 0) list[idx] = { ...list[idx], name: name || '未命名EPG', url, scope: '外网' };
+      await fetch('/api/config/epg-sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: list }) });
+      await refreshEpgExternalSelect();
+    };
+    const epgDeleteBtn = document.getElementById('epgExternalDeleteBtn');
+    if (epgDeleteBtn) epgDeleteBtn.onclick = async function() {
+      const sel = document.getElementById('epgExternalSelect');
+      if (!sel || !sel.value) return;
+      const list = await getAllEpgSources();
+      const idx = list.findIndex(x => x.id === sel.value);
+      if (idx >= 0) list.splice(idx, 1);
+      await fetch('/api/config/epg-sources', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sources: list }) });
+      await refreshEpgExternalSelect();
+    };
+    const btnAll = document.getElementById('filterAll');
+    if (btnAll) btnAll.onclick = function(){ filterStatus='all'; renderTable(); };
+    const btnOnline = document.getElementById('filterOnline');
+    if (btnOnline) btnOnline.onclick = function(){ filterStatus='online'; renderTable(); };
+    const btnOffline = document.getElementById('filterOffline');
+    if (btnOffline) btnOffline.onclick = function(){ filterStatus='offline'; renderTable(); };
+    const btnMulticast = document.getElementById('filterMulticast');
+    if (btnMulticast) btnMulticast.onclick = function(){ filterType='multicast'; resCurrentPage=1; renderTable(); };
+    const btnUnicast = document.getElementById('filterUnicast');
+    if (btnUnicast) btnUnicast.onclick = function(){ filterType='unicast'; resCurrentPage=1; renderTable(); };
+    const batchDelBtn = document.getElementById('batchDeleteBtnResults');
+    if (batchDelBtn) batchDelBtn.onclick = function() {
+      const arr = Array.from(selectedRes);
+      if (arr.length === 0) { showCenterConfirm('请先选择要删除的频道', null, true); return; }
+      showCenterConfirm(`确定要删除选中的 ${arr.length} 个频道吗？`, async function(ok) {
+        if (!ok) return;
+        try {
+            await fetch('/api/streams/batch-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ indices: arr })
+            });
+        } catch(e) {}
+        selectedRes = new Set();
+        await fetchStreams();
+      });
+    };
+    const batchDelBtnB = document.getElementById('batchDeleteBtnResultsB');
+    if (batchDelBtnB) batchDelBtnB.onclick = function() {
+      const arr = Array.from(selectedRes);
+      if (arr.length === 0) { showCenterConfirm('请先选择要删除的频道', null, true); return; }
+      showCenterConfirm(`确定要删除选中的 ${arr.length} 个频道吗？`, async function(ok) {
+        if (!ok) return;
+        try {
+            await fetch('/api/streams/batch-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ indices: arr })
+            });
+        } catch(e) {}
+        selectedRes = new Set();
+        await fetchStreams();
+      });
+    };
+    const batchDelBtnTop = document.getElementById('batchDeleteBtnResultsTop');
+    if (batchDelBtnTop) batchDelBtnTop.onclick = batchDelBtnB.onclick;
+    const thRes = document.getElementById('thResolution');
+    const thFps = document.getElementById('thFrameRate');
+    const thCodec = document.getElementById('thCodec');
+    const thGroup = document.getElementById('thGroupTitle');
+    const thName = document.getElementById('thName');
+    if (thRes) thRes.onclick = function(){ sortKey = 'resolution'; sortDir = sortKey === 'resolution' && sortDir === 'asc' ? 'desc' : (sortKey === 'resolution' && sortDir === 'desc' ? 'asc' : 'asc'); updateSortIndicators(); renderTable(); };
+    if (thFps) thFps.onclick = function(){ sortKey = 'frameRate'; sortDir = sortKey === 'frameRate' && sortDir === 'asc' ? 'desc' : (sortKey === 'frameRate' && sortDir === 'desc' ? 'asc' : 'asc'); updateSortIndicators(); renderTable(); };
+    if (thCodec) thCodec.onclick = function(){ sortKey = 'codec'; sortDir = sortKey === 'codec' && sortDir === 'asc' ? 'desc' : (sortKey === 'codec' && sortDir === 'desc' ? 'asc' : 'asc'); updateSortIndicators(); renderTable(); };
+    if (thGroup) thGroup.onclick = function(){ sortKey = 'groupTitle'; sortDir = sortKey === 'groupTitle' && sortDir === 'asc' ? 'desc' : (sortKey === 'groupTitle' && sortDir === 'desc' ? 'asc' : 'asc'); updateSortIndicators(); renderTable(); };
+    if (thName) thName.onclick = function(){ sortKey = 'name'; sortDir = sortKey === 'name' && sortDir === 'asc' ? 'desc' : (sortKey === 'name' && sortDir === 'desc' ? 'asc' : 'asc'); updateSortIndicators(); renderTable(); };
+    updateSortIndicators();
+    renderFccSelect();
+    const toggleDebugBtn = document.getElementById('toggleDebugBtn');
+    if (toggleDebugBtn) toggleDebugBtn.onclick = function(){ setDebugVisible(false); };
+    const apiLinksBtn = document.getElementById('apiLinksBtn');
+    if (apiLinksBtn) apiLinksBtn.onclick = openApiLinks;
+    const epgBtn = document.getElementById('epgBtn');
+    if (epgBtn) epgBtn.onclick = openEpgModal;
+    const fccBtn = document.getElementById('fccBtn');
+    if (fccBtn) fccBtn.onclick = openFccModal;
+    const groupBtn = document.getElementById('groupBtn');
+    if (groupBtn) groupBtn.onclick = openGroupModal;
+    const logoBtn = document.getElementById('logoBtn');
+    if (logoBtn) logoBtn.onclick = openLogoTplModal;
+    const proxyBtn = document.getElementById('proxyBtn');
+    if (proxyBtn) proxyBtn.onclick = openProxyModal;
+    const fccSel = document.getElementById('fccSelect');
+    const fccNameInput = document.getElementById('fccNameInput');
+    const fccAddrInput = document.getElementById('fccAddrInput');
+    const addFccBtn = document.getElementById('addFccBtn');
+    if (addFccBtn) addFccBtn.onclick = function(){ addFcc(fccNameInput ? fccNameInput.value : '', fccAddrInput ? fccAddrInput.value : ''); if (fccNameInput) fccNameInput.value=''; if (fccAddrInput) fccAddrInput.value=''; };
+    const delFccBtn = document.getElementById('delFccBtn');
+    if (delFccBtn) delFccBtn.onclick = function(){ deleteCurrentFcc(); };
+    if (fccSel) fccSel.onchange = function(){ setCurrentFccId(this.value); syncFccServersBackend(); };
+    const logoSel = document.getElementById('logoTplSelect');
+    const logoNameInput = document.getElementById('logoTplNameInput');
+    const logoAddrInput = document.getElementById('logoTplAddrInput');
+    const logoAdd = document.getElementById('addLogoTplBtn');
+    if (logoSel) logoSel.onchange = function() {
+      const list = getLogoTpls();
+      const item = list.find(x => x.id === this.value) || list[0];
+      if (!item) return;
+      setCurrentLogoTplId(item.id);
+      const urls = list.map(x => x.url).filter(Boolean);
+      setLogoTemplate(item.url, urls);
+    };
+    if (logoAdd) logoAdd.onclick = function() {
+      const name = logoNameInput ? (logoNameInput.value || '').trim() : '';
+      const url = logoAddrInput ? (logoAddrInput.value || '').trim() : '';
+      if (!url) return;
+      const list = getLogoTpls();
+      const id = 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      list.push({ id, name: name || '未命名模板', url });
+      saveLogoTpls(list);
+      setCurrentLogoTplId(id);
+      const sel = document.getElementById('logoTplSelect');
+      if (sel) {
+        sel.innerHTML = '';
+        list.forEach(t => { const opt = document.createElement('option'); opt.value = t.id; opt.text = t.name + ' (' + t.url + ')'; sel.appendChild(opt); });
+        sel.value = id;
+      }
+      const urls = list.map(x => x.url).filter(Boolean);
+      setLogoTemplate(url, urls).then(() => loadLogoTemplates());
+    };
+    const logoDel = document.getElementById('delLogoTplBtn');
+    if (logoDel) logoDel.onclick = function() {
+      const sel = document.getElementById('logoTplSelect');
+      const curr = sel ? sel.value : '';
+      if (!curr) return;
+      let list = getLogoTpls();
+      const idx = list.findIndex(x => x.id === curr);
+      if (idx >= 0) list.splice(idx, 1);
+      saveLogoTpls(list);
+      const next = list[0] || null;
+      if (sel) {
+        sel.innerHTML = '';
+        list.forEach(t => { const opt = document.createElement('option'); opt.value = t.id; opt.text = t.name + ' (' + t.url + ')'; sel.appendChild(opt); });
+        sel.value = next ? next.id : '';
+      }
+      if (logoNameInput) logoNameInput.value = '';
+      if (logoAddrInput) logoAddrInput.value = '';
+      setCurrentLogoTplId(next ? next.id : '');
+      const urls = list.map(x => x.url).filter(Boolean);
+      setLogoTemplate(next ? next.url : '', urls).then(() => loadLogoTemplates());
+    };
+    const logoSync = document.getElementById('syncLogoTplBtn');
+    if (logoSync) logoSync.onclick = async function() {
+      const list = getLogoTpls();
+      const currId = getCurrentLogoTplId();
+      const item = list.find(x => x.id === currId) || list[0];
+      const currUrl = item ? item.url : '';
+      const urls = list.map(x => x.url).filter(Boolean);
+      await setLogoTemplate(currUrl, urls);
+      await batchLogo();
+    };
+    const syncFccBtn2 = document.getElementById('syncFccBtn');
+    if (syncFccBtn2) syncFccBtn2.onclick = async function(){
+      const list = getFccServers();
+      const curr = getCurrentFccId();
+      const item = list.find(x => x.id === curr);
+      const v = item ? item.addr : (fccAddrInput.value || '');
+      if (!v) return;
+      const payload = { fcc: v };
+      const r = await fetch('/api/set-fcc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (j.success) await fetchStreams();
+    };
+    try {
+      const rs = await fetch('/api/settings');
+      const sj = await rs.json();
+      if (sj.success && sj.settings) {
+        appSettings = sj.settings;
+        if (Array.isArray(appSettings.groupTitles)) { const merged = mergeGroupTitlesPreserveMatchers(appSettings.groupTitles); localStorage.setItem('groupTitles', JSON.stringify(merged)); }
+        if (typeof appSettings.logoTemplate === 'string') localStorage.setItem('logoTemplate', appSettings.logoTemplate);
+        if (Array.isArray(appSettings.fccServers)) localStorage.setItem('fccServers', JSON.stringify(appSettings.fccServers));
+        
+        // Initialize switch state from settings
+        const useExt = !!appSettings.useExternal;
+        const sw = document.getElementById('netScopeSwitchR2');
+        if (sw) {
+            sw.checked = useExt;
+            updateNetScopeUI(useExt);
+        }
+        // Initialize radio buttons from settings
+        const radioInt = document.getElementById('netScopeInternal');
+        const radioExt = document.getElementById('netScopeExternal');
+        if (radioInt && radioExt) {
+            if (useExt) radioExt.checked = true;
+            else radioInt.checked = true;
+        }
+      }
+    } catch(e) {}
+    try {
+      const rf = await fetch('/api/config/fcc-servers');
+      const jf = await rf.json();
+      if (jf.success && Array.isArray(jf.servers) && jf.servers.length > 0) {
+        localStorage.setItem('fccServers', JSON.stringify(jf.servers));
+        if (jf.currentId) localStorage.setItem('currentFccId', jf.currentId);
+        renderFccSelect();
+      }
+    } catch(e) {}
+    await loadLogoTemplates();
+    await refreshVersions(getCurrentVersionFile(), true);
+  } catch(e) {
+    dbg('__initResults error', { message: String(e) });
+  } finally {
+    dbg('__initResults done');
+    window.__resultsInitDone = true;
+    await fetchStreams();
+    try {
+      const r1 = await fetch('/api/streams'); dbg('diag:/api/streams status', { ok: r1.ok, status: r1.status });
+    } catch(e) { dbg('diag:/api/streams error', { message: String(e) }); }
+    try {
+      const r2 = await fetch('/api/persist/list'); dbg('diag:/api/persist/list status', { ok: r2.ok, status: r2.status });
+    } catch(e) { dbg('diag:/api/persist/list error', { message: String(e) }); }
+    try {
+      const r3 = await fetch('/api/settings'); dbg('diag:/api/settings status', { ok: r3.ok, status: r3.status });
+    } catch(e) { dbg('diag:/api/settings error', { message: String(e) }); }
+  }
+}
+fetchStreams();
+requestAnimationFrame(() => { try { __initResults(); } catch(e) {} });
+window.addEventListener('DOMContentLoaded', () => { __initResults(); });
+setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
+</script>
+    <!-- 修改密码弹窗 -->
+    <div class="modal fade" id="changePwdModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改密码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePwdForm">
+                        <div class="mb-3">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="newUsername" placeholder="留空则不修改">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">旧密码</label>
+                            <input type="password" class="form-control" id="oldPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">新密码</label>
+                            <input type="password" class="form-control" id="newPassword" placeholder="留空则不修改">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="doChangePwd()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isDockerEnv = false;
+        
+        // 加载版本信息
+        async function loadSystemInfo() {
+            try {
+                const r = await fetch('/api/system/info');
+                const j = await r.json();
+                if (j.success) {
+                    document.getElementById('footerVersion').textContent = 'v' + j.version;
+                    document.getElementById('modalCurrentVersion').textContent = 'v' + j.version;
+                    if (j.isDocker) {
+                        isDockerEnv = true;
+                        document.getElementById('dockerBadge').style.display = 'inline-block';
+                    }
+                }
+            } catch(e) {}
+        }
+        
+        // 显示弹窗并检查更新
+        async function showVersionModal() {
+            const modal = new bootstrap.Modal(document.getElementById('versionModal'));
+            modal.show();
+            await checkGithubUpdate();
+        }
+        
+        async function checkGithubUpdate() {
+            const notesDiv = document.getElementById('releaseNotes');
+            const latestSpan = document.getElementById('modalLatestVersion');
+            const btnUpdate = document.getElementById('btnUpdate');
+            
+            try {
+                const r = await fetch('https://api.github.com/repos/cgg888/iptv-checker/releases/latest');
+                if (r.status === 200) {
+                    const data = await r.json();
+                    latestSpan.textContent = data.tag_name;
+                    // 简单的 Markdown 转 HTML
+                    notesDiv.innerHTML = data.body.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+                    
+                    const currentVer = document.getElementById('modalCurrentVersion').textContent.replace('v', '').trim();
+                    const remoteVer = data.tag_name.replace('v', '').trim();
+                    
+                    if (remoteVer !== currentVer) {
+                        btnUpdate.textContent = isDockerEnv ? 'Docker 更新指引' : '立即更新';
+                        btnUpdate.disabled = false;
+                        btnUpdate.classList.remove('btn-secondary');
+                        btnUpdate.classList.add('btn-success');
+                    } else {
+                        btnUpdate.textContent = '已是最新版本';
+                        btnUpdate.disabled = true;
+                        btnUpdate.classList.remove('btn-success');
+                        btnUpdate.classList.add('btn-secondary');
+                    }
+                } else {
+                    latestSpan.textContent = '获取失败';
+                    notesDiv.textContent = '无法连接到 GitHub API';
+                }
+            } catch(e) {
+                latestSpan.textContent = '网络错误';
+                notesDiv.textContent = '检查更新失败';
+            }
+        }
+        
+        async function doUpdate() {
+            if (isDockerEnv) {
+                alert('Docker 环境无法直接通过网页更新。\n\n请在服务器执行以下命令更新：\ndocker-compose pull && docker-compose up -d');
+                return;
+            }
+            
+            if (!confirm('确定要尝试自动更新吗？\n请确保已保存数据。')) return;
+            
+            const btn = document.getElementById('btnUpdate');
+            btn.disabled = true;
+            btn.textContent = '更新中...';
+            
+            try {
+                const r = await fetch('/api/system/update', { method: 'POST' });
+                const j = await r.json();
+                alert(j.message);
+                if (j.success) {
+                    location.reload();
+                }
+            } catch(e) {
+                alert('请求失败');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '立即更新';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadSystemInfo);
+
+        async function doLogout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login.html';
+        }
+        async function doChangePwd() {
+            const username = document.getElementById('newUsername').value;
+            const oldPassword = document.getElementById('oldPassword').value;
+            const password = document.getElementById('newPassword').value;
+            if (!oldPassword) {
+                alert('请输入旧密码');
+                return;
+            }
+            try {
+                const r = await fetch('/api/auth/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, oldPassword, password })
+                });
+                const j = await r.json();
+                if (j.success) {
+                    alert('修改成功');
+                    const modalEl = document.getElementById('changePwdModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+                    document.getElementById('changePwdForm').reset();
+                    if (j.username) document.getElementById('userDisplay').textContent = j.username;
+                } else {
+                    alert(j.message || '修改失败');
+                }
+            } catch(e) {
+                alert('网络错误');
+            }
+        }
+    </script>
+    
+    <!-- 底部版本信息 -->
+    <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
+        <div class="container text-center">
+            <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.0.0</span>
+            </span>
+        </div>
+    </footer>
+
+    <!-- 版本信息弹窗 -->
+    <div class="modal fade" id="versionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
+                <!-- 头部背景图或渐变 -->
+                <div class="modal-header border-0 pb-0 pt-4 px-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center">
+                        <span class="bg-white p-2 rounded-circle shadow-sm me-2 d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                        </span>
+                        关于 IPTV Checker
+                    </h5>
+                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body p-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <!-- 项目简介卡片 -->
+                    <div class="bg-white p-3 rounded-3 shadow-sm mb-3">
+                        <p class="text-secondary small mb-0" style="line-height: 1.6;">
+                            一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能。
+                        </p>
+                    </div>
+
+                    <!-- 版本对比区域 -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="bg-white p-3 rounded-3 shadow-sm h-100 text-center position-relative overflow-hidden">
+                                <div class="text-uppercase text-muted fw-bold" style="font-size:0.7rem; letter-spacing:1px;">当前版本</div>
+                                <div class="mt-1 fw-bolder text-dark fs-4" id="modalCurrentVersion" style="font-family: 'Segoe UI', Roboto, sans-serif;">-</div>
+                                <span id="dockerBadge" class="position-absolute top-0 end-0 badge bg-danger m-2 rounded-pill shadow-sm" style="display:none; font-size:0.6em; transform:scale(0.9);">Docker</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-white p-3 rounded-3 shadow-sm h-100 text-center border border-primary border-opacity-10" style="background-color: #f8fbff !important;">
+                                <div class="text-uppercase text-primary fw-bold opacity-75" style="font-size:0.7rem; letter-spacing:1px;">最新版本</div>
+                                <div class="mt-1 fw-bolder text-primary fs-4" id="modalLatestVersion" style="font-family: 'Segoe UI', Roboto, sans-serif;">...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 更新日志区域 -->
+                    <div class="bg-white rounded-3 shadow-sm overflow-hidden">
+                        <div class="px-3 py-2 border-bottom bg-light d-flex justify-content-between align-items-center">
+                            <strong class="small text-muted"><i class="bi bi-journal-text me-1"></i>更新日志</strong>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill" style="font-weight:normal; font-size:0.7em;">Release Notes</span>
+                        </div>
+                        <div id="releaseNotes" class="p-3" style="max-height: 180px; overflow-y: auto; font-size: 0.85rem; color: #495057; line-height: 1.6; font-family: Consolas, Monaco, 'Courier New', monospace;">
+                            <div class="text-center text-muted py-3">
+                                <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+                                <div>正在获取更新信息...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div class="modal-footer border-0 p-3 bg-white justify-content-center">
+                    <a href="https://github.com/cgg888/iptv-checker" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
+                        <i class="bi bi-github me-1"></i> GitHub
+                    </a>
+                    <button type="button" class="btn btn-primary shadow-sm rounded-pill px-4 ms-2 fw-medium hover-shadow transition-all" id="btnUpdate" onclick="doUpdate()">
+                        <i class="bi bi-arrow-repeat me-1"></i> 检查更新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
