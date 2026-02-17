@@ -2,7 +2,7 @@
 
 ![Iptv-Checker 检测空数据界面](./public/preview-empty.png)
 
-🏷️ 版本号：v1.0.0  
+🏷️ 版本号：![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/cgg888/iptv-checker?sort=semver)  
 
 ---
 
@@ -250,21 +250,21 @@ git clone https://github.com/cgg888/iptv-checker.git iptv-checker
 cd iptv-checker
 ```
 
-2. 启动服务（自动使用 docker-compose.yml）：
+2. 启动服务（启用源码映射，使用 docker-compose-dev.yml）：
 ```bash
-docker-compose up -d
+docker-compose -f docker-compose-dev.yml up -d
 ```
 
-`docker-compose.yml` 默认配置如下（已启用源码映射）：
+`docker-compose-dev.yml` 默认配置如下（已启用源码映射）：
 ```yaml
 services:
-  iptv-checker:
-    image: ghcr.io/cgg888/iptv-checker:latest
-    container_name: iptv-checker
+  iptv-checker-dev:
+    build: .
+    container_name: iptv-checker-dev
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - TZ=Asia/Shanghai
     volumes:
       - ./data:/app/data
@@ -272,18 +272,13 @@ services:
       - ./public:/app/public
       - ./.git:/app/.git
     restart: unless-stopped
-    networks:
-      - iptv-network
-
-networks:
-  iptv-network:
-    driver: bridge
 ```
 
 **注意**：
 - 此模式下，您可以直接修改本地 `src` 或 `public` 目录下的文件，容器内会实时生效（部分后端修改可能需要重启容器）。
 - 网页端的“检查更新”功能会执行 `git pull`，自动更新您本地的源码。
  - 不要挂载 `package.json` 到容器（保留镜像内的 `package.json` 与 `node_modules`），否则可能出现“Are you trying to mount a directory onto a file”启动错误。
+ - Windows 用户若路径包含非 ASCII 字符（如中文用户名目录），Docker Desktop 的卷挂载可能异常。建议将仓库移动到英文路径（如 `C:\Work\iptv-checker`），或使用不映射源码的生产模式。
 
 3. 常用命令：
 ```bash
