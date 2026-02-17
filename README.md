@@ -150,24 +150,6 @@ services:
 ```
 注意：Windows 中文路径可能导致卷挂载异常，建议使用英文路径（如 C:\Work\iptv-checker）
 
-## 使用指南（简要）
-
-- 批量检测
-  - 文本粘贴：在页面输入框粘贴 “频道名,rtp://ip:端口” 列表，点击开始检测
-  - 网络加载：填入远程 txt/m3u 链接（http/https），点击“网络加载”抓取并解析，内部使用接口解析文本
-  - 本地上传：上传本地 txt/m3u 文件，自动解析并填充列表
-- 内/外网模式
-  - 内网：组播导出使用当前 rtp2httpd（udpxy）服务器的 currentId 指向的地址作为基址
-  - 外网：导出走外网代理或外网 UDPXY；若启用 token，则必须携带正确 token
-- 频道编辑弹窗
-  - 字段：名称、tvgId/tvgName、Logo、分组、时移（catchupFormat/catchupBase/httpParam）
-  - 台标预览：Logo 输入后自动显示预览
-  - 播放按钮：可调用 PotPlayer（potplayer://play?url=...）；需本机已安装 PotPlayer
-- 时移（Catchup）
-  - 全局参数：在设置页配置 globalFcc；生成 httpParam（fcc=...）并应用到新检测记录
-  - 导出格式：fmt=default/ku9/mytv，不同格式生成不同 catchup-source
-  - 单播基址：内网保留原始地址；外网通过“代理”类型的基址拼接
-
 ## Linux 服务器一键部署
 
 Debian/Ubuntu（systemd 服务）：
@@ -239,6 +221,24 @@ sudo systemctl enable --now iptv-checker
 sudo systemctl status iptv-checker --no-pager
 ```
 
+## 使用指南（简要）
+
+- 批量检测
+  - 文本粘贴：在页面输入框粘贴 “频道名,rtp://ip:端口” 列表，点击开始检测
+  - 网络加载：填入远程 txt/m3u 链接（http/https），点击“网络加载”抓取并解析，内部使用接口解析文本
+  - 本地上传：上传本地 txt/m3u 文件，自动解析并填充列表
+- 内/外网模式
+  - 内网：组播导出使用当前 rtp2httpd（udpxy）服务器的 currentId 指向的地址作为基址
+  - 外网：导出走外网代理或外网 UDPXY；若启用 token，则必须携带正确 token
+- 频道编辑弹窗
+  - 字段：名称、tvgId/tvgName、Logo、分组、时移（catchupFormat/catchupBase/httpParam）
+  - 台标预览：Logo 输入后自动显示预览
+  - 播放按钮：可调用 PotPlayer（potplayer://play?url=...）；需本机已安装 PotPlayer
+- 时移（Catchup）
+  - 全局参数：在设置页配置 globalFcc；生成 httpParam（fcc=...）并应用到新检测记录
+  - 导出格式：fmt=default/ku9/mytv，不同格式生成不同 catchup-source
+  - 单播基址：内网保留原始地址；外网通过“代理”类型的基址拼接
+
 ## 版本管理
 
 - 前端操作：首页与结果页均提供版本下拉与按钮
@@ -250,7 +250,6 @@ sudo systemctl status iptv-checker --no-pager
   - /api/persist/save、/api/persist/list、/api/persist/load-version、/api/persist/delete-version、/api/persist/load、/api/persist/delete
  - 启动行为：若 /data/streams.json 不存在，将自动加载 /data 中最新的 streams-YYYYMMDD-HHMMSS.json 版本文件
 
-<!-- 已精简说明，更多接口与参数请查看页面操作与提示 -->
 
 ## 数据文件说明（/data）
 
@@ -278,38 +277,6 @@ sudo systemctl status iptv-checker --no-pager
 - 跨域播放：调试 HLS 可使用 /api/proxy/stream
 - PotPlayer 播放：点击编辑弹窗按钮或使用 potplayer://play?url=... schema
 
-<!-- 已合并到“部署”章节 -->
-
-### 📦 方式一：使用 GitHub Container Registry（推荐，自动构建）
-
-本项目通过 GitHub Actions 自动构建 Docker 镜像，您可以直接拉取最新版本。
-
-拉取和运行镜像：
-```bash
-# 拉取镜像
-docker pull ghcr.io/cgg888/iptv-checker:latest
-
-# 运行容器（默认端口 3000）
-docker run -d -p 3000:3000 --name iptv-checker ghcr.io/cgg888/iptv-checker:latest
-
-# 如果要使用其他端口（例如 8080），可以：
-docker run -d -p 8080:3000 --name iptv-checker ghcr.io/cgg888/iptv-checker:latest
-```
-<!-- 合并后的 Docker 用法已在“部署”章节呈现 -->
-
-<!-- 已合并到“部署”章节，并保留关键注意事项 -->
-
-3. 常用命令：
-```bash
-# 查看日志
-docker-compose logs -f
-
-# 重启服务
-docker-compose restart
-
-# 停止服务
-docker-compose down
-```
 
 #### 💡 常见问题
 1. 🔄 如果端口被占用，修改端口映射（例如："8080:3000"）
