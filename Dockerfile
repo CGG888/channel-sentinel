@@ -23,9 +23,6 @@ FROM node:18-alpine
 # --no-cache 避免缓存占用空间
 RUN apk add --no-cache ffmpeg tini git
 
-# 创建 app 用户，设置为常见的 1000:1000，提升宿主机挂载目录的写入兼容性
-RUN addgroup -g 1000 appgroup && adduser -D -u 1000 -G appgroup appuser
-
 WORKDIR /app
 
 # 只从构建阶段复制必要的文件
@@ -35,10 +32,10 @@ COPY --from=builder /build/src ./src
 COPY --from=builder /build/public ./public
 
 # 创建数据目录并设置权限
-RUN mkdir -p /app/data && chown -R appuser:appgroup /app
+RUN mkdir -p /app/data && chown -R node:node /app
 
-# 切换到非 root 用户
-USER appuser
+# 切换到非 root 用户（使用基础镜像内置的 node 用户，通常为 1000:1000）
+USER node
 
 # 暴露端口
 EXPOSE 3000
