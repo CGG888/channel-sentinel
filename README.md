@@ -227,6 +227,27 @@ docker run -d -p 3000:3000 --name iptv-checker ghcr.io/cgg888/iptv-checker:lates
 # 如果要使用其他端口（例如 8080），可以：
 docker run -d -p 8080:3000 --name iptv-checker ghcr.io/cgg888/iptv-checker:latest
 ```
+yaml格式：
+```yaml
+services:
+  iptv-checker:
+    image: ghcr.io/cgg888/iptv-checker:latest
+    container_name: iptv-checker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - iptv-network
+
+networks:
+  iptv-network:
+    driver: bridge
+```
 
 ### 📦 方式二：使用阿里云容器镜像（国内加速）
 
@@ -237,6 +258,27 @@ docker pull registry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
 
 # 运行容器
 docker run -d -p 3000:3000 --name iptv-checker registry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
+```
+yaml格式：
+```yaml
+services:
+  iptv-checker:
+    image: ghcr.io/cgg888/iptv-checker:latestregistry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
+    container_name: iptv-checker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - iptv-network
+
+networks:
+  iptv-network:
+    driver: bridge
 ```
 
 ### 🚢 方式三：基于源码部署（推荐）
