@@ -20,7 +20,7 @@ app.use(cookieParser());
 // 鉴权中间件
 const USERS_FILE = path.join(__dirname, '../data/users.json');
 const SESSIONS = new Map(); // token -> { username, expires }
-const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+const SESSION_TTL = 3650 * 24 * 60 * 60 * 1000;
 const CAPTCHA_STORE = new Map(); // id -> { text, expires }
 
 function loadUsers() {
@@ -47,14 +47,7 @@ function requireAuth(req, res, next) {
     // 检查 cookie
     const token = req.cookies['auth_token'];
     if (token && SESSIONS.has(token)) {
-        const sess = SESSIONS.get(token);
-        if (Date.now() < sess.expires) {
-            // 续期
-            sess.expires = Date.now() + SESSION_TTL;
-            return next();
-        } else {
-            SESSIONS.delete(token);
-        }
+        return next();
     }
     
     // API 请求返回 401
@@ -140,9 +133,7 @@ app.get('/api/auth/check', (req, res) => {
     const token = req.cookies['auth_token'];
     if (token && SESSIONS.has(token)) {
         const sess = SESSIONS.get(token);
-        if (Date.now() < sess.expires) {
-            return res.json({ success: true, username: sess.username });
-        }
+        return res.json({ success: true, username: sess.username });
     }
     res.json({ success: false });
 });
