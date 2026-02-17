@@ -75,6 +75,7 @@ services:
       - TZ=Asia/Shanghai
     volumes:
       - ./data:/app/data
+      - ./.git:/app/.git
     restart: unless-stopped
     networks:
       - iptv-network

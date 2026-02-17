@@ -12,6 +12,36 @@ const packageJson = require('../package.json');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// 日志工具
+const logger = {
+    info: (msg) => console.log(`[${new Date().toLocaleString()}] [INFO] ${msg}`),
+    error: (msg) => console.error(`[${new Date().toLocaleString()}] [ERROR] ${msg}`),
+    warn: (msg) => console.warn(`[${new Date().toLocaleString()}] [WARN] ${msg}`)
+};
+
+// 请求日志中间件
+app.use((req, res, next) => {
+    const start = Date.now();
+    const { method, originalUrl, ip } = req;
+    
+    // 拦截 res.end 来捕获状态码
+    const originalEnd = res.end;
+    res.end = function(...args) {
+        const duration = Date.now() - start;
+        const status = res.statusCode;
+        // 排除静态资源日志以减少刷屏，仅记录 API 和页面访问
+        if (!originalUrl.startsWith('/static') && !originalUrl.startsWith('/css') && !originalUrl.startsWith('/js') && !originalUrl.startsWith('/img') && !originalUrl.includes('.js') && !originalUrl.includes('.css')) {
+             // 状态码颜色区分
+            let logMsg = `${method} ${originalUrl} ${status} - ${duration}ms - ${ip}`;
+            if (status >= 500) logger.error(logMsg);
+            else if (status >= 400) logger.warn(logMsg);
+            else logger.info(logMsg);
+        }
+        originalEnd.apply(res, args);
+    };
+    next();
+});
+
 // 中间件
 app.use(cors());
 app.use(bodyParser.json());
@@ -107,23 +137,30 @@ app.post('/api/login', (req, res) => {
     CAPTCHA_STORE.delete(captchaId); // 验证码一次性有效
     
     if (!captcha || captcha.toLowerCase() !== stored.text) {
+         logger.warn(`登录失败: 验证码错误 (用户: ${username || 'unknown'})`);
          return res.json({ success: false, message: '验证码错误' });
     }
 
     const user = loadUsers();
     if (username === user.username && password === user.password) {
+        logger.info(`用户 ${username} 登录成功`);
         const token = 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
         SESSIONS.set(token, { username, expires: Date.now() + SESSION_TTL });
         res.cookie('auth_token', token, { maxAge: SESSION_TTL, httpOnly: true });
         return res.json({ success: true });
     }
+    logger.warn(`登录失败: 用户名或密码错误 (用户: ${username})`);
     res.json({ success: false, message: '用户名或密码错误' });
 });
 
 // 登出接口
 app.post('/api/logout', (req, res) => {
     const token = req.cookies['auth_token'];
-    if (token) SESSIONS.delete(token);
+    if (token) {
+        const sess = SESSIONS.get(token);
+        if (sess) logger.info(`用户 ${sess.username} 退出登录`);
+        SESSIONS.delete(token);
+    }
     res.clearCookie('auth_token');
     res.json({ success: true });
 });
@@ -275,10 +312,21 @@ function persistLoad() {
     return false;
 }
 const __loaded = persistLoad();
-if (!__loaded) {
+if (__loaded) {
+    logger.info(`初始化数据加载成功 (streams.json)，记录数: ${multicastList.length}`);
+} else {
+    logger.warn('初始化数据加载失败 (streams.json 不存在或错误)，尝试加载最新历史版本');
     const __versions = listVersions();
     if (Array.isArray(__versions) && __versions.length > 0) {
-        loadVersionFile(__versions[0].file);
+        const vFile = __versions[0].file;
+        const vOk = loadVersionFile(vFile);
+        if (vOk) {
+            logger.info(`自动加载历史版本成功: ${vFile}，记录数: ${multicastList.length}`);
+        } else {
+            logger.error(`自动加载历史版本失败: ${vFile}`);
+        }
+    } else {
+        logger.info('无可用历史版本，启动为空数据状态');
     }
 }
 const logoConfig = readJson(CFG_LOGO, { templates: [settings.logoTemplate], current: settings.logoTemplate });
@@ -555,9 +603,11 @@ function prevGlobalParam() {
 
 // 批量检测用ffprobe并发，返回进度和详细信息
 app.post('/api/check-streams-batch', async (req, res) => {
+    logger.info('收到批量检测请求');
     let { udpxyUrl, multicastList: batchList } = req.body;
     udpxyUrl = String(udpxyUrl || '').trim();
     if (!Array.isArray(batchList)) {
+        logger.warn('批量检测参数错误: multicastList不是数组');
         return res.status(400).json({ success: false, message: 'multicastList必须为数组' });
     }
     // 兼容前端传参格式
@@ -572,8 +622,10 @@ app.post('/api/check-streams-batch', async (req, res) => {
         return item;
     }).filter(item => item.multicastUrl && item.multicastUrl.startsWith('rtp://'));
     if (fixedList.length === 0) {
+        logger.warn('批量检测失败: 无有效组播地址');
         return res.status(400).json({ success: false, message: '无有效组播地址' });
     }
+    logger.info(`开始执行批量检测，有效任务数: ${fixedList.length}，并发数: 5`);
     const limit = 5;
     let idx = 0;
     const results = [];
@@ -608,6 +660,7 @@ app.post('/api/check-streams-batch', async (req, res) => {
         await runNext(progressCallback);
     }
     await Promise.all(Array(limit).fill(0).map(() => runNext(null)));
+    logger.info('批量检测完成');
     // 合并到全局multicastList
     results.forEach(result => {
         const existingIndex = multicastList.findIndex(item =>
@@ -1141,22 +1194,33 @@ app.post('/api/set-fcc', (req, res) => {
 });
 
 app.post('/api/persist/save', (req, res) => {
+    logger.info('请求保存当前数据与配置');
     const ok = persistSave();
-    if (ok) return res.json({ success: true });
+    if (ok) {
+        logger.info('数据保存成功');
+        return res.json({ success: true });
+    }
+    logger.error('数据保存失败');
     res.status(500).json({ success: false, message: '保存失败' });
 });
 
 app.post('/api/persist/load', (req, res) => {
+    logger.info('请求加载数据');
     const ok = persistLoad();
     if (ok) return res.json({ success: true, streams: multicastList, settings: { globalFcc } });
+    logger.warn('加载数据失败: 未找到持久化文件');
     res.status(404).json({ success: false, message: '未找到持久化文件' });
 });
 app.post('/api/persist/delete', (req, res) => {
+    logger.info('请求删除所有数据');
     ensureDataDir();
     try {
         if (fs.existsSync(DATA_FILE)) fs.unlinkSync(DATA_FILE);
         return res.json({ success: true });
-    } catch(e) { return res.status(500).json({ success: false, message: '删除失败' }); }
+    } catch(e) { 
+        logger.error(`删除数据失败: ${e.message}`);
+        return res.status(500).json({ success: false, message: '删除失败' }); 
+    }
 });
 app.get('/api/persist/list', (req, res) => {
     try { return res.json({ success: true, versions: listVersions() }); } catch(e) { res.status(500).json({ success: false }); }
@@ -1164,13 +1228,19 @@ app.get('/api/persist/list', (req, res) => {
 app.post('/api/persist/load-version', (req, res) => {
     const { filename } = req.body || {};
     if (!filename) return res.status(400).json({ success: false, message: '缺少filename' });
+    logger.info(`请求加载版本: ${filename}`);
     const ok = loadVersionFile(filename);
-    if (ok) return res.json({ success: true, streams: multicastList, settings });
+    if (ok) {
+        logger.info(`版本加载成功: ${filename}`);
+        return res.json({ success: true, streams: multicastList, settings });
+    }
+    logger.error(`版本加载失败: ${filename}`);
     res.status(404).json({ success: false, message: '版本文件不存在或读取失败' });
 });
 app.post('/api/persist/delete-version', (req, res) => {
     const { filename } = req.body || {};
     if (!filename) return res.status(400).json({ success: false, message: '缺少filename' });
+    logger.info(`请求删除版本: ${filename}`);
     ensureDataDir();
     const full = path.join(DATA_DIR, filename);
     try {
@@ -1466,12 +1536,14 @@ app.get('/api/system/info', (req, res) => {
 
 // 系统更新接口
 app.post('/api/system/update', (req, res) => {
+    logger.info('收到系统更新请求');
     // 简单判断是否在Docker容器中
     const isDocker = fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv');
     // 检查是否挂载了 .git 目录（开发模式）
     const hasGit = fs.existsSync(path.join(__dirname, '../.git'));
     
     if (isDocker && !hasGit) {
+        logger.warn('Docker环境无.git挂载，无法自动更新');
         return res.json({ success: false, message: 'Docker 环境请手动拉取新镜像更新：docker-compose pull && docker-compose up -d' });
     }
 
@@ -1479,10 +1551,10 @@ app.post('/api/system/update', (req, res) => {
     // 注意：需要系统安装了 git，且当前目录是 git 仓库
     exec('git pull', { cwd: path.join(__dirname, '../') }, (error, stdout, stderr) => {
         if (error) {
-            console.error(`更新失败: ${error}`);
+            logger.error(`更新失败: ${error}`);
             return res.json({ success: false, message: `更新失败: ${error.message}` });
         }
-        console.log(`git pull output: ${stdout}`);
+        logger.info(`git pull output: ${stdout}`);
         // 更新成功后，理论上需要重启服务。
         // 这里返回成功，由前端提示用户重启或刷新
         res.json({ success: true, message: '更新成功，请手动重启服务生效！\n' + stdout });
@@ -1497,6 +1569,12 @@ app.get('/results', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/results.html'));
 });
 
+// 全局错误处理
+app.use((err, req, res, next) => {
+    logger.error(`未捕获异常: ${err.stack}`);
+    res.status(500).json({ success: false, message: '服务器内部错误' });
+});
+
 app.listen(port, () => {
-    console.log(`服务器运行在 http://localhost:${port}`);
+    logger.info(`服务器启动成功，运行在 http://localhost:${port}`);
 });
