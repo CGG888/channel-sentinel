@@ -17,12 +17,43 @@ jobs:
       ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-      - name: Create GitHub Release
+      - name: Resolve tag name
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "strip=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Build release notes from README
+        id: notes
+        shell: bash
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          SEC=$(awk -v tag="$TAG" '
+            $0 ~ "^###[ ]+"tag"[ ]" {found=1; print; next}
+            /^###[ ]+v[0-9]+\.[0-9]+\.[0-9]+/ && found {exit}
+            found {print}
+          ' README.md)
+          {
+            echo "$TAG"
+            echo
+            echo "$SEC"
+          } > release_notes.txt
+          echo "path=release_notes.txt" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub Release (tag push)
+        if: ${{ github.event_name == 'push' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          generate_release_notes: true
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.path }}
+          generate_release_notes: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to GHCR
@@ -34,7 +65,7 @@ jobs:
       - name: Extract image tags
         id: meta
         run: |
-          TAG=${GITHUB_REF_NAME}
+          TAG="${{ steps.vars.outputs.tag }}"
           STRIP=${TAG#v}
           REPO=${{ github.repository_owner }}/iptv-checker
           echo "tags=ghcr.io/$REPO:$TAG,ghcr.io/$REPO:$STRIP" >> $GITHUB_OUTPUT
@@ -56,7 +87,7 @@ jobs:
       - name: Push tags to Aliyun
         if: ${{ env.ACR_USERNAME != '' && env.ACR_PASSWORD != '' }}
         run: |
-          TAG=${GITHUB_REF_NAME}
+          TAG="${{ steps.vars.outputs.tag }}"
           STRIP=${TAG#v}
           OWNER=${{ github.repository_owner }}
           IMAGE=iptv-checker
