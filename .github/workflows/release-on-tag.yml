@@ -61,6 +61,15 @@ jobs:
           name: ${{ steps.vars.outputs.tag }}
           body_path: ${{ steps.notes.outputs.path }}
           generate_release_notes: false
+      - name: Create GitHub Release (manual)
+        if: ${{ github.event_name == 'workflow_dispatch' && steps.vars.outputs.tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          body_path: ${{ steps.notes.outputs.path }}
+          generate_release_notes: false
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to GHCR
