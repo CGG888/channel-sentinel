@@ -3,9 +3,11 @@ on:
   push:
     tags:
       - 'v*'
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, e.g. v1.2.2'
+        required: false
 permissions:
   contents: write
   packages: write
@@ -21,8 +23,8 @@ jobs:
         id: vars
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
@@ -66,8 +68,10 @@ jobs:
         id: meta
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
           STRIP=${TAG#v}
-          REPO=${{ github.repository_owner }}/iptv-checker
+          REPO=${OWNER_LC}/iptv-checker
           echo "tags=ghcr.io/$REPO:$TAG,ghcr.io/$REPO:$STRIP" >> $GITHUB_OUTPUT
       - name: Build and push to GHCR
         uses: docker/build-push-action@v5
@@ -88,13 +92,14 @@ jobs:
         if: ${{ env.ACR_USERNAME != '' && env.ACR_PASSWORD != '' }}
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
           STRIP=${TAG#v}
-          OWNER=${{ github.repository_owner }}
           IMAGE=iptv-checker
-          SRC1=ghcr.io/$OWNER/$IMAGE:$TAG
-          SRC2=ghcr.io/$OWNER/$IMAGE:$STRIP
-          DST1=registry.cn-hongkong.aliyuncs.com/$OWNER/$IMAGE:$TAG
-          DST2=registry.cn-hongkong.aliyuncs.com/$OWNER/$IMAGE:$STRIP
+          SRC1=ghcr.io/$OWNER_LC/$IMAGE:$TAG
+          SRC2=ghcr.io/$OWNER_LC/$IMAGE:$STRIP
+          DST1=registry.cn-hongkong.aliyuncs.com/$OWNER_LC/$IMAGE:$TAG
+          DST2=registry.cn-hongkong.aliyuncs.com/$OWNER_LC/$IMAGE:$STRIP
           docker pull $SRC1
           docker tag $SRC1 $DST1
           docker push $DST1
