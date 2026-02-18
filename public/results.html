@@ -1567,7 +1567,8 @@ function renderTable() {
       <td class="col-ops pe-3">
         <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary" onclick="openEditModal(${getStreamIndex(s)})" title="编辑"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-outline-success" onclick="openPotPlayer('${playUrlFor(s)}', '${(s.name || s.multicastUrl || '').replace(/'/g, '\\\'')}')"><i class="bi bi-play-fill"></i></button>
+            <button class="btn btn-outline-success" onclick="openPotPlayer('${playUrlFor(s)}', '${(s.name || s.multicastUrl || '').replace(/'/g, '\\\'')}')" title="播放"><i class="bi bi-play-fill"></i></button>
+            <button class="btn btn-outline-info" onclick="openEpgForIndex(${getStreamIndex(s)})" title="EPG/回看"><i class="bi bi-calendar-event"></i></button>
             <button class="btn btn-outline-danger" onclick="deleteStream(${getStreamIndex(s)})" title="删除"><i class="bi bi-trash"></i></button>
         </div>
       </td>
@@ -1897,6 +1898,583 @@ function openPotPlayer(url, title) {
   try { window.location.href = schemes[0]; opened = true; } catch(e) {}
   setTimeout(() => { if (!opened) { try { window.location.href = schemes[1]; } catch(e) {} } }, 200);
 }
+function openEpgForIndex(index){
+  const s = streams[index];
+  if(!s) return;
+  var m=document.getElementById('centerModalEpgR');
+  if(!m){
+    m=document.createElement('div');
+    m.id='centerModalEpgR';
+    m.innerHTML=`
+    <div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:12px; overflow:hidden;">
+          <div class="modal-header border-bottom px-4 py-3 bg-white position-relative">
+            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-3">
+              <i class="bi bi-calendar-range me-2 text-primary"></i>EPG 与 回看
+              <div class="d-none d-md-flex align-items-center gap-2 ms-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="epgPrevChR" title="上一个频道"><i class="bi bi-skip-backward-circle"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="epgStopR" title="停止播放"><i class="bi bi-stop-circle"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="epgNextChR" title="下一个频道"><i class="bi bi-skip-forward-circle"></i></button>
+              </div>
+            </h5>
+            
+            <div class="position-absolute top-50 start-50 translate-middle text-center" style="width: 60%; pointer-events: none;">
+                <div id="epgChannelNameR" class="fw-bold text-primary fs-5 text-truncate"></div>
+                <div id="epgCurrentProgramR" class="small text-muted text-truncate">正在播放: -</div>
+                <div id="epgReplayProgramR" class="small text-success fw-bold text-truncate" style="display:none;"></div>
+            </div>
+
+            <button type="button" class="btn-close" id="centerModalEpgCloseR"></button>
+          </div>
+          <div class="modal-body p-0 bg-light">
+            
+            <!-- Top Controls Toolbar -->
+            <div class="px-4 py-3 bg-white border-bottom shadow-sm d-flex flex-wrap align-items-center gap-3">
+              <div class="d-flex align-items-center bg-light rounded-3 px-3 py-1 border">
+                <i class="bi bi-calendar3 text-secondary me-2"></i>
+                <input id="epgDateR" type="date" class="form-control form-control-sm border-0 bg-transparent shadow-none fw-bold text-dark" style="width:130px; cursor:pointer;">
+              </div>
+              
+              <div class="vr mx-1 text-muted opacity-25"></div>
+              
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary small fw-bold text-uppercase" style="font-size:0.75rem; letter-spacing:0.5px;">EPG源</span>
+                <div class="input-group input-group-sm" style="width:180px;">
+                    <select id="epgSourceR" class="form-select border-secondary-subtle shadow-none">
+                        <option value="">自动选择</option>
+                    </select>
+                    <button class="btn btn-outline-secondary" type="button" id="epgRefreshBtnR" title="强制刷新 EPG"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+              </div>
+
+              <div class="vr mx-1 text-muted opacity-25"></div>
+              
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary small fw-bold text-uppercase" style="font-size:0.75rem; letter-spacing:0.5px;">协议</span>
+                <select id="epgProtoR" class="form-select form-select-sm border-secondary-subtle shadow-none" style="width:80px; border-radius:6px;">
+                  <option value="http" selected>HTTP</option>
+                  <option value="rtsp">RTSP</option>
+                </select>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <span class="text-secondary small fw-bold text-uppercase" style="font-size:0.75rem; letter-spacing:0.5px;">格式</span>
+                <select id="epgFmtR" class="form-select form-select-sm border-secondary-subtle shadow-none" style="width:120px; border-radius:6px;">
+                  <option value="iso8601">ISO8601</option>
+                  <option value="ku9" selected>酷9</option>
+                  <option value="mytv">mytv</option>
+                  <option value="npt">NPT</option>
+                  <option value="rtsp_range">RTSP Range</option>
+                  <option value="startend14">starttime/endtime</option>
+                  <option value="beginend14">begin/end</option>
+                  <option value="playseek">playseek</option>
+                  <option value="unix_s">Unix 秒</option>
+                  <option value="unix_ms">Unix 毫秒</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-0" style="min-height:500px;">
+              <!-- Left: Program List -->
+              <div class="col-md-5 border-end bg-white">
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light bg-opacity-50">
+                   <span class="small fw-bold text-secondary">节目单</span>
+                   <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-2" id="epgCountBadge">0</span>
+                </div>
+                <div id="epgListR" class="list-group list-group-flush small overflow-auto custom-scrollbar" style="height:480px;"></div>
+              </div>
+              
+              <!-- Right: Player -->
+              <div class="col-md-7 bg-black d-flex flex-column">
+                <div class="flex-grow-1 position-relative bg-black d-flex align-items-center justify-content-center">
+                  <video id="epgPlayerR" controls playsinline class="w-100 h-100" style="max-height:480px;"></video>
+                </div>
+                <div class="p-3 bg-white border-top">
+                  <div class="input-group shadow-sm">
+                    <input id="epgPlayUrlR" class="form-control font-monospace text-secondary bg-light border-end-0" placeholder="选择节目生成回看地址..." readonly style="font-size:0.9rem;">
+                    <button class="btn btn-primary px-3" id="epgPlayBtnR" title="调用本地 PotPlayer 播放"><i class="bi bi-play-fill me-1"></i>播放</button>
+                    <button class="btn btn-outline-secondary px-3" id="epgCopyR" title="复制地址"><i class="bi bi-clipboard"></i></button>
+                    <a class="btn btn-outline-primary px-3" id="epgOpenR" target="_blank" title="在新窗口播放"><i class="bi bi-box-arrow-up-right"></i></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(m);
+    
+    // Play button logic - Call PotPlayer
+    document.getElementById('epgPlayBtnR').onclick = function() {
+      const raw = (document.getElementById('epgPlayUrlR').value || '').trim();
+      if (!raw) return;
+      
+      const s = streams[index];
+      const title = s ? (s.name || s.tvgName || 'IPTV') : 'IPTV';
+      const schemes = [
+        'potplayer://' + raw,
+        'potplayer://play?url=' + encodeURIComponent(raw) + '&title=' + encodeURIComponent(title)
+      ];
+      
+      let opened = false;
+      try { window.location.href = schemes[0]; opened = true; } catch(e) {}
+      setTimeout(() => { if (!opened) { try { window.location.href = schemes[1]; } catch(e) {} } }, 200);
+    };
+
+    // Copy button logic
+    document.getElementById('epgCopyR').onclick = function() {
+        const urlEl = document.getElementById('epgPlayUrlR');
+        if (!urlEl || !urlEl.value) return;
+        const txt = urlEl.value;
+        const oldIcon = this.innerHTML;
+        const self = this;
+        
+        // Fallback for non-secure context
+        if (!navigator.clipboard) {
+             const ta = document.createElement('textarea');
+             ta.value = txt;
+             document.body.appendChild(ta);
+             ta.select();
+             try { document.execCommand('copy'); } catch(e){}
+             document.body.removeChild(ta);
+             self.innerHTML = '<i class="bi bi-check-lg text-success"></i>';
+             setTimeout(() => { self.innerHTML = oldIcon; }, 1500);
+             return;
+        }
+
+        navigator.clipboard.writeText(txt).then(() => {
+            self.innerHTML = '<i class="bi bi-check-lg text-success"></i>';
+            self.classList.remove('btn-outline-secondary');
+            self.classList.add('btn-outline-success');
+            setTimeout(() => {
+                self.innerHTML = oldIcon;
+                self.classList.remove('btn-outline-success');
+                self.classList.add('btn-outline-secondary');
+            }, 1500);
+        }).catch(() => {});
+    };
+
+    // New Window Logic - Use Player Page
+    document.getElementById('epgOpenR').onclick = function(e) {
+        e.preventDefault();
+        const raw = (document.getElementById('epgPlayUrlR').value || '').trim();
+        if (!raw) return;
+        
+        // Construct player URL
+        // We use a simple player page wrapper to avoid direct download
+        const isM3u8 = /\.m3u8(\?|$)/i.test(raw) || raw.includes('m3u8');
+        const playUrl = isM3u8 ? ('/api/proxy/hls?url='+encodeURIComponent(raw)) : ('/api/proxy/stream?url='+encodeURIComponent(raw));
+        
+        // Open a new window with a player
+        const w = window.open('', '_blank');
+        if(w) {
+            w.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>IPTV Player</title>
+                    <meta charset="utf-8">
+                    <style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;}video{width:100%;height:100%;outline:none;}</style>
+                    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script>
+                </head>
+                <body>
+                    <video id="v" controls autoplay playsinline></video>
+                    <script>
+                       window.onload = function() {
+                           var v = document.getElementById('v');
+                           var url = "${playUrl}";
+                           if (window.Hls && Hls.isSupported()) {
+                               var h = new Hls();
+                               h.loadSource(url);
+                               h.attachMedia(v);
+                           } else {
+                               v.src = url;
+                           }
+                       }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            w.document.close();
+        }
+    };
+
+    document.getElementById('centerModalEpgCloseR').onclick=function(){
+      var v=document.getElementById('epgPlayerR');
+      try{ if(v){ if(v._hls && typeof v._hls.destroy==='function'){ v._hls.destroy(); v._hls=null; } v.pause(); v.removeAttribute('src'); v.load(); } }catch(e){}
+      m.style.display='none'; m.querySelector('.modal').classList.remove('show');
+    };
+  }
+  
+  const channelName = s.name || s.tvgName || '未命名频道';
+  const cnEl = document.getElementById('epgChannelNameR');
+  if(cnEl) { cnEl.textContent = channelName; cnEl.title = channelName; }
+   try { m.dataset.index = String(index); } catch(e) {}
+   const prevBtn = document.getElementById('epgPrevChR');
+   const nextBtn = document.getElementById('epgNextChR');
+   const stopBtn = document.getElementById('epgStopR');
+   if (prevBtn) prevBtn.onclick = function(){
+     var i = parseInt(m.dataset.index || String(index), 10);
+     if (isNaN(i)) i = index;
+     var ni = Math.max(0, i - 1);
+     if (ni !== i) openEpgForIndex(ni);
+   };
+   if (nextBtn) nextBtn.onclick = function(){
+     var i = parseInt(m.dataset.index || String(index), 10);
+     if (isNaN(i)) i = index;
+     var ni = Math.min((Array.isArray(streams)?streams.length:0) - 1, i + 1);
+     if (ni !== i && ni >= 0) openEpgForIndex(ni);
+   };
+   if (stopBtn) stopBtn.onclick = function(){
+     var v = document.getElementById('epgPlayerR');
+     var urlEl = document.getElementById('epgPlayUrlR');
+     var openEl = document.getElementById('epgOpenR');
+     var cpEl = document.getElementById('epgCurrentProgramR');
+     var rpEl = document.getElementById('epgReplayProgramR');
+     try {
+       if (v){
+         if (v._hls && typeof v._hls.destroy === 'function'){ v._hls.destroy(); v._hls = null; }
+         v.pause();
+         v.removeAttribute('src');
+         v.load();
+       }
+     } catch(e){}
+     if (urlEl) urlEl.value = '';
+     if (openEl) openEl.removeAttribute('href');
+     if (cpEl) { cpEl.style.display = 'block'; }
+     if (rpEl) { rpEl.style.display = 'none'; }
+   };
+  
+  // Reset player state when opening new channel
+  const v = document.getElementById('epgPlayerR');
+  const urlEl = document.getElementById('epgPlayUrlR');
+  const openEl = document.getElementById('epgOpenR');
+  const cpEl = document.getElementById('epgCurrentProgramR');
+  const rpEl = document.getElementById('epgReplayProgramR');
+  
+  if (v) {
+      try {
+          if (v._hls && typeof v._hls.destroy === 'function') { v._hls.destroy(); v._hls = null; }
+          v.pause();
+          v.removeAttribute('src');
+          v.load();
+      } catch (e) {}
+  }
+  if (urlEl) urlEl.value = '';
+  if (openEl) openEl.removeAttribute('href');
+  if (cpEl) { cpEl.textContent = '正在直播: -'; cpEl.style.display = 'block'; }
+  if (rpEl) { rpEl.textContent = ''; rpEl.style.display = 'none'; }
+  
+  function ensureHls(cb){ if(window.Hls){ cb(); return; } var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/hls.js@latest'; sc.onload=cb; document.head.appendChild(sc); }
+  const now=new Date(); const y=now.getFullYear(); const mo=String(now.getMonth()+1).padStart(2,'0'); const d=String(now.getDate()).padStart(2,'0'); var dateEl=document.getElementById('epgDateR'); if(dateEl) dateEl.value=`${y}-${mo}-${d}`;
+  m.style.display='block'; m.querySelector('.modal').classList.add('show');
+  function getScope(){ try{ const v=(document.getElementById('scopeSelectR')||{value:'internal'}).value||'internal'; return v; }catch(e){ return 'internal'; } }
+  
+  // Fetch EPG Sources
+  function loadEpgSources() {
+      fetch('/api/config/epg-sources').then(r=>r.json()).then(data => {
+          const sel = document.getElementById('epgSourceR');
+          if(sel && data.success && Array.isArray(data.sources)) {
+              const current = sel.value;
+              sel.innerHTML = '<option value="">自动选择</option>';
+              data.sources.forEach(src => {
+                  const opt = document.createElement('option');
+                  opt.value = src.id;
+                  opt.textContent = src.name + (src.scope ? (' (' + src.scope + ')') : '');
+                  sel.appendChild(opt);
+              });
+              if(current) sel.value = current;
+          }
+      });
+  }
+  loadEpgSources();
+  
+  const refreshBtn = document.getElementById('epgRefreshBtnR');
+  if(refreshBtn) refreshBtn.onclick = function() { loadList(true); };
+  
+  const sourceSel = document.getElementById('epgSourceR');
+  if(sourceSel) sourceSel.onchange = function() { loadList(); };
+
+  async function loadList(refresh=false){
+    try{
+      const scope=getScope();
+      const date=(document.getElementById('epgDateR')||{}).value||`${y}-${mo}-${d}`;
+      const cid=encodeURIComponent(s.tvgId||s.tvgName||s.name||'');
+      const cname=encodeURIComponent(s.tvgName||s.name||'');
+      const epgId = (document.getElementById('epgSourceR')||{}).value || '';
+      const url=`/api/epg/programs?scope=${scope}&channelId=${cid}&channelName=${cname}&date=${date}&epgId=${epgId}&refresh=${refresh}`;
+      
+      // Update Refresh Button State
+      const refBtn = document.getElementById('epgRefreshBtnR');
+      if(refBtn) { refBtn.disabled=true; refBtn.innerHTML='<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>'; }
+
+      const r=await fetch(url); const x=await r.json(); 
+      
+      if(refBtn) { refBtn.disabled=false; refBtn.innerHTML='<i class="bi bi-arrow-clockwise"></i>'; }
+
+      const list=Array.isArray(x&&x.programs)?x.programs:[];
+
+      const now = Date.now();
+      const currentProg = list.find(p => p.startMs <= now && p.endMs > now);
+      const cpEl = document.getElementById('epgCurrentProgramR');
+      const rpEl = document.getElementById('epgReplayProgramR');
+
+      if(cpEl) {
+          cpEl.style.display = 'block';
+          if(currentProg) {
+              cpEl.textContent = '正在直播: ' + (currentProg.title || '无标题');
+              cpEl.title = '正在直播: ' + (currentProg.title || '无标题');
+          } else {
+              cpEl.textContent = '正在直播: -';
+              cpEl.title = '';
+          }
+      }
+      if(rpEl) {
+          rpEl.style.display = 'none';
+          rpEl.textContent = '';
+      }
+
+      const el=document.getElementById('epgListR'); if(!el) return; el.innerHTML='';
+      const countEl = document.getElementById('epgCountBadge'); if(countEl) countEl.innerText = list.length;
+      
+      if(list.length===0) {
+        el.innerHTML='<div class="text-center text-muted py-5"><i class="bi bi-calendar-x display-4 mb-2"></i><p>暂无节目单数据</p></div>';
+        return;
+      }
+      list.forEach((p,i)=>{
+        const it=document.createElement('button');
+        const now = Date.now();
+        let statusClass = '';
+        let iconHtml = '';
+        let isFuture = false;
+        let isCurrent = false;
+
+        if (p.startMs <= now && p.endMs > now) {
+            // Current / Live
+            isCurrent = true;
+            statusClass = 'list-group-item-primary border-primary';
+            iconHtml = '<div class="d-flex align-items-center text-primary"><span class="badge bg-primary me-2">LIVE</span><i class="bi bi-soundwave fs-5"></i></div>';
+        } else if (p.endMs <= now) {
+            // Past / Replay
+            statusClass = 'list-group-item-light'; // slightly gray or just default
+            iconHtml = '<i class="bi bi-play-circle text-secondary fs-5"></i>';
+        } else {
+            // Future
+            isFuture = true;
+            statusClass = 'text-muted bg-light bg-opacity-50';
+            iconHtml = '<i class="bi bi-clock text-muted fs-5"></i>';
+        }
+
+        it.className = `list-group-item ${isFuture ? '' : 'list-group-item-action'} d-flex align-items-center justify-content-between py-2 px-3 border-0 border-bottom ${statusClass}`;
+        if (isFuture) it.style.cursor = 'default';
+        
+        let timeStr = '-';
+        if(p.startMs && p.endMs) {
+          const t1 = new Date(p.startMs);
+          const t2 = new Date(p.endMs);
+          const f = (n) => String(n).padStart(2,'0');
+          timeStr = `${f(t1.getHours())}:${f(t1.getMinutes())} - ${f(t2.getHours())}:${f(t2.getMinutes())}`;
+        }
+        
+        const titleColor = isCurrent ? 'text-primary' : (isFuture ? 'text-muted' : 'text-dark');
+        const badgeClass = isCurrent ? 'bg-primary bg-opacity-25 text-primary border-primary' : (isFuture ? 'bg-light text-muted border' : 'bg-white text-secondary border');
+
+        it.innerHTML=`<div class="d-flex align-items-center text-truncate" style="max-width:85%;">
+            <span class="badge ${badgeClass} me-3 font-monospace" style="min-width:100px;">${timeStr}</span>
+            <span class="fw-bold ${titleColor} text-truncate" title="${p.title||''}">${p.title||'无标题'}</span>
+        </div><div class="epg-status-icon">${iconHtml}</div>`;
+        it.dataset.originalIcon = iconHtml;
+        
+        if (isCurrent) {
+        // Auto scroll to current program
+        setTimeout(() => {
+             it.scrollIntoView({ behavior: 'auto', block: 'center' });
+        }, 0);
+    }
+    
+    it.onclick=function(){
+           if (isFuture) {
+               // Optional: Show toast or ignore
+               return;
+           }
+           Array.from(el.children).forEach(c=> {
+               c.classList.remove('shadow-sm', 'border-start', 'border-4', 'border-primary', 'ps-2');
+               // Restore original icon
+               const iconEl = c.querySelector('.epg-status-icon');
+               if(iconEl && c.dataset.originalIcon) {
+                   iconEl.innerHTML = c.dataset.originalIcon;
+               }
+           });
+           
+           // Highlight selection without destroying status style
+           it.classList.add('shadow-sm', 'border-start', 'border-4', 'border-primary'); 
+           
+           // Set replaying status icon if not LIVE
+           if (!isCurrent) {
+               const iconEl = it.querySelector('.epg-status-icon');
+               if (iconEl) {
+                   iconEl.innerHTML = '<div class="d-flex align-items-center text-success"><span class="badge bg-success me-2">正在回看</span><i class="bi bi-play-circle-fill fs-5"></i></div>';
+               }
+           } else {
+               // LIVE 保持原 LIVE 图标
+           }
+
+           const cpEl = document.getElementById('epgCurrentProgramR');
+           const rpEl = document.getElementById('epgReplayProgramR');
+           if (isCurrent) {
+               if (rpEl) { rpEl.style.display = 'none'; rpEl.textContent = ''; }
+               if (cpEl) {
+                   cpEl.textContent = '正在直播: ' + (p.title || '无标题');
+                   cpEl.title = cpEl.textContent;
+                   cpEl.style.display = 'block';
+               }
+               let raw = '';
+               const orig = String(s.multicastUrl || '').trim();
+               const isHttp = /^https?:\/\//i.test(orig);
+               const isM3u8Raw = /\.m3u8(\?|$)/i.test(orig) || orig.includes('m3u8');
+               if (isHttp && isM3u8Raw) {
+                   raw = orig;
+               } else {
+                   try {
+                       const nm = String(s.tvgName || s.name || '').trim();
+                       const rs = String(s.resolution || '').trim();
+                       const frStr = String(s.frameRate || '').trim();
+                       const frNum = frStr ? (parseFloat(frStr) || null) : null;
+                       const candidates = (Array.isArray(streams) ? streams : []).filter(x => {
+                           const uu = String(x.multicastUrl || '').trim();
+                           return /^https?:\/\//i.test(uu);
+                       });
+                       const normalizeName = (v) => String(v || '').trim().replace(/\s+/g, '').replace(/4K$/i, '');
+                       const nmBase = normalizeName(nm);
+                       let nameCandidates = candidates.filter(x => String(x.tvgName || x.name || '').trim() === nm);
+                       if (nameCandidates.length === 0) {
+                           nameCandidates = candidates.filter(x => normalizeName(String(x.tvgName || x.name || '').trim()) === nmBase);
+                       }
+                       const eqRes = (x) => String(x.resolution || '').trim() === rs;
+                       const eqFps = (x) => {
+                           const xf = String(x.frameRate || '').trim();
+                           if (!xf || !frStr) return false;
+                           const a = parseFloat(xf);
+                           const b = frNum;
+                           if (!isNaN(a) && b !== null) return Math.abs(a - b) <= 0.1;
+                           return xf === frStr;
+                       };
+                       const areaOf = (r) => {
+                           const m = String(r || '').trim().match(/^(\d+)\s*x\s*(\d+)$/i);
+                           if (!m) return 0;
+                           const w = parseInt(m[1], 10);
+                           const h = parseInt(m[2], 10);
+                           if (isNaN(w) || isNaN(h)) return 0;
+                           return w * h;
+                       };
+                       let match = null;
+                       if (nameCandidates.length > 0) {
+                           const exactRF = nameCandidates.filter(x => eqRes(x) && eqFps(x));
+                           if (exactRF.length > 0) match = exactRF[0];
+                           if (!match) {
+                               const exactR = nameCandidates.filter(eqRes);
+                               if (exactR.length > 0) {
+                                   const withFps = exactR.filter(eqFps);
+                                   match = withFps.length > 0 ? withFps[0] : exactR[0];
+                               }
+                           }
+                           if (!match) {
+                               const is4k = rs === '3840x2160';
+                               const withFps = nameCandidates.filter(eqFps);
+                               if (is4k) {
+                                   if (withFps.length > 0) {
+                                       const fourKFps = withFps.filter(x => String(x.resolution || '').trim() === '3840x2160');
+                                       match = fourKFps.length > 0 ? fourKFps[0] : withFps.sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                                   } else {
+                                       const fourK = nameCandidates.filter(x => String(x.resolution || '').trim() === '3840x2160');
+                                       match = fourK.length > 0 ? fourK[0] : [...nameCandidates].sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                                   }
+                               } else {
+                                   if (withFps.length > 0) {
+                                       match = withFps.sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                                   } else {
+                                       match = [...nameCandidates].sort((a,b)=>areaOf(b.resolution)-areaOf(a.resolution))[0];
+                                   }
+                               }
+                           }
+                       }
+                       if (match && match.multicastUrl) {
+                           raw = String(match.multicastUrl || '').trim();
+                       }
+                   } catch(e) {}
+                   if (!raw) {
+                       const base = String(s.catchupBase || '').trim();
+                       if (base) {
+                           const sep = base.includes('?') ? '&' : '?';
+                           raw = base + sep + 'zte_offset=30&ispcode=2&starttime=$单播';
+                       }
+                   }
+                   if (!raw) raw = orig;
+               }
+               if (!raw) return;
+               const urlEl = document.getElementById('epgPlayUrlR');
+               const openEl = document.getElementById('epgOpenR');
+               const v = document.getElementById('epgPlayerR');
+               const isM3u8 = /\.m3u8(\?|$)/i.test(raw) || raw.includes('m3u8');
+               const playUrl = isM3u8 ? ('/api/proxy/hls?url=' + encodeURIComponent(raw)) : ('/api/proxy/stream?url=' + encodeURIComponent(raw));
+               if (urlEl) urlEl.value = raw;
+               if (openEl) openEl.href = playUrl;
+               ensureHls(function(){
+                   if (isM3u8 && window.Hls && window.Hls.isSupported()) {
+                       try { if (v._hls && typeof v._hls.destroy === 'function') { v._hls.destroy(); } } catch(e){}
+                       const h = new Hls(); v._hls = h; h.loadSource(playUrl); h.attachMedia(v); v.play().catch(()=>{});
+                   } else {
+                       try { if (v._hls && typeof v._hls.destroy === 'function') { v._hls.destroy(); v._hls = null; } } catch(e){}
+                       v.src = playUrl; v.play().catch(()=>{});
+                   }
+               });
+           } else {
+               if(cpEl) cpEl.style.display = 'none';
+               if(rpEl) {
+                   rpEl.textContent = '正在回看: ' + (p.title || '无标题');
+                   rpEl.title = '正在回看: ' + (p.title || '无标题');
+                   rpEl.style.display = 'block';
+               }
+               ensureHls(function(){ doPlay(p); });
+           }
+        };
+        el.appendChild(it);
+      });
+    }catch(e){}
+  }
+  if(dateEl) dateEl.onchange=loadList;
+  function doPlay(p){
+    var qs=new URLSearchParams();
+    qs.set('scope', getScope());
+    var fmtSel=document.getElementById('epgFmtR'); var fmt=fmtSel?(fmtSel.value||'iso8601'):'iso8601';
+    var protoSel=document.getElementById('epgProtoR'); var proto=protoSel?(protoSel.value||'http'):'http';
+    qs.set('fmt', fmt); qs.set('proto', proto);
+    qs.set('name', s.name||s.tvgName||s.tvgId||''); qs.set('tvgName', s.tvgName||'');
+    qs.set('resolution', s.resolution||''); qs.set('frameRate', s.frameRate||'');
+    qs.set('multicastUrl', s.multicastUrl||''); qs.set('catchupBase', s.catchupBase||'');
+    qs.set('startMs', p.startMs); qs.set('endMs', p.endMs);
+    fetch('/api/catchup/play?'+qs.toString()).then(r=>r.json()).then(x=>{
+      var urlEl=document.getElementById('epgPlayUrlR'); var openEl=document.getElementById('epgOpenR'); var v=document.getElementById('epgPlayerR');
+      if (x && x.success && x.url){
+        var raw=x.url;
+        var isM3u8=/\\.m3u8(\\?|$)/i.test(raw)||raw.includes('m3u8');
+        var playUrl=isM3u8?('/api/proxy/hls?url='+encodeURIComponent(raw)):('/api/proxy/stream?url='+encodeURIComponent(raw));
+        urlEl.value=raw; openEl.href=playUrl;
+        if(isM3u8 && window.Hls && window.Hls.isSupported()){
+          try{ if(v._hls && typeof v._hls.destroy==='function'){ v._hls.destroy(); } }catch(e){}
+          var h=new Hls(); v._hls=h; h.loadSource(playUrl); h.attachMedia(v); v.play().catch(()=>{});
+        } else {
+          try{ if(v._hls && typeof v._hls.destroy==='function'){ v._hls.destroy(); v._hls=null; } }catch(e){}
+          v.src=playUrl; v.play().catch(()=>{});
+        }
+      }
+    });
+  }
+  loadList();
+}
 function deleteStream(index) {
   showCenterConfirm('确定要删除该频道吗？', async function(ok) {
     if (!ok) return;
@@ -1986,7 +2564,7 @@ function openEditModal(index) {
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small text-muted">回放格式</label>
+                                    <label class="form-label small text-muted">格式</label>
                                     <input class="form-control bg-white" id="editCatchupFmtR" value="由接口选择（默认/酷9/mytv）" disabled>
                                 </div>
                                 <div class="col-md-6">
@@ -2207,6 +2785,66 @@ function openEditModal(index) {
   }
   document.getElementById('editCloseR').onclick = close;
   document.getElementById('editCancelR').onclick = close;
+  (function(){ return;
+    var olds = document.querySelectorAll('#editEpgBtnR');
+    if (olds && olds.length) { olds.forEach(function(n){ try{ n.remove(); }catch(e){} }); }
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-outline-secondary ms-2';
+    btn.id = 'editEpgBtnR';
+    btn.innerHTML = '<i class="bi bi-calendar-event me-1"></i> EPG/回看';
+    var target = document.getElementById('editPlayBtnR');
+    if (target && target.parentElement) target.parentElement.appendChild(btn);
+    function ensureHls(cb){ if (window.Hls) return cb(); var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/hls.js@latest'; sc.onload=cb; document.body.appendChild(sc); }
+    function fmtDate(d){ const y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const Da=String(d.getDate()).padStart(2,'0'); return y+'-'+M+'-'+Da; }
+    function showEpgModal(){
+      var m=document.getElementById('centerModalEpgR');
+      if(!m){ m=document.createElement('div'); m.id='centerModalEpgR'; m.innerHTML='<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class=\"bi bi-calendar-range me-2 text-primary\"></i>EPG 与 回看</h5><button type="button" class="btn-close" id="centerModalEpgCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 bg-light p-3 rounded-3"><div class="d-flex align-items-center gap-2"><label class="text-muted small fw-bold me-2">日期</label><input id="epgDateR" type="date" class="form-control form-control-sm" style="min-width:160px;"></div><div class="d-flex align-items-center gap-3"><div class="d-flex align-items-center"><label class="text-muted small fw-bold me-2">协议</label><select id="epgProtoR" class="form-select form-select-sm"><option value="http" selected>HTTP</option><option value="rtsp">RTSP</option></select></div><div class="d-flex align-items-center"><label class="text-muted small fw-bold me-2">回放格式</label><select id="epgFmtR" class="form-select form-select-sm"><option value="iso8601" selected>ISO8601</option><option value="ku9">酷9</option><option value="mytv">mytv</option><option value="npt">NPT</option><option value="rtsp_range">RTSP Range</option><option value="startend14">starttime/endtime</option><option value="beginend14">begin/end</option><option value="playseek">playseek</option><option value="unix_s">Unix 秒</option><option value="unix_ms">Unix 毫秒</option></select></div></div></div><div class="row g-3"><div class="col-5"><div id="epgListR" class="list-group small" style="max-height:520px;overflow:auto;"></div></div><div class="col-7"><div class="ratio ratio-16x9 mb-2"><video id="epgPlayerR" controls playsinline class="w-100 h-100 bg-black"></video></div><div class="input-group input-group-sm"><input id="epgPlayUrlR" class="form-control" readonly><button class="btn btn-outline-secondary" id="epgCopyR">复制链接</button><a class="btn btn-primary" id="epgOpenR" target="_blank">新窗口打开</a></div></div></div></div></div></div>'; document.body.appendChild(m); document.getElementById('centerModalEpgCloseR').onclick=function(){ var v=document.getElementById('epgPlayerR'); try{ if (v){ if (v._hls && typeof v._hls.destroy==='function'){ v._hls.destroy(); v._hls=null; } v.pause(); v.removeAttribute('src'); v.load(); } }catch(e){} m.style.display='none'; m.querySelector('.modal').classList.remove('show'); }; }
+      var dateEl=document.getElementById('epgDateR'); if(dateEl){ dateEl.value=fmtDate(new Date()); }
+      function loadList(){
+        var scopeVal=(localStorage.getItem('useExternal')==='true')?'external':'internal';
+        var params=new URLSearchParams({ scope: scopeVal, channelId: s.tvgId||'', channelName: s.tvgName||s.name||'', date: dateEl?dateEl.value:'' });
+        fetch('/api/epg/programs?'+params.toString()).then(r=>r.json()).then(j=>{
+          var listEl=document.getElementById('epgListR'); if(!listEl) return;
+          listEl.innerHTML='';
+          (j.programs||[]).forEach(function(p){
+            var it=document.createElement('button'); it.className='list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+            var st=new Date(p.startMs); var en=new Date(p.endMs);
+            var t=(''+st.getHours()).padStart(2,'0')+':'+(''+st.getMinutes()).padStart(2,'0')+'-'+(''+en.getHours()).padStart(2,'0')+':'+(''+en.getMinutes()).padStart(2,'0');
+            it.innerHTML='<span class="text-truncate">'+t+' '+(p.title||'')+'</span><i class="bi bi-play-fill text-primary"></i>';
+            it.onclick=function(){
+              var fmtSel=document.getElementById('epgFmtR'); var protoSel=document.getElementById('epgProtoR');
+              var scopeVal=(localStorage.getItem('useExternal')==='true')?'external':'internal';
+              var qs=new URLSearchParams({ scope: scopeVal, fmt: fmtSel?fmtSel.value:'iso8601', proto: protoSel?protoSel.value:'http', name: s.name||'', tvgName: s.tvgName||'', resolution: s.resolution||'', frameRate: s.frameRate||'', multicastUrl: s.multicastUrl||'', catchupBase: s.catchupBase||'', startMs: String(p.startMs), endMs: String(p.endMs) });
+              fetch('/api/catchup/play?'+qs.toString()).then(r=>r.json()).then(x=>{
+                var urlEl=document.getElementById('epgPlayUrlR'); var openEl=document.getElementById('epgOpenR'); var v=document.getElementById('epgPlayerR');
+                if (x && x.success && x.url){
+                  var raw=x.url;
+                  var isM3u8=/\.m3u8(\?|$)/i.test(raw)||raw.includes('m3u8');
+                  var playUrl=isM3u8?('/api/proxy/hls?url='+encodeURIComponent(raw)):('/api/proxy/stream?url='+encodeURIComponent(raw));
+                  urlEl.value=raw; openEl.href=raw;
+                  if(isM3u8 && window.Hls && window.Hls.isSupported()){
+                    try{ if(v._hls && typeof v._hls.destroy==='function'){ v._hls.destroy(); } }catch(e){}
+                    var h=new Hls(); v._hls=h; h.loadSource(playUrl); h.attachMedia(v); v.play().catch(()=>{});
+                  } else {
+                    try{ if(v._hls && typeof v._hls.destroy==='function'){ v._hls.destroy(); v._hls=null; } }catch(e){}
+                    v.src=playUrl; v.play().catch(()=>{});
+                  }
+                }
+              });
+            };
+            listEl.appendChild(it);
+          });
+        });
+      }
+      var copyBtn=function(){ var urlEl=document.getElementById('epgPlayUrlR'); if(!urlEl) return; navigator.clipboard && navigator.clipboard.writeText(urlEl.value); };
+      var cbtn=document.getElementById('epgCopyR'); if(cbtn) cbtn.onclick=copyBtn;
+      ensureHls(function(){});
+      m.style.display='block'; m.querySelector('.modal').classList.add('show'); loadList();
+      if(dateEl){ dateEl.onchange=loadList; }
+      var fmtEl=document.getElementById('epgFmtR'); var protoEl=document.getElementById('epgProtoR'); if(fmtEl) fmtEl.onchange=function(){ var a=document.querySelector('#epgListR .list-group-item.active'); if(a) a.click(); }; if(protoEl) protoEl.onchange=function(){ var a=document.querySelector('#epgListR .list-group-item.active'); if(a) a.click(); };
+    }
+    if (btn) btn.onclick=showEpgModal;
+  })();
   document.getElementById('editLogoTemplateR').addEventListener('change', function() {
     const tpl = this.value || '';
     if (tpl) saveLogoTemplate(tpl);

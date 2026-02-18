@@ -8,6 +8,8 @@ const fs = require('fs');
 
 const cookieParser = require('cookie-parser');
 const svgCaptcha = require('svg-captcha');
+const { XMLParser } = require('fast-xml-parser');
+const zlib = require('zlib');
 const packageJson = require('../package.json');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -81,7 +83,7 @@ function requireAuth(req, res, next) {
     }
     
     // API 请求返回 401
-    if (req.path.startsWith('/api/') && !['/api/login', '/api/auth/check'].includes(req.path)) {
+    if (req.path.startsWith('/api/') && !['/api/login', '/api/auth/check', '/api/system/info', '/api/captcha'].includes(req.path)) {
         // 排除导出接口
         if (req.path.startsWith('/api/export/')) return next();
         // 排除流代理
@@ -222,6 +224,7 @@ const CFG_GROUP_RULES = path.join(DATA_DIR, 'group_rules.json');
 const CFG_EPG = path.join(DATA_DIR, 'epg_sources.json');
 const CFG_PROXY = path.join(DATA_DIR, 'proxy_servers.json');
 const CFG_APPSET = path.join(DATA_DIR, 'app_settings.json');
+const EPG_DIR = path.join(DATA_DIR, 'epg');
 let settings = {
     globalFcc: '',
     fccServers: [],
@@ -268,6 +271,11 @@ function readJson(file, defObj) {
 function writeJson(file, obj) {
     ensureDataDir();
     try { fs.writeFileSync(file, JSON.stringify(obj, null, 2), 'utf-8'); return true; } catch(e) { console.error('写入失败', file); return false; }
+}
+function ensureEpgDir() {
+    try {
+        if (!fs.existsSync(EPG_DIR)) fs.mkdirSync(EPG_DIR, { recursive: true });
+    } catch(e) {}
 }
 function persistSave() {
     ensureDataDir();
@@ -1528,6 +1536,306 @@ app.post('/api/config/epg-sources', (req, res) => {
   res.json({ success: true });
 });
 
+const epgCache = new Map();
+function parseXmltvDatetime(s) {
+    const m = String(s || '').match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\s*([+\-]\d{4}|Z))?$/);
+    if (!m) return null;
+    const y = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, d = parseInt(m[3], 10);
+    const hh = parseInt(m[4], 10), mm = parseInt(m[5], 10), ss = parseInt(m[6], 10);
+    let dt = Date.UTC(y, mo, d, hh, mm, ss);
+    const tz = m[7] || null;
+    if (tz && tz !== 'Z') {
+        const sign = tz.startsWith('-') ? -1 : 1;
+        const offH = parseInt(tz.slice(1, 3), 10);
+        const offM = parseInt(tz.slice(3, 5), 10);
+        const off = sign * (offH * 60 + offM) * 60 * 1000;
+        dt -= off;
+    }
+    return new Date(dt).getTime();
+}
+function epgFileFor(id) {
+    ensureEpgDir();
+    const safe = String(id || 'default').replace(/[^a-zA-Z0-9_\-]/g, '');
+    return path.join(EPG_DIR, `${safe}.xml`);
+}
+async function fetchAndStoreXmltv(id, url) {
+    ensureEpgDir();
+    const resp = await axios.get(url, { responseType: 'arraybuffer', validateStatus: () => true });
+    if (resp.status < 200 || resp.status >= 300) throw new Error('fetch epg failed');
+    const buf = Buffer.from(resp.data);
+    const ctype = (resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type'])) || '';
+    const isGz = /\.gz($|\?)/i.test(url) || /gzip/i.test(String(ctype));
+    let xml = null;
+    try {
+        if (isGz) {
+            xml = zlib.gunzipSync(buf).toString('utf-8');
+        } else {
+            xml = buf.toString('utf-8');
+        }
+    } catch(e) {
+        // 回退：当标识为gz但非gz内容时，直接按文本处理
+        xml = buf.toString('utf-8');
+    }
+    const file = epgFileFor(id);
+    fs.writeFileSync(file, xml, 'utf-8');
+    return file;
+}
+function parseXmlFile(file) {
+    const xml = fs.readFileSync(file, 'utf-8');
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+    const data = parser.parse(xml);
+    const tv = data && (data.tv || data.TV || data.xmltv) ? (data.tv || data.TV || data.xmltv) : data;
+    const channels = Array.isArray(tv && tv.channel) ? tv.channel : (tv && tv.channel ? [tv.channel] : []);
+    const programmes = Array.isArray(tv && tv.programme) ? tv.programme : (tv && tv.programme ? [tv.programme] : []);
+    return { channels, programmes };
+}
+async function loadXmltvFromLocalOrRemote(source, maxAgeMs = 60 * 60 * 1000, forceRefresh = false) {
+    const id = source.id || 'epg';
+    const url = source.url;
+    const now = Date.now();
+    const cacheKey = `local:${id}`;
+    
+    if (!forceRefresh) {
+        const cached = epgCache.get(cacheKey);
+        if (cached && now - cached.ts < maxAgeMs) return cached.data;
+    }
+
+    const f = epgFileFor(id);
+    let needRefresh = true;
+    
+    if (!forceRefresh) {
+        try {
+            if (fs.existsSync(f)) {
+                const stat = fs.statSync(f);
+                if (now - stat.mtimeMs < maxAgeMs) needRefresh = false;
+            }
+        } catch(e) {}
+    }
+
+    if (needRefresh) {
+        try {
+            await fetchAndStoreXmltv(id, url);
+        } catch(e) {
+            // 如果远端失败且本地存在旧文件，则继续用旧文件
+        }
+    }
+    if (!fs.existsSync(f)) throw new Error('no epg file');
+    const norm = parseXmlFile(f);
+    epgCache.set(cacheKey, { ts: now, data: norm });
+    return norm;
+}
+
+function formatUtc(dt, fmt) {
+    const d = new Date(dt);
+    const pad = (n, w=2) => String(n).padStart(w, '0');
+    const y = d.getUTCFullYear();
+    const M = pad(d.getUTCMonth() + 1);
+    const D = pad(d.getUTCDate());
+    const H = pad(d.getUTCHours());
+    const m = pad(d.getUTCMinutes());
+    const s = pad(d.getUTCSeconds());
+    if (fmt === 'yyyyMMddHHmmss') return `${y}${M}${D}${H}${m}${s}`;
+    if (fmt === 'yyyy-MM-ddTHH:mm:ssZ') return `${y}-${M}-${D}T${H}:${m}:${s}Z`;
+    if (fmt === 'HH:mm:ss') return `${H}:${m}:${s}`;
+    if (fmt === 'unix_s') return Math.floor(d.getTime() / 1000).toString();
+    if (fmt === 'unix_ms') return d.getTime().toString();
+    return `${y}${M}${D}${H}${m}${s}`;
+}
+
+app.get('/api/epg/programs', async (req, res) => {
+    try {
+        const scope = String(req.query.scope || 'internal').toLowerCase();
+        const channelId = String(req.query.channelId || '').trim();
+        const channelName = String(req.query.channelName || '').trim();
+        const dateStr = String(req.query.date || '').trim();
+        const epgId = String(req.query.epgId || '').trim();
+        const forceRefresh = String(req.query.refresh || '') === 'true';
+
+        const defEpg = { sources: [] };
+        const epgCfg = readJson(CFG_EPG, defEpg);
+        const epgListRaw = Array.isArray(epgCfg.sources) ? epgCfg.sources : [];
+        const epgList = epgListRaw.map(x => ({
+            id: x && x.id ? x.id : ('epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36)),
+            name: x && x.name ? x.name : '未命名EPG',
+            url: x && x.url ? x.url : '',
+            scope: (x && x.scope === '外网' || x && x.scope === '外网EPG') ? '外网EPG' : '内网EPG'
+        })).filter(x => x.url);
+        
+        let pick = null;
+        if (epgId) {
+            pick = epgList.find(x => x.id === epgId) || null;
+        }
+        if (!pick) {
+            pick = (scope === 'external' ? (epgList.find(x => x.scope === '外网EPG') || null) : (epgList.find(x => x.scope === '内网EPG') || null)) || null;
+        }
+        
+        if (!pick) return res.json({ success: true, programs: [], channel: null, message: 'No EPG source found' });
+        
+        const tv = await loadXmltvFromLocalOrRemote(pick, 60 * 60 * 1000, forceRefresh);
+        const chans = tv.channels || [];
+        const progs = tv.programmes || [];
+        let ch = null;
+        if (channelId) ch = chans.find(c => String(c && c['@_id']).trim() === channelId) || null;
+        if (!ch && channelName) {
+            const nm = String(channelName).trim();
+            // 优化匹配逻辑：统一转大写，去除非字母数字中文，去除高清/4K/频道等常见后缀
+            const normalize = s => String(s || '').trim().toUpperCase()
+                .replace(/HD/g, '')
+                .replace(/4K/g, '')
+                .replace(/高清/g, '')
+                .replace(/频道/g, '')
+                .replace(/[^A-Z0-9\u4e00-\u9fa5]/g, ''); 
+            const target = normalize(nm);
+
+            ch = chans.find(c => {
+                const arr = [];
+                if (Array.isArray(c['display-name'])) arr.push(...c['display-name']);
+                if (c['display-name'] && typeof c['display-name'] === 'object' && c['display-name']['#text']) arr.push(c['display-name']['#text']);
+                const names = arr.map(x => (typeof x === 'string') ? x : (x && x['#text'] ? x['#text'] : '')).filter(Boolean);
+                return names.some(n => normalize(n) === target);
+            }) || null;
+        }
+        const chId = ch ? String(ch['@_id'] || '').trim() : (channelId || '');
+        const day = dateStr ? new Date(dateStr + 'T00:00:00Z') : new Date(new Date().toISOString().slice(0,10) + 'T00:00:00Z');
+        const startDay = day.getTime();
+        const endDay = startDay + 24 * 60 * 60 * 1000;
+        const list = progs.filter(p => {
+            if (chId && String(p['@_channel'] || '').trim() !== chId) return false;
+            const st = parseXmltvDatetime(p['@_start']);
+            const en = parseXmltvDatetime(p['@_stop'] || p['@_end'] || '');
+            if (st == null) return false;
+            const e = en != null ? en : (st + 60 * 60 * 1000);
+            return !(e <= startDay || st >= endDay);
+        }).map(p => {
+            const st = parseXmltvDatetime(p['@_start']);
+            const en = parseXmltvDatetime(p['@_stop'] || p['@_end'] || '');
+            let title = '';
+            if (typeof p.title === 'string') title = p.title;
+            else if (Array.isArray(p.title)) title = p.title.map(x => (typeof x === 'string') ? x : (x && x['#text'] ? x['#text'] : '')).filter(Boolean)[0] || '';
+            else if (p.title && p.title['#text']) title = p.title['#text'];
+            let desc = '';
+            if (typeof p.desc === 'string') desc = p.desc;
+            else if (Array.isArray(p.desc)) desc = p.desc.map(x => (typeof x === 'string') ? x : (x && x['#text'] ? x['#text'] : '')).filter(Boolean)[0] || '';
+            else if (p.desc && p.desc['#text']) desc = p.desc['#text'];
+            return { startMs: st, endMs: en != null ? en : (st + 3600000), title, desc };
+        }).sort((a,b)=>a.startMs-b.startMs);
+        res.json({ success: true, channel: ch ? { id: chId, names: ch['display-name'] } : null, programs: list, epgName: pick.name, epgId: pick.id });
+    } catch (e) {
+        res.json({ success: true, channel: null, programs: [] });
+    }
+});
+app.post('/api/epg/refresh', async (req, res) => {
+    try {
+        const { scope, id } = req.body || {};
+        const defEpg = { sources: [] };
+        const epgCfg = readJson(CFG_EPG, defEpg);
+        const epgListRaw = Array.isArray(epgCfg.sources) ? epgCfg.sources : [];
+        const epgList = epgListRaw.map(x => ({
+            id: x && x.id ? x.id : ('epg-' + Math.random().toString(36).slice(2) + Date.now().toString(36)),
+            name: x && x.name ? x.name : '未命名EPG',
+            url: x && x.url ? x.url : '',
+            scope: (x && x.scope === '外网' || x && x.scope === '外网EPG') ? '外网EPG' : '内网EPG'
+        })).filter(x => x.url);
+        let targets = epgList;
+        if (typeof scope === 'string') {
+            if (scope.toLowerCase() === 'internal') targets = epgList.filter(x => x.scope === '内网EPG');
+            else if (scope.toLowerCase() === 'external') targets = epgList.filter(x => x.scope === '外网EPG');
+        }
+        if (typeof id === 'string' && id) {
+            const t = epgList.find(x => x.id === id);
+            targets = t ? [t] : [];
+        }
+        const results = [];
+        for (const s of targets) {
+            try {
+                const f = await fetchAndStoreXmltv(s.id, s.url);
+                results.push({ id: s.id, ok: true, file: path.basename(f) });
+            } catch(e) {
+                results.push({ id: s.id, ok: false, error: 'fetch failed' });
+            }
+        }
+        res.json({ success: true, results });
+    } catch (e) {
+        res.json({ success: false, message: 'refresh error' });
+    }
+});
+app.get('/api/catchup/play', (req, res) => {
+    const scope = String(req.query.scope || 'internal').toLowerCase();
+    const fmt = String(req.query.fmt || 'iso8601').toLowerCase();
+    const proto = String(req.query.proto || 'http').toLowerCase();
+    const name = String(req.query.name || '').trim();
+    const tvgName = String(req.query.tvgName || '').trim();
+    const resolution = String(req.query.resolution || '').trim();
+    const frameRate = String(req.query.frameRate || '').trim();
+    const multicastUrl = String(req.query.multicastUrl || '').trim();
+    const catchupBase = String(req.query.catchupBase || '').trim();
+    const startMs = parseInt(String(req.query.startMs || ''), 10);
+    const endMs = parseInt(String(req.query.endMs || ''), 10);
+    if (!(startMs > 0 && endMs > 0 && endMs > startMs)) return res.status(400).json({ success: false, message: 'invalid time' });
+    let unicastBase = '';
+    const u = multicastUrl;
+    const scheme = u ? u.split(':')[0].toLowerCase() : '';
+    const isMulti = !!u && (scheme === 'rtp' || scheme === 'udp');
+    if (u && !isMulti && isHttpUrl(u)) {
+        unicastBase = buildUnicastCatchupBase(scope, u, proto);
+    } else {
+        const nm = tvgName || name || '';
+        const match = findUnicastMatchByMeta(nm, resolution, frameRate);
+        if (match && isHttpUrl(match.multicastUrl)) {
+            unicastBase = buildUnicastCatchupBase(scope, match.multicastUrl || '', proto);
+        }
+    }
+    if (!unicastBase && catchupBase && fmt === 'default') {
+        let cb = catchupBase;
+        if (scope === 'external') {
+            const proxyBase = getProxyByType('单播代理');
+            let pb = proxyBase && proxyBase.url ? proxyBase.url : '';
+            if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
+            if (pb) cb = pb + cb;
+        }
+        unicastBase = cb;
+    }
+    if (!unicastBase) return res.json({ success: false, message: 'no unicast base' });
+    let url = unicastBase;
+    if (fmt === 'ku9') {
+        const b = formatUtc(startMs, 'yyyyMMddHHmmss');
+        const e = formatUtc(endMs, 'yyyyMMddHHmmss');
+        url += `?starttime=${b.slice(0,8)}T${b.slice(8)}&endtime=${e.slice(0,8)}T${e.slice(8)}`;
+    } else if (fmt === 'mytv') {
+        const b = formatUtc(startMs, 'yyyyMMddHHmmss');
+        const e = formatUtc(endMs, 'yyyyMMddHHmmss');
+        url += `?starttime=${b}&endtime=${e}`;
+    } else if (fmt === 'playseek') {
+        const b = formatUtc(startMs, 'yyyyMMddHHmmss');
+        const e = formatUtc(endMs, 'yyyyMMddHHmmss');
+        url += `?playseek=${b}-${e}`;
+    } else if (fmt === 'startend14') {
+        const b = formatUtc(startMs, 'yyyyMMddHHmmss');
+        const e = formatUtc(endMs, 'yyyyMMddHHmmss');
+        url += `?starttime=${b}&endtime=${e}`;
+    } else if (fmt === 'beginend14') {
+        const b = formatUtc(startMs, 'yyyyMMddHHmmss');
+        const e = formatUtc(endMs, 'yyyyMMddHHmmss');
+        url += `?begin=${b}&end=${e}`;
+    } else if (fmt === 'iso8601') {
+        const b = formatUtc(startMs, 'yyyy-MM-ddTHH:mm:ssZ');
+        const e = formatUtc(endMs, 'yyyy-MM-ddTHH:mm:ssZ');
+        url += `?start=${encodeURIComponent(b)}&end=${encodeURIComponent(e)}`;
+    } else if (fmt === 'npt' || fmt === 'rtsp_range') {
+        const b = formatUtc(startMs, 'HH:mm:ss');
+        const e = formatUtc(endMs, 'HH:mm:ss');
+        url += `?npt=${b}-${e}`;
+    } else if (fmt === 'unix_s') {
+        const b = formatUtc(startMs, 'unix_s');
+        const e = formatUtc(endMs, 'unix_s');
+        url += `?start=${b}&end=${e}`;
+    } else if (fmt === 'unix_ms') {
+        const b = formatUtc(startMs, 'unix_ms');
+        const e = formatUtc(endMs, 'unix_ms');
+        url += `?start=${b}&end=${e}`;
+    }
+    res.json({ success: true, url });
+});
 // 简单流代理（用于HLS播放跨域绕过）
 app.get('/api/proxy/stream', async (req, res) => {
     try {
@@ -1551,6 +1859,59 @@ app.get('/api/proxy/stream', async (req, res) => {
         resp.data.pipe(res);
     } catch (e) {
         res.status(502).send('proxy error');
+    }
+});
+function rewriteHlsPlaylist(content, baseUrl) {
+    const lines = String(content || '').split(/\r?\n/);
+    const toAbs = (p) => {
+        try { return new URL(p, baseUrl).href; } catch(e) { return p; }
+    };
+    const rewriteAttrUri = (line) => {
+        const m = line.match(/URI="([^"]+)"/i);
+        if (!m) return line;
+        const abs = toAbs(m[1]);
+        const isM3u8 = /\.m3u8(\?|$)/i.test(abs);
+        const prox = (isM3u8 ? '/api/proxy/hls?url=' : '/api/proxy/stream?url=') + encodeURIComponent(abs);
+        return line.replace(/URI="([^"]+)"/i, 'URI="'+prox+'"');
+    };
+    const out = lines.map(l => {
+        const t = l.trim();
+        if (!t) return l;
+        if (t.startsWith('#EXT-X-KEY') || t.startsWith('#EXT-X-MAP')) {
+            return rewriteAttrUri(l);
+        }
+        if (t.startsWith('#')) return l;
+        const abs = toAbs(t);
+        const isM3u8 = /\.m3u8(\?|$)/i.test(abs);
+        return (isM3u8 ? '/api/proxy/hls?url=' : '/api/proxy/stream?url=') + encodeURIComponent(abs);
+    });
+    return out.join('\n');
+}
+app.get('/api/proxy/hls', async (req, res) => {
+    try {
+        const url = String(req.query.url || '').trim();
+        if (!/^https?:\/\//i.test(url)) return res.status(400).send('invalid url');
+        const hdrs = {};
+        ['referer','user-agent','origin','accept','accept-language','cookie'].forEach(h => {
+            const v = req.headers[h];
+            if (v) hdrs[h] = v;
+        });
+        const resp = await axios.get(url, { responseType: 'arraybuffer', headers: hdrs, validateStatus: () => true });
+        if (resp.status < 200 || resp.status >= 300) {
+            res.status(resp.status).send(String(resp.data || ''));
+            return;
+        }
+        let text = Buffer.from(resp.data).toString('utf-8');
+        const enc = (resp.headers && (resp.headers['content-encoding'] || resp.headers['Content-Encoding'])) || '';
+        if (/gzip/i.test(enc)) {
+            try { text = zlib.gunzipSync(Buffer.from(resp.data)).toString('utf-8'); } catch(e) {}
+        }
+        const body = rewriteHlsPlaylist(text, url);
+        res.set('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+        res.set('Access-Control-Allow-Origin', '*');
+        res.send(body);
+    } catch (e) {
+        res.status(502).send('proxy hls error');
     }
 });
 

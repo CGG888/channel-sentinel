@@ -113,6 +113,7 @@
             <div class="text-center text-muted small" style="font-size: 0.8rem;">
                 默认账号/密码: <span class="fw-bold text-dark">admin</span> / <span class="fw-bold text-dark">admin</span>
                 <p class="text-muted mb-0">外网使用请修改默认账号密码</p>
+                <div class="text-muted mt-1">版本号：<span id="loginVersion">-</span></div>
             </div>
             <div id="errorMsg" class="alert alert-danger mt-3 d-none border-0 bg-danger bg-opacity-10 text-danger small" role="alert"></div>
         </form>
@@ -120,6 +121,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function loadSystemInfoLogin(){
+            fetch('/api/system/info').then(r=>r.json()).then(j=>{
+                if(j&&j.success&&j.version){
+                    var el=document.getElementById('loginVersion');
+                    if(el) el.textContent='v'+j.version;
+                }
+            }).catch(()=>{});
+        }
+        document.addEventListener('DOMContentLoaded', loadSystemInfoLogin);
         function refreshCaptcha() {
             document.getElementById('captchaImg').src = '/api/captcha?t=' + Date.now();
             document.getElementById('captcha').value = '';
