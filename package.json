@@ -1,6 +1,6 @@
 {
   "name": "iptv-checker",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "IPTV stream checker web application",
   "main": "src/index.js",
   "scripts": {

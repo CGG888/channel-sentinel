@@ -899,8 +899,9 @@ app.get('/api/export/txt', (req, res) => {
     const noSuffix = stripSuffixParam === '1' || stripSuffixParam === 'true' || stripSuffixParam === 'yes';
     const filtered = filterByStatus(multicastList, status);
     const ordered = sortStreamsForExport(filtered);
-    const content = ordered.map(s => {
-        const q = qualityLabelBackend(s.resolution);
+    const lines = [];
+    let lastGroup = null;
+    ordered.forEach(s => {
         const nm = s.name || '';
         const u = String(s.multicastUrl || '').trim();
         const scheme = u.split(':')[0].toLowerCase();
@@ -908,29 +909,34 @@ app.get('/api/export/txt', (req, res) => {
         let httpUrlBase = '';
         if (isMulticast) {
             const extBase = getProxyByType('组播代理');
-            if (scope === 'external' && !(extBase && extBase.url)) return null;
+            if (scope === 'external' && !(extBase && extBase.url)) return;
             let base = '';
             if (scope === 'external') {
                 base = extBase.url;
             } else {
                 base = udpxyCurrUrl || '';
             }
-            if (!base) return null;
+            if (!base) return;
             if (base && !/^https?:\/\//i.test(base)) base = 'http://' + base.replace(/^\/+/, '');
             const path = '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
             httpUrlBase = `${base}${path}`;
         } else {
             const proxyBase = getProxyByType('单播代理');
-            if (scope === 'external' && !(proxyBase && proxyBase.url)) return null;
+            if (scope === 'external' && !(proxyBase && proxyBase.url)) return;
             let base = scope === 'external' ? (proxyBase.url || '') : '';
             if (scope === 'external' && base && !/^https?:\/\//i.test(base)) base = 'http://' + base.replace(/^\/+/, '');
             httpUrlBase = scope === 'external' ? (base + '/' + stripScheme(u)) : u;
         }
-        const suf = '';
         const hp = filterHttpParam(s.httpParam || '');
-        const httpUrl = (isMulticast && hp) ? (httpUrlBase + '?' + hp + suf) : (httpUrlBase + suf);
-        return `${nm},${httpUrl},${q}`;
-    }).filter(Boolean).join('\r\n');
+        const httpUrl = (isMulticast && hp) ? (httpUrlBase + '?' + hp) : (httpUrlBase);
+        const grp = (s.groupTitle || '未分组').trim() || '未分组';
+        if (grp !== lastGroup) {
+            lines.push(`${grp},#genre#`);
+            lastGroup = grp;
+        }
+        lines.push(`${nm},${httpUrl}`);
+    });
+    const content = lines.join('\r\n');
     res.type('text/plain; charset=utf-8').send(content);
 });
 app.get('/api/export/m3u', (req, res) => {

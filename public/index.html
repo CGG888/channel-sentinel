@@ -99,7 +99,7 @@
                         <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="fw-bold text-primary"><i class="bi bi-hdd-network me-2"></i>RTP2HTTPD 服务器</span>
-                                <small class="text-muted">代理组播、rtsp单播服务器管理</small>
+                                <small class="text-muted">推荐使用<a href="https://github.com/stackia/rtp2httpd" target="_blank">rtp2httpd</a>-组播、rtsp单播服务器管理</small>
                             </div>
                         </div>
                         <div class="card-body">
@@ -1028,7 +1028,7 @@ if (opRow) {
             // 弹窗说明
             let msg = '';
             if (type === 'txt') {
-                msg = 'TXT格式说明：每行为 频道名称,rtp://ip:端口，适合文本编辑器查看和批量处理。';
+                msg = 'TXT格式说明：包含分组行“分组名,#genre#”，其后为“频道名,地址”。';
             } else if (type === 'm3u') {
                 msg = 'M3U格式说明：每行为标准M3U格式，地址为UDPXY服务器/rtp/ip:端口。\n如需对频道分组，请使用EPG软件进行操作。';
             }
