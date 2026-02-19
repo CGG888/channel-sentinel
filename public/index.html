@@ -765,9 +765,12 @@ if (opRow) {
         </div>
 
         <div class="d-flex gap-2 ms-auto align-self-center">
-            <button class="btn btn-sm btn-outline-success" onclick="openPotPlayer('${stream.udpxyUrl}/rtp/${(stream.multicastUrl||'').replace('rtp://','')}${stream.httpParam ? ('?' + stream.httpParam) : ''}')" title="播放">
-                <i class="bi bi-play-fill"></i> <span class="d-none d-md-inline">播放</span>
+            <button class="btn btn-sm btn-outline-success" onclick="openExternalPlayerIndex(${allStreams.indexOf(stream)})" title="外部播放器">
+                <i class="bi bi-box-arrow-up-right"></i> <span class="d-none d-md-inline">外部</span>
             </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="playStreamByIndex(${allStreams.indexOf(stream)})" title="网页播放">
+                    <i class="bi bi-play-circle"></i> <span class="d-none d-md-inline">播放</span>
+                </button>
             <button class="btn btn-sm btn-outline-danger" onclick="deleteStream(${allStreams.indexOf(stream)})" title="删除">
                 <i class="bi bi-trash"></i> <span class="d-none d-md-inline">删除</span>
             </button>
@@ -1510,6 +1513,148 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }, 200);
 }
+function openExternalPlayerUrl(url, title){
+    try{
+        var ua = navigator.userAgent || '';
+        if(/iPhone|iPad|iPod/i.test(ua)){
+            var t = 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(url);
+            if(title) t += '&title=' + encodeURIComponent(String(title));
+            window.location.href = t; 
+            return;
+        }
+        if(/Android/i.test(ua)){
+            window.location.href = 'vlc://' + url; 
+            return;
+        }
+        openPotPlayer(url);
+    }catch(e){}
+}
+function openExternalPlayerIndex(index){
+    try{
+        var s = allStreams[index];
+        if(!s) return;
+        function displayUrlBaseLocal(stream){
+            var u = String(stream.multicastUrl||'').trim();
+            var scheme = u.split(':')[0].toLowerCase();
+            var isMc = !!stream.udpxyUrl || scheme==='rtp' || scheme==='udp';
+            var useExternal = (localStorage.getItem('useExternal')==='true');
+            var proxyList=[];
+            try{ proxyList = JSON.parse(localStorage.getItem('proxyList')||'[]') }catch(e){}
+            var extUrl = localStorage.getItem('externalUrl')||'';
+            function currentUdpxy(){
+                try{
+                    var list = JSON.parse(localStorage.getItem('udpxyServers')||'[]');
+                    var curr = localStorage.getItem('udpxyCurrentId')||'';
+                    var item = list.find(function(x){ return x.id===curr });
+                    return (item&&item.url)||'';
+                }catch(e){ return '' }
+            }
+            if(isMc){
+                var base = '';
+                if(useExternal){
+                    var extItem = proxyList.find(function(x){ return x.type==='组播代理' });
+                    base = (extItem&&extItem.url)||extUrl||(stream.udpxyUrl||currentUdpxy()||'');
+                }else{
+                    base = (stream.udpxyUrl||currentUdpxy()||'');
+                }
+                base = String(base||'').trim().replace(/\/+$/, '');
+                var addr = u.replace(/^(rtp|udp):\/\//i, '');
+                return base + '/rtp/' + addr;
+            }else{
+                if(useExternal){
+                    var proxyItem = proxyList.find(function(x){ return x.type==='单播代理' });
+                    var pb = (proxyItem&&proxyItem.url)||'';
+                    if(pb){
+                        pb = pb.replace(/\/+$/,'');
+                        var stripped = u.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+                        return pb + '/' + stripped;
+                    }
+                }
+                return u;
+            }
+        }
+        var base = displayUrlBaseLocal(s);
+        var u = String(s.multicastUrl||'').trim();
+        var isRtpOrUdp = /^(rtp|udp):\/\//i.test(u);
+        var isMc = !!s.udpxyUrl || isRtpOrUdp || base.indexOf('/rtp/') > -1;
+        if(isMc && s.httpParam){
+            var hasQ = base.indexOf('?') > -1;
+            if(base.indexOf(s.httpParam) === -1){
+                base = base + (hasQ ? '&' : '?') + s.httpParam;
+            }
+        }
+        var title = String(s.name||s.tvgName||'').trim();
+        openExternalPlayerUrl(base, title);
+    }catch(e){}
+}
+function playStreamByIndex(index){
+    try{
+        var s = allStreams[index];
+        if(!s) return;
+        function displayUrlBaseLocal(stream){
+            var u = String(stream.multicastUrl||'').trim();
+            var scheme = u.split(':')[0].toLowerCase();
+            var isMc = !!stream.udpxyUrl || scheme==='rtp' || scheme==='udp';
+            var useExternal = (localStorage.getItem('useExternal')==='true');
+            var proxyList=[];
+            try{ proxyList = JSON.parse(localStorage.getItem('proxyList')||'[]') }catch(e){}
+            var extUrl = localStorage.getItem('externalUrl')||'';
+            function currentUdpxy(){
+                try{
+                    var list = JSON.parse(localStorage.getItem('udpxyServers')||'[]');
+                    var curr = localStorage.getItem('udpxyCurrentId')||'';
+                    var item = list.find(function(x){ return x.id===curr });
+                    return (item&&item.url)||'';
+                }catch(e){ return '' }
+            }
+            if(isMc){
+                var base = '';
+                if(useExternal){
+                    var extItem = proxyList.find(function(x){ return x.type==='组播代理' });
+                    base = (extItem&&extItem.url)||extUrl||(stream.udpxyUrl||currentUdpxy()||'');
+                }else{
+                    base = (stream.udpxyUrl||currentUdpxy()||'');
+                }
+                base = String(base||'').trim().replace(/\/+$/, '');
+                var addr = u.replace(/^(rtp|udp):\/\//i, '');
+                return base + '/rtp/' + addr;
+            }else{
+                if(useExternal){
+                    var proxyItem = proxyList.find(function(x){ return x.type==='单播代理' });
+                    var pb = (proxyItem&&proxyItem.url)||'';
+                    if(pb){
+                        pb = pb.replace(/\/+$/,'');
+                        var stripped = u.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
+                        return pb + '/' + stripped;
+                    }
+                }
+                return u;
+            }
+        }
+        var base = displayUrlBaseLocal(s);
+        var u = String(s.multicastUrl||'').trim();
+        var isRtpOrUdp = /^(rtp|udp):\/\//i.test(u);
+        var isMc = !!s.udpxyUrl || isRtpOrUdp || base.indexOf('/rtp/') > -1;
+        if(isMc && s.httpParam){
+            var hasQ = base.indexOf('?') > -1;
+            if(base.indexOf(s.httpParam) === -1){
+                base = base + (hasQ ? '&' : '?') + s.httpParam;
+            }
+        }
+        var title = String(s.name||s.tvgName||'').trim();
+        var tvgName = String(s.tvgName||s.name||'').trim();
+        var logo = String(s.logo||'').trim();
+        var qs = new URLSearchParams();
+        qs.set('url', base);
+        if(title) qs.set('title', title);
+        if(tvgName) qs.set('tvgName', tvgName);
+        if(logo) qs.set('logo', logo);
+        qs.set('live','1');
+        qs.set('ui','mini');
+        var w = window.open('/player.html?'+qs.toString(), 'player_live', 'width=1200,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
+        if(w){ w.focus&&w.focus(); }
+    }catch(e){}
+}
 function openEditModal(index) {
     const s = allStreams[index];
     let modal = document.getElementById('editModal');
@@ -1844,35 +1989,55 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
             const latestSpan = document.getElementById('modalLatestVersion');
             const btnUpdate = document.getElementById('btnUpdate');
             
-            try {
-                const r = await fetch('https://api.github.com/repos/cgg888/iptv-checker/releases/latest');
-                if (r.status === 200) {
-                    const data = await r.json();
-                    latestSpan.textContent = data.tag_name;
-                    // 简单的 Markdown 转 HTML
-                    notesDiv.innerHTML = data.body.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
-                    
-                    const currentVer = document.getElementById('modalCurrentVersion').textContent.replace('v', '').trim();
-                    const remoteVer = data.tag_name.replace('v', '').trim();
-                    
-                    if (remoteVer !== currentVer) {
-                        btnUpdate.textContent = isDockerEnv ? 'Docker 更新指引' : '立即更新';
-                        btnUpdate.disabled = false;
-                        btnUpdate.classList.remove('btn-secondary');
-                        btnUpdate.classList.add('btn-success');
-                    } else {
-                        btnUpdate.textContent = '已是最新版本';
-                        btnUpdate.disabled = true;
-                        btnUpdate.classList.remove('btn-success');
-                        btnUpdate.classList.add('btn-secondary');
-                    }
-                } else {
-                    latestSpan.textContent = '获取失败';
-                    notesDiv.textContent = '无法连接到 GitHub API';
+            async function fetchWithTimeout(url, opts) {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), (opts && opts.timeout) || 6000);
+                try {
+                    const r = await fetch(url, { ...(opts||{}), signal: controller.signal, headers: { 'Accept': 'application/vnd.github+json' } });
+                    clearTimeout(id);
+                    if (r.ok) return await r.json();
+                    throw new Error('HTTP ' + r.status);
+                } finally {
+                    clearTimeout(id);
                 }
-            } catch(e) {
-                latestSpan.textContent = '网络错误';
-                notesDiv.textContent = '检查更新失败';
+            }
+            
+            const endpoints = [
+                'https://gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                'https://hk.gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                'https://cdn.gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                'https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                'https://mirror.ghproxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                'https://ghapi.hacxy.workers.dev/repos/cgg888/iptv-checker/releases/latest'
+            ];
+            
+            let data = null, err = null;
+            for (const u of endpoints) {
+                try {
+                    data = await fetchWithTimeout(u, { timeout: 6000 });
+                    if (data && data.tag_name) break;
+                } catch(e) { err = e; }
+            }
+            
+            if (data && data.tag_name) {
+                latestSpan.textContent = data.tag_name;
+                notesDiv.innerHTML = (data.body || '').replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+                const currentVer = document.getElementById('modalCurrentVersion').textContent.replace('v', '').trim();
+                const remoteVer = data.tag_name.replace('v', '').trim();
+                if (remoteVer !== currentVer) {
+                    btnUpdate.textContent = isDockerEnv ? 'Docker 更新指引' : '立即更新';
+                    btnUpdate.disabled = false;
+                    btnUpdate.classList.remove('btn-secondary');
+                    btnUpdate.classList.add('btn-success');
+                } else {
+                    btnUpdate.textContent = '已是最新版本';
+                    btnUpdate.disabled = true;
+                    btnUpdate.classList.remove('btn-success');
+                    btnUpdate.classList.add('btn-secondary');
+                }
+            } else {
+                latestSpan.textContent = '获取失败';
+                notesDiv.textContent = '无法通过 GitHub CDN 获取最新版本';
             }
         }
         
@@ -1944,7 +2109,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.0.0</span>
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.0</span>
             </span>
         </div>
     </footer>
