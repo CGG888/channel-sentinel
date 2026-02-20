@@ -1,6 +1,8 @@
 # IPTV Checker
 
-![IPTV 图标](./iptv.png)
+<p align="center">
+  <img src="./iptv.png" alt="IPTV 图标" width="160">
+</p>
 
 ![Iptv-Checker 检测空数据界面](./public/preview-empty.png)
 
