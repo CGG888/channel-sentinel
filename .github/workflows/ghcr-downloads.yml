@@ -36,16 +36,16 @@ jobs:
           page=1
           while true; do
             url="${base}?page=${page}"
-            html=$(curl -fsSL "$url" || true)
+            html=$(curl -fsSL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -H "Accept-Language: en-US,en;q=0.8" "$url" || true)
             if [ -z "$html" ]; then
               break
             fi
-            cpage=$(echo "$html" | (grep -Eo '[0-9]+[[:space:]]+Version downloads' || true) | awk '{sum+=$1} END{print sum+0}')
+            one_line=$(echo "$html" | tr '\n' ' ' | sed 's/,//g')
+            cpage=$(echo "$one_line" | (grep -Eo '([0-9]+)[[:space:]]+Version download(s)?' || true) | awk '{sum+=$1} END{print sum+0}')
             if [ "$cpage" = "" ]; then cpage=0; fi
             total=$(( total + cpage ))
-            next=$(echo "$html" | (grep -Eo 'rel="next"' || true))
+            next=$(echo "$one_line" | (grep -Eo 'rel="next"|aria-label="Next"' || true))
             if [ -z "$next" ]; then
-              # 如果没有下一页但本页包含下载数，则结束；若整页没有关键词也结束
               break
             fi
             page=$(( page + 1 ))
