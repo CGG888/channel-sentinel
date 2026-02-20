@@ -28,6 +28,8 @@ jobs:
           RAW=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
             RAW="${{ inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            RAW="${{ github.event.release.tag_name }}"
           else
             RAW="${GITHUB_REF_NAME}"
           fi
@@ -79,31 +81,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Login to Docker Hub
-        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release') && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
           registry: docker.io
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
       - name: Push tags to Docker Hub
-        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release') && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
           STRIP=${TAG#v}
-          OWNER="${{ env.DOCKERHUB_USERNAME }}"
-          if [ -z "$OWNER" ]; then
-            OWNER="${{ github.repository_owner }}"
+          GH_OWNER="${{ github.repository_owner }}"
+          DH_OWNER="${{ env.DOCKERHUB_USERNAME }}"
+          if [ -z "$DH_OWNER" ]; then
+            DH_OWNER="${{ github.repository_owner }}"
           fi
-          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          GH_OWNER_LC=$(echo "$GH_OWNER" | tr '[:upper:]' '[:lower:]')
+          DH_OWNER_LC=$(echo "$DH_OWNER" | tr '[:upper:]' '[:lower:]')
           IMAGE=iptv-checker
-          SRC1=ghcr.io/$OWNER_LC/$IMAGE:$TAG
-          SRC2=ghcr.io/$OWNER_LC/$IMAGE:$STRIP
-          DST1=$OWNER_LC/$IMAGE:$TAG
-          DST2=$OWNER_LC/$IMAGE:$STRIP
+          SRC1=ghcr.io/$GH_OWNER_LC/$IMAGE:$TAG
+          SRC2=ghcr.io/$GH_OWNER_LC/$IMAGE:$STRIP
+          DST1=$DH_OWNER_LC/$IMAGE:$TAG
+          DST2=$DH_OWNER_LC/$IMAGE:$STRIP
 
           echo "Syncing $SRC1 -> $DST1"
           n=0
-          until [ $n -ge 10 ]
+          until [ $n -ge 40 ]
           do
             if docker pull "$SRC1"; then
               break
@@ -118,7 +122,7 @@ jobs:
 
           echo "Syncing $SRC2 -> $DST2"
           n=0
-          until [ $n -ge 10 ]
+          until [ $n -ge 40 ]
           do
             if docker pull "$SRC2"; then
               break

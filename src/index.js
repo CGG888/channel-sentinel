@@ -208,11 +208,7 @@ app.post('/api/auth/update', (req, res) => {
 // 但放在 static 之前会拦截 login.html css js 等资源
 // 方案：只拦截特定路径
 app.use(['/', '/index.html', '/results', '/results.html', '/api/*'], requireAuth);
-
-app.use('/vendor/qier-player', express.static(path.join(__dirname, '../node_modules/qier-player/dist/umd')));
-app.use('/vendor/hls.js', express.static(path.join(__dirname, '../node_modules/hls.js/dist')));
-app.use('/vendor/mpegts.js', express.static(path.join(__dirname, '../node_modules/mpegts.js/dist')));
-
+app.use('/vendor', express.static(path.join(__dirname, '../public/vendor')));
 app.use(express.static('public'));
 
 // 存储组播地址列表
