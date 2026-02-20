@@ -1872,8 +1872,13 @@ app.get('/api/proxy/stream', async (req, res) => {
         if (ct) res.set('Content-Type', ct);
         const ar = resp.headers && (resp.headers['accept-ranges'] || resp.headers['Accept-Ranges']);
         if (ar) res.set('Accept-Ranges', ar);
+        // 透出上游调试信息（便于定位 502 等问题）
+        res.set('X-Upstream-Status', String(resp.status));
+        if (resp.headers && (resp.headers['server'] || resp.headers['Server'])) {
+            res.set('X-Upstream-Server', String(resp.headers['server'] || resp.headers['Server']));
+        }
         res.set('Access-Control-Allow-Origin', '*');
-        res.set('Access-Control-Expose-Headers', '*');
+        res.set('Access-Control-Expose-Headers', '*,X-Upstream-Status,X-Upstream-Server');
         resp.data.pipe(res);
     } catch (e) {
         res.status(502).send('proxy error');
@@ -1944,7 +1949,13 @@ app.get('/api/proxy/hls', async (req, res) => {
         }
         const body = rewriteHlsPlaylist(text, url);
         res.set('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+        // 透出上游调试信息（便于定位 4xx/5xx）
+        res.set('X-Upstream-Status', String(resp.status));
+        if (resp.headers && (resp.headers['server'] || resp.headers['Server'])) {
+            res.set('X-Upstream-Server', String(resp.headers['server'] || resp.headers['Server']));
+        }
         res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Expose-Headers', '*,X-Upstream-Status,X-Upstream-Server');
         res.send(body);
     } catch (e) {
         res.status(502).send('proxy hls error');
