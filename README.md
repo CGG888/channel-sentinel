@@ -9,7 +9,6 @@
 ![GitHub Downloads (all releases)](https://img.shields.io/github/downloads/cgg888/iptv-checker/total)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/cgg888/iptv-checker/docker-image.yml?branch=main)
 ![GHCR](https://img.shields.io/badge/GHCR-iptv--checker-2ea44f?logo=github)
-![Aliyun Registry](https://img.shields.io/badge/Aliyun%20Registry-iptv--checker-ff6a00?logo=alibabacloud)
 <!-- GHCR-DOWNLOADS-START -->
 ![GHCR Downloads](https://img.shields.io/badge/GHCR%20Downloads-0-2ea44f?logo=github)
 <!-- GHCR-DOWNLOADS-END -->
