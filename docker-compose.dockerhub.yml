@@ -2,17 +2,11 @@ services:
   iptv-checker:
     image: cgg888/iptv-checker:latest
     container_name: iptv-checker
-    ports:
-      - "3000:3000"
+    network_mode: "host"
     environment:
       - NODE_ENV=production
       - TZ=Asia/Shanghai
+      - PORT=${IPTV_PORT:-3000}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
-    networks:
-      - iptv-network
-
-networks:
-  iptv-network:
-    driver: bridge

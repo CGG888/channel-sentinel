@@ -1,19 +1,15 @@
 services:
   iptv-checker-dev:
-    # 如果本地有构建好的镜像，优先使用本地构建的，或者直接 build
     build: .
     container_name: iptv-checker-dev
-    ports:
-      - "3000:3000"
+    network_mode: "host"
     environment:
       - NODE_ENV=development
       - TZ=Asia/Shanghai
+      - PORT=${IPTV_PORT:-3000}
     volumes:
-      # 挂载数据目录
       - ./data:/app/data
-      # 挂载源代码，实现实时修改
       - ./src:/app/src
       - ./public:/app/public
-      # 挂载 .git 目录，允许在容器内执行 git pull 更新
       - ./.git:/app/.git
     restart: unless-stopped
