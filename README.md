@@ -8,7 +8,6 @@
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/cgg888/iptv-checker?sort=semver)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/cgg888/iptv-checker/docker-image.yml?branch=main)
 ![GHCR](https://img.shields.io/badge/GHCR-iptv--checker-2ea44f?logo=github)
-[[Docker Hub](https://hub.docker.com/r/cgg888/iptv-checker)](https://hub.docker.com/r/cgg888/iptv-checker)
 ![Docker Pulls](https://img.shields.io/docker/pulls/cgg888/iptv-checker?logo=docker)
 ![GHCR Downloads](./ghcr-downloads.svg)
 
