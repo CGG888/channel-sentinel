@@ -1,0 +1,77 @@
+name: GHCR Downloads Counter
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "21 2 * * *"
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - ".github/workflows/ghcr-downloads.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-downloads-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute total downloads from GHCR pages
+        id: dl
+        shell: bash
+        env:
+          OWNER: CGG888
+          REPO: Iptv-Checker
+          PKG: iptv-checker
+        run: |
+          base="https://github.com/${OWNER}/${REPO}/pkgs/container/${PKG}/versions"
+          total=0
+          page=1
+          while true; do
+            url="${base}?page=${page}"
+            html=$(curl -fsSL "$url" || true)
+            if [ -z "$html" ]; then
+              break
+            fi
+            cpage=$(echo "$html" | grep -Eo '[0-9]+[[:space:]]+Version downloads' | awk '{sum+=$1} END{print sum+0}')
+            if [ "$cpage" = "" ]; then cpage=0; fi
+            total=$(( total + cpage ))
+            next=$(echo "$html" | grep -Eo 'rel="next"')
+            if [ -z "$next" ]; then
+              # 如果没有下一页但本页包含下载数，则结束；若整页没有关键词也结束
+              break
+            fi
+            page=$(( page + 1 ))
+            if [ $page -gt 50 ]; then
+              break
+            fi
+          done
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          echo "Total downloads: $total"
+
+      - name: Update README badge
+        shell: bash
+        run: |
+          tmp=$(mktemp)
+          total="${{ steps.dl.outputs.total }}"
+          if [ -z "$total" ]; then total=0; fi
+          badge="![GHCR Downloads](https://img.shields.io/badge/GHCR%20Downloads-$total-2ea44f?logo=github)"
+          awk -v b="$badge" '
+            BEGIN{start=0}
+            /<!-- GHCR-DOWNLOADS-START -->/ {print; print b; skip=1; next}
+            /<!-- GHCR-DOWNLOADS-END -->/ {print; skip=0}
+            !skip {print}
+          ' README.md > "$tmp"
+          if ! diff -q README.md "$tmp" >/dev/null 2>&1; then
+            mv "$tmp" README.md
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "docs: update GHCR downloads badge to $total"
+            git push
+          fi
