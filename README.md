@@ -12,6 +12,7 @@
 <!-- GHCR-DOWNLOADS-START -->
 ![GHCR Downloads](https://img.shields.io/badge/GHCR%20Downloads-0-2ea44f?logo=github)
 <!-- GHCR-DOWNLOADS-END -->
+<!-- GHCR-DOWNLOADS-END -->
 
 ---
 
