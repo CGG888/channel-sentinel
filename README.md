@@ -15,7 +15,7 @@
 
 ## 🌟 项目简介（当前版本：![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/cgg888/iptv-checker?sort=semver)）
 
-Iptv-Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能，适用于 IPTV 网络环境下的组播流批量检测、维护和导出。
+Iptv-Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能，适用于 IPTV 网络环境下的组播流批量检测、维护和导出。（软件基于湖南常德电信IPTV测试，单播为中兴平台http单播，请知悉）
 
 ---
 
@@ -81,10 +81,11 @@ docker pull cgg888/iptv-checker:latest
 docker run -d --network host --name iptv-checker -e TZ=Asia/Shanghai -e PORT=${IPTV_PORT:-3000} -v $(pwd)/data:/app/data cgg888/iptv-checker:latest
 ```
 Compose（生产，host 模式）：
+
+Github 镜像 Compose（生产，host 模式）：
 ```yaml
 services:
   iptv-checker:
-    user: "1000:1000"
     image: ghcr.io/cgg888/iptv-checker:latest
     container_name: iptv-checker
     network_mode: "host"
@@ -94,6 +95,24 @@ services:
       - PORT=${IPTV_PORT:-3000}
     volumes:
       - ./data:/app/data
+      - ./.git:/app/.git
+    restart: unless-stopped
+```
+
+Docker Hub 镜像 Compose（生产，host 模式）：
+```yaml
+services:
+  iptv-checker:
+    image: cgg888/iptv-checker:latest
+    container_name: iptv-checker
+    network_mode: "host"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+      - PORT=${IPTV_PORT:-3000}
+    volumes:
+      - ./data:/app/data
+      - ./.git:/app/.git
     restart: unless-stopped
 ```
 提示：
@@ -156,11 +175,11 @@ services:
   iptv-checker-dev:
     build: .
     container_name: iptv-checker-dev
-    ports:
-      - "3000:3000"
+    network_mode: "host"
     environment:
       - NODE_ENV=development
       - TZ=Asia/Shanghai
+      - PORT=${IPTV_PORT:-3000}
     volumes:
       - ./data:/app/data
       - ./src:/app/src
