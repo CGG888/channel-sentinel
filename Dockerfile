@@ -19,9 +19,9 @@ COPY . .
 # 最终阶段
 FROM node:18-alpine
 
-# 安装 ffmpeg, tini 和 git (用于在线更新)
+# 安装 ffmpeg, tini, git 和 CA 证书（用于 HTTPS 外网访问）
 # --no-cache 避免缓存占用空间
-RUN apk add --no-cache ffmpeg tini git
+RUN apk add --no-cache ffmpeg tini git ca-certificates && update-ca-certificates
 
 WORKDIR /app
 
