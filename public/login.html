@@ -4,17 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPTV Checker - 登录</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/iptv.png">
+    <link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap-icons/1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: #000;
             display: flex;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+        .bg-bing {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .bg-bing img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
         .login-card {
             width: 100%;
@@ -25,6 +40,13 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .login-logo {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 4px 6px rgba(111, 66, 193, 0.2));
         }
         .login-header {
             text-align: center;
@@ -43,6 +65,12 @@
             margin-bottom: 1rem;
             display: inline-block;
             filter: drop-shadow(0 4px 6px rgba(111, 66, 193, 0.2));
+        }
+        .input-icon {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            opacity: 0.75;
         }
         .form-control {
             border-radius: 8px;
@@ -76,9 +104,12 @@
     </style>
 </head>
 <body>
+    <div class="bg-bing">
+        <img src="https://bing.img.run/rand_uhd.php" alt="随机获取Bing历史壁纸UHD超高清原图">
+    </div>
     <div class="login-card">
         <div class="login-header">
-            <i class="bi bi-tv-fill"></i>
+            <img src="/iptv.png" alt="IPTV Checker" class="login-logo">
             <h1>IPTV Checker</h1>
             <p class="text-muted mb-0">组播单播批量检测工具</p>
             <p class="text-muted mb-0">安全登录</p>
@@ -87,14 +118,18 @@
             <div class="mb-3">
                 <label for="username" class="form-label text-secondary small fw-bold">用户名</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-person text-muted"></i></span>
+                    <span class="input-group-text bg-light border-end-0">
+                        <img src="/iptv.png" alt="" class="input-icon">
+                    </span>
                     <input type="text" class="form-control border-start-0 ps-0" id="username" name="username" required autofocus>
                 </div>
             </div>
             <div class="mb-4">
                 <label for="password" class="form-label text-secondary small fw-bold">密码</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-key text-muted"></i></span>
+                    <span class="input-group-text bg-light border-end-0">
+                        <img src="/iptv.png" alt="" class="input-icon">
+                    </span>
                     <input type="password" class="form-control border-start-0 ps-0" id="password" name="password" required>
                 </div>
             </div>
@@ -119,7 +154,7 @@
         </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
         function loadSystemInfoLogin(){
             fetch('/api/system/info').then(r=>r.json()).then(j=>{

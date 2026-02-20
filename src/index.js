@@ -209,6 +209,10 @@ app.post('/api/auth/update', (req, res) => {
 // 方案：只拦截特定路径
 app.use(['/', '/index.html', '/results', '/results.html', '/api/*'], requireAuth);
 
+app.use('/vendor/qier-player', express.static(path.join(__dirname, '../node_modules/qier-player/dist/umd')));
+app.use('/vendor/hls.js', express.static(path.join(__dirname, '../node_modules/hls.js/dist')));
+app.use('/vendor/mpegts.js', express.static(path.join(__dirname, '../node_modules/mpegts.js/dist')));
+
 app.use(express.static('public'));
 
 // 存储组播地址列表

@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IPTV Checker - 检测结果</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27><rect width=%2716%27 height=%2716%27 rx=%273%27 fill=%27%236f42c1%27/></svg>">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/iptv.png">
+<link href="/vendor/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="/vendor/bootstrap-icons/1.7.2/font/bootstrap-icons.css">
 <link href="css/custom.css" rel="stylesheet">
 <style>
 /* Page specific styles */
@@ -60,7 +60,7 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
 .api-link-actions { display:flex; gap:8px; margin-top: auto; }
 .api-link-actions .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
     <script>
         // 登录检查
         (async function() {
@@ -91,7 +91,10 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
 <body>
 <div class="container-fluid px-4 py-4" style="max-width: 1400px;">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 fw-bold text-dark mb-0"><i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>IPTV Checker-组播单播检测结果</h1>
+        <h1 class="h3 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+            <img src="/iptv.png" alt="IPTV" style="height:1em;width:auto;display:inline-block;">
+            <span>IPTV Checker-组播单播检测结果</span>
+        </h1>
         <div class="d-flex gap-2 align-items-center">
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
@@ -1936,11 +1939,29 @@ function playStreamByIndexR(index){
     var u = String(s.multicastUrl||'').trim();
     var scheme = u.split(':')[0].toLowerCase();
     var isMc = !!s.udpxyUrl || scheme==='rtp' || scheme==='udp';
-    var base = (typeof displayUrlBase==='function') ? displayUrlBase(s) : u;
+    var base = '';
+    try{
+      var cb = document.querySelector('.sel-res[data-index="'+index+'"]');
+      if(cb){
+        var tr = cb.closest('tr');
+        if(tr){
+          var addrCell = tr.querySelector('.col-addr');
+          if(addrCell){
+            base = String(addrCell.textContent||'').trim();
+          }
+        }
+      }
+    }catch(e){}
+    if(!base){
+      base = (typeof displayUrlBase==='function') ? displayUrlBase(s) : u;
+    }
     if(isMc && s.httpParam){
-      var hasQ = base.indexOf('?') > -1;
-      if(base.indexOf(s.httpParam) === -1){
-        base = base + (hasQ ? '&' : '?') + s.httpParam;
+      var hp = String(s.httpParam||'').trim();
+      if(hp){
+        var hasQ = base.indexOf('?') > -1;
+        if(base.indexOf(hp) === -1){
+          base = base + (hasQ ? '&' : '?') + hp;
+        }
       }
     }
     var title = String(s.name||s.tvgName||'').trim();
@@ -2139,7 +2160,7 @@ function openEpgForIndex(index){
                     <title>IPTV Player</title>
                     <meta charset="utf-8">
                     <style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;}video{width:100%;height:100%;outline:none;}</style>
-                    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.js"><\/script>
+                    <script src="/vendor/mpegts.js/1.8.0/mpegts.js"><\/script>
                 </head>
                 <body>
                     <video id="v" controls autoplay playsinline></video>
@@ -2166,7 +2187,7 @@ function openEpgForIndex(index){
                     <title>IPTV Player</title>
                     <meta charset="utf-8">
                     <style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;}video{width:100%;height:100%;outline:none;}</style>
-                    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script>
+                    <script src="/vendor/hls.js/1.5.8/hls.min.js"><\/script>
                 </head>
                 <body>
                     <video id="v" controls autoplay playsinline></video>
@@ -2314,7 +2335,7 @@ function openEpgForIndex(index){
           function ensureMpegts(cb){
             if(window.mpegts){ cb(); return; }
             var sc=document.createElement('script');
-            sc.src='https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.js';
+            sc.src='/vendor/mpegts.js/1.8.0/mpegts.js';
             sc.onload=function(){ cb(); };
             document.head.appendChild(sc);
           }
@@ -2360,7 +2381,7 @@ function openEpgForIndex(index){
       }catch(e){}
   })();
   
-  function ensureHls(cb){ if(window.Hls){ cb(); return; } var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/hls.js@latest'; sc.onload=cb; document.head.appendChild(sc); }
+  function ensureHls(cb){ if(window.Hls){ cb(); return; } var sc=document.createElement('script'); sc.src='/vendor/hls.js/1.5.8/hls.min.js'; sc.onload=cb; document.head.appendChild(sc); }
   const now=new Date(); const y=now.getFullYear(); const mo=String(now.getMonth()+1).padStart(2,'0'); const d=String(now.getDate()).padStart(2,'0'); var dateEl=document.getElementById('epgDateR'); if(dateEl) dateEl.value=`${y}-${mo}-${d}`;
   m.style.display='block'; m.querySelector('.modal').classList.add('show');
   function getScope(){ try{ const v=(document.getElementById('scopeSelectR')||{value:'internal'}).value||'internal'; return v; }catch(e){ return 'internal'; } }
@@ -2589,7 +2610,7 @@ function openEpgForIndex(index){
                  if(!raw) return;
                  var mcast=isMulticast(s);
                  var v=document.getElementById('epgPlayerR'); var urlEl=document.getElementById('epgPlayUrlR'); var openEl=document.getElementById('epgOpenR');
-                 function ensureMpegts(cb){ if(window.mpegts){ cb(); return; } var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.js'; sc.onload=function(){ cb(); }; document.head.appendChild(sc); }
+                 function ensureMpegts(cb){ if(window.mpegts){ cb(); return; } var sc=document.createElement('script'); sc.src='/vendor/mpegts.js/1.8.0/mpegts.js'; sc.onload=function(){ cb(); }; document.head.appendChild(sc); }
                  if(mcast){
                    var playUrl='/api/proxy/stream?url='+encodeURIComponent(raw);
                    if(openEl) openEl.href=playUrl; if(urlEl) urlEl.value=raw;
@@ -2825,20 +2846,23 @@ function openEditModal(index) {
       };
   }
   
-  // 构造与列表一致的播放基址
   function buildPlayBaseFor(sObj){
     try{
-      var u = String(sObj.multicastUrl||'').trim();
-      var scheme = u.split(':')[0].toLowerCase();
-      var isMc = !!sObj.udpxyUrl || scheme==='rtp' || scheme==='udp';
-      var base = (typeof displayUrlBase==='function') ? displayUrlBase(sObj) : u;
-      if(isMc && sObj.httpParam){
-        var hasQ = base.indexOf('?') > -1;
-        if(base.indexOf(sObj.httpParam) === -1){
-          base = base + (hasQ ? '&' : '?') + sObj.httpParam;
+      var addrEl = document.getElementById('editMulticastR');
+      var typeEl = document.getElementById('editTypeR');
+      var httpEl = document.getElementById('editHttpParamR');
+      var addr = String((addrEl && addrEl.value) || sObj.multicastUrl || '').trim();
+      var typeVal = typeEl ? String(typeEl.value || '').trim() : '';
+      if(typeVal === '组播'){
+        var hp = String((httpEl && httpEl.value) || sObj.httpParam || '').trim();
+        if(hp){
+          var hasQ = addr.indexOf('?') > -1;
+          if(addr.indexOf(hp) === -1){
+            addr = addr + (hasQ ? '&' : '?') + hp;
+          }
         }
       }
-      return base;
+      return addr;
     }catch(e){ return sObj.multicastUrl||'' }
   }
   // 外部播放器（桌面 PotPlayer / 移动 VLC）
@@ -3047,7 +3071,7 @@ function openEditModal(index) {
     btn.innerHTML = '<i class="bi bi-calendar-event me-1"></i> EPG/回看';
     var target = document.getElementById('editPlayBtnR');
     if (target && target.parentElement) target.parentElement.appendChild(btn);
-    function ensureHls(cb){ if (window.Hls) return cb(); var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/hls.js@latest'; sc.onload=cb; document.body.appendChild(sc); }
+    function ensureHls(cb){ if (window.Hls) return cb(); var sc=document.createElement('script'); sc.src='/vendor/hls.js/1.5.8/hls.min.js'; sc.onload=cb; document.body.appendChild(sc); }
     function fmtDate(d){ const y=d.getFullYear(); const M=String(d.getMonth()+1).padStart(2,'0'); const Da=String(d.getDate()).padStart(2,'0'); return y+'-'+M+'-'+Da; }
     function showEpgModal(){
       var m=document.getElementById('centerModalEpgR');
@@ -3620,7 +3644,7 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.0</span>
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.1</span>
             </span>
         </div>
     </footer>

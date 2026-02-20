@@ -1,5 +1,7 @@
 # IPTV Checker
 
+![IPTV 图标](./iptv.png)
+
 ![Iptv-Checker 检测空数据界面](./public/preview-empty.png)
 
 🏷️ 版本号：
@@ -73,10 +75,10 @@ Docker 运行（GitHub 镜像）：
 docker pull ghcr.io/cgg888/iptv-checker:latest
 docker run -d -p 3000:3000 --name iptv-checker ghcr.io/cgg888/iptv-checker:latest
 ```
-Docker 运行（阿里云镜像）：
+Docker 运行（Docker Hub 镜像）：
 ```bash
-docker pull registry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
-docker run -d -p 3000:3000 --name iptv-checker registry.cn-hongkong.aliyuncs.com/cgg888/iptv-checker:latest
+docker pull cgg888/iptv-checker:latest
+docker run -d -p 3000:3000 --name iptv-checker cgg888/iptv-checker:latest
 ```
 Compose（生产）：
 ```yaml
@@ -341,6 +343,21 @@ sudo systemctl status iptv-checker --no-pager
 ---
 
 ## 版本历史
+### v1.3.1 (2026-02-21)
+- 播放与检测联动
+  - 检测结果列表与“编辑频道信息”弹窗的“网页播放”按钮统一使用“频道地址 (只读)”作为基址：组播自动在只读地址后拼接 FCC 参数；单播直接使用只读地址，避免任何硬编码
+  - 修复部分组播/RTP 频道在结果页、编辑弹窗中无法通过 mini 播放器正确播放的问题，使其与列表展示的地址行为保持一致
+- 播放器与 UI
+  - player.html 新增 ui=mini 简洁模式：隐藏频道列表与节目单，只保留视频区与基础控制条，适合检测/编辑弹窗的小窗播放
+  - 修复 mini 模式下误加载频道表、误切换到其他频道的问题，确保始终播放传入的 url 源
+- 登录与品牌样式
+  - 登录页新增随机 Bing UHD 壁纸背景（https://bing.img.run/rand_uhd.php），自适应铺满屏幕
+  - 登录卡片顶部及输入框左侧图标统一使用本地 PNG 图标（iptv.png），整体品牌风格与应用内其他页面保持一致
+- 图标与视觉统一
+  - 全站 favicon 统一使用 /iptv.png（登录页、检测页、结果页、播放器页）
+  - 检测页与结果页标题前新增 IPTV PNG 图标，图标高度与标题文字字体大小一致，提升识别度
+- 版本
+  - 软件版本更新至 1.3.1
 ### v1.3.0 (2026-02-19)
 - EPG 与回看
   - 组播直播：统一使用 HTTP 基址 + /rtp/ + 组播地址，并追加 FCC 参数；通过 mpegts.js 播放 TS，修复 400 Bad Request 问题；按需加载 mpegts.js，提升首开速度

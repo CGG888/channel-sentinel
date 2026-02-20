@@ -4,41 +4,275 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>IPTV Checker-播放器</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/iptv.png">
+  <link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
+    html,body{
+      margin:0;
+      padding:0;
+      width:100%;
+      height:100%;
+      background:#000;
+      color:#fff;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    }
     :root{--bg:#0b0d12;--card:#141922;--muted:#8a93a5}
-    body{margin:0;padding:0;overflow:hidden;background:#000;color:#fff}
-    .nav-blur{backdrop-filter:saturate(140%) blur(10px); background:rgba(10,12,20,.6)}
-    .brand{letter-spacing:.5px}
-    .hero-card{background:linear-gradient(180deg,#191f2a,#121722); border:1px solid rgba(255,255,255,.06)}
-    .side-card{background:linear-gradient(180deg,#171c26,#111622); border:1px solid rgba(255,255,255,.06)}
-    .muted{color:var(--muted)}
-    /* Layer 0: Fullscreen Player */
-    #playerLayer{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;background:#000}
-    #video{width:100%;height:100%;object-fit:contain}
-    /* Layer 1: Right Sidebar (Channels) */
-    #channelLayer{
-      position:fixed; top:80px; right:20px; bottom:80px; width:300px; z-index:20;
-      background:rgba(15,19,32,0.78); backdrop-filter:blur(10px);
-      border-radius:12px; border:1px solid rgba(255,255,255,.1);
-      display:flex; flex-direction:column; transition:transform 0.3s ease;
+    body{
+      margin:0;
+      padding:0;
       overflow:hidden;
+      background:#000;
+      color:#fff;
+      display:flex;
+      height:100vh;
+    }
+    .muted{color:var(--muted)}
+    #playerLayer{
+      position:relative;
+      flex:1;
+      min-width:0;
+      height:100vh;
+      z-index:0;
+      background:#000;
+    }
+    #app{width:100%;height:100%}
+    #channelLayer{
+      position:relative;
+      width:380px;
+      max-width:420px;
+      height:100vh;
+      z-index:5;
+      background:#f9fafb;
+      display:flex;
+      flex-direction:column;
+      border-left:1px solid #e5e7eb;
     }
     #channelLayer.collapsed{
-      transform:translateX(calc(100% + 40px));
+      width:0;
+      opacity:0;
       pointer-events:none;
     }
-    /* Layer 2: Left EPG Overlay */
+    .channel-header{
+      padding:12px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid #e5e7eb;
+      background:#ffffff;
+      gap:8px;
+    }
+    .channel-header-title{
+      font-weight:600;
+      font-size:15px;
+      color:#111827;
+    }
+    .channel-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .channel-theme-btn{
+      border:none;
+      background:#e5e7eb;
+      color:#111827;
+      border-radius:999px;
+      font-size:12px;
+      padding:4px 10px;
+      cursor:pointer;
+    }
+    .channel-theme-btn:active{
+      transform:scale(0.96);
+    }
+    .channel-close-btn{
+      border:none;
+      background:transparent;
+      color:#6b7280;
+      font-size:18px;
+      cursor:pointer;
+      padding:0 4px;
+    }
+    .channel-close-btn:hover{
+      color:#111827;
+    }
+    .channel-search-wrap{
+      padding:8px 16px 4px;
+      background:#ffffff;
+      border-bottom:1px solid #e5e7eb;
+    }
+    .channel-search-input{
+      width:100%;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      padding:6px 12px;
+      font-size:14px;
+      outline:none;
+      background:#f3f4f6;
+      color:#111827;
+    }
+    .channel-search-input::placeholder{
+      color:#9ca3af;
+    }
+    .channel-tabs-wrap{
+      padding:4px 12px 8px;
+      background:#ffffff;
+      border-bottom:1px solid #e5e7eb;
+    }
+    #catTabs{
+      gap:6px;
+    }
+    #catTabs .nav-link{
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:13px;
+      color:#4b5563;
+      background:transparent;
+    }
+    #catTabs .nav-link.active{
+      background:#2563eb;
+      color:#ffffff;
+    }
+    .channel-list-scroll{
+      flex:1;
+      overflow-y:auto;
+      padding:8px 10px 12px;
+    }
+    .channel-item{
+      margin:4px 4px;
+      border-radius:14px;
+      background:#ffffff;
+      box-shadow:0 1px 3px rgba(15,23,42,0.08);
+      padding:8px 10px;
+      color:#111827;
+      cursor:pointer;
+      transition:background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    .channel-item.active{
+      background:#eef2ff;
+      border-left:0;
+      box-shadow:0 0 0 1px rgba(37,99,235,0.25);
+      transform:translateY(-1px);
+    }
+    .channel-item:hover{
+      background:#f3f4ff;
+      box-shadow:0 4px 10px rgba(15,23,42,0.12);
+      transform:translateY(-2px);
+    }
+    .channel-title{
+      font-size:14px;
+      font-weight:600;
+      color:#111827;
+    }
+    .channel-title-text{
+      flex:1;
+      min-width:0;
+    }
+    .channel-replay-icon{
+      font-size:14px;
+      color:#f97316;
+    }
+    .channel-sub{
+      color:#6b7280;
+    }
+    .channel-count-badge{
+      border-radius:999px;
+      background:#e5edff;
+      color:#1d4ed8;
+      font-size:12px;
+    }
+    .channel-index-badge{
+      width:26px;
+      height:26px;
+      border-radius:999px;
+      background:#eef2ff;
+      color:#2563eb;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:13px;
+      font-weight:600;
+      flex-shrink:0;
+    }
+    .channel-logo-right{
+      width:72px;
+      height:40px;
+      flex-shrink:0;
+      background:#ffffff;
+      border-radius:8px;
+      box-shadow:0 2px 6px rgba(15,23,42,0.28);
+      padding:3px 6px;
+    }
     #epgLayer{
-      position:fixed; top:80px; left:20px; width:300px; bottom:80px; z-index:10;
-      background:rgba(15,19,32,0.48); backdrop-filter:blur(10px);
-      border-radius:12px; border:1px solid rgba(255,255,255,.1);
+      position:fixed; top:88px; left:20px; width:300px; bottom:88px; z-index:4;
+      background:rgba(10,12,24,0.32); backdrop-filter:blur(10px);
+      border-radius:12px; border:1px solid rgba(255,255,255,.08);
       display:flex; flex-direction:column; transition:opacity 0.3s ease, transform 0.3s ease;
     }
+    #channelLayer.dark{
+      background:#020617;
+      border-left:1px solid #111827;
+    }
+    #channelLayer.dark .channel-header{
+      background:#020617;
+      border-bottom:1px solid #1f2937;
+    }
+    #channelLayer.dark .channel-header-title{
+      color:#f9fafb;
+    }
+    #channelLayer.dark .channel-theme-btn{
+      background:#1f2937;
+      color:#e5e7eb;
+    }
+    #channelLayer.dark .channel-close-btn{
+      color:#9ca3af;
+    }
+    #channelLayer.dark .channel-search-wrap{
+      background:#020617;
+      border-bottom:1px solid #1f2937;
+    }
+    #channelLayer.dark .channel-search-input{
+      background:#020617;
+      border-color:#1f2937;
+      color:#e5e7eb;
+    }
+    #channelLayer.dark .channel-search-input::placeholder{
+      color:#6b7280;
+    }
+    #channelLayer.dark .channel-tabs-wrap{
+      background:#020617;
+      border-bottom:1px solid #1f2937;
+    }
+    #channelLayer.dark .channel-item{
+      background:#020617;
+      color:#f9fafb;
+      box-shadow:0 1px 3px rgba(15,23,42,0.7);
+    }
+    #channelLayer.dark .channel-item.active{
+      background:#111827;
+      box-shadow:0 0 0 1px rgba(59,130,246,0.9);
+    }
+    #channelLayer.dark .channel-title{
+      color:#f9fafb;
+    }
+    #channelLayer.dark .channel-sub{
+      color:#f9fafb;
+    }
+    #channelLayer.dark .channel-count-badge{
+      background:#1e293b;
+      color:#93c5fd;
+    }
+    #channelLayer.dark .channel-index-badge{
+      background:#111827;
+      color:#bfdbfe;
+    }
+    #channelLayer.dark .channel-logo-right{
+      background:#020617;
+      box-shadow:0 2px 8px rgba(15,23,42,0.9);
+    }
+    #channelLayer.dark #catTabs .nav-link{
+      color:#e5e7eb;
+    }
     #epgLayer.hidden{opacity:0; pointer-events:none; transform:translateX(-20px)}
-    
-    /* Overlays on Player */
     .player-overlay-top{position:absolute;top:0;left:0;width:100%;z-index:5;pointer-events:none}
     .player-info-overlay{
       position:absolute; top:20px; right:30px; z-index:10;
@@ -54,57 +288,182 @@
     .info-sub{font-size:13px; text-shadow:0 1px 2px rgba(0,0,0,0.5)}
     .badge-live{background:linear-gradient(135deg,#ff3b3b,#ff6a00)}
     .badge-replay{background:linear-gradient(135deg,#1cc36b,#0e9f55)}
-    .ctrl-btn{min-width:38px}
-    .epg-item:hover{background:rgba(255,255,255,.1)}
-    .logo-img{height:28px; width:auto; object-fit:contain}
-    ::-webkit-scrollbar{width:6px;height:6px}
-    ::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}
-    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
-    ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.3)}
-    .channel-item.active{background:rgba(255,255,255,.15); border-left:3px solid var(--bs-primary)}
-    .epg-item.active-epg{background:rgba(var(--bs-primary-rgb),.15); border-left:3px solid var(--bs-primary)}
-    /* two columns for source buttons - single line, no wrap */
-    .channel-body .source-btn{
-      flex:0 0 calc(50% - .5rem);
+    .logo-img{height:26px; width:46px; object-fit:contain}
+    .program-progress-label{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:100%;
+      margin-bottom:2px;
+      pointer-events:none;
       font-size:12px;
-      line-height:1.25;
-      text-align:center;
+      color:rgba(255,255,255,0.8);
+      text-shadow:0 1px 3px rgba(0,0,0,0.9);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 4px;
+    }
+    .program-progress-mode{
+      flex:0 0 auto;
+      margin-right:8px;
+      padding:0 6px;
+      border-radius:999px;
+      font-size:11px;
+      line-height:16px;
+      white-space:nowrap;
+    }
+    .program-progress-mode-live{
+      background:linear-gradient(135deg,#ff3b3b,#ff6a00);
+    }
+    .program-progress-mode-replay{
+      background:linear-gradient(135deg,#1cc36b,#0e9f55);
+    }
+    .program-progress-start,
+    .program-progress-end{
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+    .program-progress-title{
+      flex:1 1 auto;
+      margin:0 8px;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    
-    /* Toggle Button */
-    #toggleSidebarBtn{
-      position:fixed; right:55px; bottom:33px; z-index:30;
-      width:48px; height:48px; border-radius:50%;
-      background:rgba(255,255,255,.1); backdrop-filter:blur(5px);
-      border:1px solid rgba(255,255,255,.2); color:#fff;
-      display:flex; align-items:center; justify-content:center;
-      cursor:pointer; transition:all 0.2s;
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.3)}
+    #epgList{
+      padding:4px 6px 6px;
     }
-    #toggleSidebarBtn:hover{background:var(--bs-primary); border-color:var(--bs-primary)}
-    /* Doc-Fullscreen Button */
-    #btnDocFS{
-      position:absolute; right:55px; bottom:33px; z-index:30;
-      width:44px; height:44px; border-radius:50%;
-      background:rgba(255,255,255,.1); backdrop-filter:blur(5px);
-      border:1px solid rgba(255,255,255,.2); color:#fff;
-      display:flex; align-items:center; justify-content:center;
-      cursor:pointer; transition:all .2s; pointer-events:auto;
+    .epg-item{
+      font-size:13px;
+      padding:6px 10px;
+      margin:2px 0;
+      border-radius:14px;
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      color:#e5e7eb;
+      text-align:left;
+      transition:background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
     }
-    #btnDocFS:hover{background:var(--bs-primary); border-color:var(--bs-primary)}
-    video::-webkit-media-controls-fullscreen-button{display:none}
-    video::-webkit-media-controls-enter-fullscreen-button{display:none}
-    video::-webkit-media-controls-exit-fullscreen-button{display:none}
+    .epg-item .small{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .epg-item:hover{
+      background:rgba(255,255,255,0.06);
+      box-shadow:0 3px 8px rgba(15,23,42,0.5);
+      transform:translateY(-1px);
+    }
+    .epg-item.active-epg{
+      background:rgba(37,99,235,0.26);
+      box-shadow:0 0 0 1px rgba(129,140,248,0.85),0 6px 14px rgba(15,23,42,0.7);
+      transform:translateY(-1px);
+    }
+    #liveBtn{
+      position:relative;
+      width:36px;
+      height:100%;
+      padding:6px;
+      border:none;
+      background:transparent;
+      color:rgba(255,255,255,0.8);
+      font-size:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      opacity:.9;
+      margin-right:28px;
+    }
+    #liveBtn span{
+      font-size:12px;
+      white-space:nowrap;
+    }
+    #liveBtn_dot{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      margin-right:4px;
+      background:#ef4444;
+    }
+    .live-dot-blink{
+      animation:live-dot-blink 1s infinite;
+    }
+    @keyframes live-dot-blink{
+      0%,50%{opacity:1}
+      75%{opacity:0.2}
+      100%{opacity:1}
+    }
+    #sourceBtn{
+      position:relative;
+      width:36px;
+      height:100%;
+      padding:6px;
+      border:none;
+      background:transparent;
+      color:rgba(255,255,255,0.8);
+      font-size:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      pointer-events:auto;
+      opacity:.9;
+      margin-right:28px;
+    }
+    #sourceBtn:hover{
+      color:#fff;
+    }
+    #sourceBtn span{
+      font-size:12px;
+      white-space:nowrap;
+    }
+    #sourcePanel{
+      position:absolute;
+      bottom:100%;
+      left:50%;
+      transform:translateX(-50%);
+      margin-bottom:20px;
+      max-height:50vh;
+      overflow:auto;
+      opacity:1;
+      display:none;
+      width:max-content;
+      min-width:0;
+      z-index:50;
+      pointer-events:auto;
+    }
+    .source-row{
+      padding:6px 10px;
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color:#fff;
+      cursor:pointer;
+    }
+    .source-row:hover{
+      background:rgba(255,255,255,0.08);
+    }
+    .source-row.active{
+      background:rgba(37,99,235,0.28);
+      color:#dbeafe;
+    }
+    .source-tag{
+      width:6px;
+      height:6px;
+      border-radius:50%;
+      background:#22c55e;
+    }
   </style>
 </head>
 <body>
-  <!-- Layer 0: Fullscreen Video -->
   <div id="playerLayer">
-    <video id="video" controls playsinline webkit-playsinline preload="auto" controlslist="nofullscreen"></video>
-    
-    <!-- Info Overlay: Top Right -->
+    <div id="app"></div>
     <div class="player-info-overlay">
        <div class="info-content text-center">
          <img id="logoImg" class="info-logo mb-2 d-none" alt="logo">
@@ -115,45 +474,37 @@
          </div>
        </div>
     </div>
-    
     <div class="player-overlay-top d-flex justify-content-between align-items-start p-3">
-        <!-- Left: Live/Replay Badge -->
-        <div class="d-flex align-items-center gap-2">
-          <span id="replayBadge" class="badge badge-replay rounded-pill px-3 py-2 d-none"><i class="bi bi-play-circle me-1"></i>正在回放</span>
-          <span id="liveBadge" class="badge badge-live rounded-pill px-3 py-2 d-none"><i class="bi bi-broadcast me-1"></i>LIVE</span>
-        </div>
-        <!-- Right is occupied by .player-info-overlay absolute positioned -->
-     </div>
+      <div class="d-flex align-items-center gap-2">
+        <span id="replayBadge" class="badge badge-replay rounded-pill px-3 py-2 d-none"><i class="bi bi-play-circle me-1"></i>正在回放</span>
+        <span id="liveBadge" class="badge badge-live rounded-pill px-3 py-2 d-none"><i class="bi bi-broadcast me-1"></i>LIVE</span>
+      </div>
+    </div>
   </div>
-  <!-- Custom Fullscreen Button -->
-  <button id="btnDocFS" title="全屏/退出"><i class="bi bi-arrows-fullscreen fs-5"></i></button>
-
-  <!-- Layer 1: Right Sidebar (Channels) -->
   <div id="channelLayer">
-    <div class="p-3 border-bottom border-secondary d-flex align-items-center justify-content-between">
-      <span class="fw-semibold">频道表</span>
-      <button id="closeSidebarBtn" class="btn btn-sm btn-outline-light border-0"><i class="bi bi-x-lg"></i></button>
+    <div class="channel-header">
+      <div class="channel-header-title">频道</div>
+      <div class="channel-actions">
+        <button id="themeToggleBtn" class="channel-theme-btn">浅色</button>
+        <button id="closeSidebarBtn" class="channel-close-btn">×</button>
+      </div>
     </div>
-    <div class="p-2 border-bottom border-secondary">
-      <ul id="catTabs" class="nav nav-pills nav-fill small mb-2">
-        <li class="nav-item"><button data-cat="cctv" class="nav-link active py-1">CCTV</button></li>
-        <li class="nav-item"><button data-cat="sat" class="nav-link py-1">卫视</button></li>
-        <li class="nav-item"><button data-cat="others" class="nav-link py-1">其他</button></li>
-      </ul>
-      <input id="searchInput" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="搜索频道...">
+    <div class="channel-search-wrap">
+      <input id="searchInput" class="channel-search-input" placeholder="搜索频道…">
     </div>
-    <div id="channelScroll" class="flex-grow-1" style="overflow-y:auto;">
+    <div class="channel-tabs-wrap">
+      <ul id="catTabs" class="nav nav-pills small mb-0 flex-wrap"></ul>
+    </div>
+    <div id="channelScroll" class="channel-list-scroll">
       <div id="channelList" class="list-group list-group-flush"></div>
     </div>
   </div>
-
-  <!-- Layer 2: Left EPG Overlay -->
   <div id="epgLayer">
     <div class="p-3 border-bottom border-secondary d-flex align-items-center justify-content-between">
       <span class="fw-semibold">节目单</span>
       <div class="d-flex gap-1">
         <select id="epgSourceSel" class="form-select form-select-sm bg-dark text-white border-secondary py-0" style="width:auto;height:24px;font-size:12px"></select>
-        <button id="epgRefreshBtn" class="btn btn-sm btn-link text-white p-0"><i class="bi bi-arrow-clockwise"></i></button>
+        <button id="epgRefreshBtn" class="btn btn-sm btn-link text-white p-0">↻</button>
       </div>
     </div>
     <div class="p-2 border-bottom border-secondary bg-black bg-opacity-25">
@@ -164,56 +515,257 @@
       <div id="epgHint" class="p-3 small text-white-50 text-center"></div>
     </div>
   </div>
-
-  <!-- Toggle Button -->
-  <div id="toggleSidebarBtn" title="显示列表"><i class="bi bi-list fs-4"></i></div>
-  
-  <input id="urlInput" type="hidden">
-  <a id="btnOpenRaw" class="d-none"></a>
-  <button id="btnPlay" class="d-none"></button>
-  <button id="btnMute" class="d-none"></button>
-  <button id="btnReload" class="d-none"></button>
-  <button id="btnPiP" class="d-none"></button>
-  <button id="btnFS" class="d-none"></button>
-  <button id="btnCopy" class="d-none"></button>
-  
-  <!-- Mouse Trigger Zones -->
-  <div id="triggerLeft" style="position:fixed;top:0;left:0;bottom:0;width:48px;z-index:9;"></div>
-  <div id="triggerRight" style="position:fixed;top:0;right:0;bottom:0;width:48px;z-index:19;"></div>
-
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.js"></script>
+  <script src="/vendor/hls.js/hls.min.js"></script>
+  <script src="/vendor/mpegts.js/mpegts.js"></script>
+  <script src="/vendor/qier-player/index.min.js"></script>
   <script>
     function qs(k){return new URLSearchParams(location.search).get(k)||''}
-    var rawUrl=qs('url'); var title=qs('title')||'IPTV 播放'; var logo=qs('logo'); var tvgId=qs('tvgId'); var tvgName=qs('tvgName')||title; var liveFlag=(qs('live')==='1'||qs('live')==='true'); var epgId=qs('epgId')||'';
+    var rawUrl=qs('url');
+    var qierPlayer=null;
+    var v=null;
+    var currentPlayer=null;
+    var _reco={n:0,t:null,stall:null};
+    var sources=[];
+    var currentSourceIndex=-1;
+    var liveBtn=null;
+    var liveLabelEl=null;
+    var liveDot=null;
+    var isLive=true;
+    var isPlaying=false;
+    var title=qs('title')||'IPTV 播放';
+    var logo=qs('logo');
+    var tvgId=qs('tvgId');
+    var tvgName=qs('tvgName')||title;
+    var liveFlag=(qs('live')==='1'||qs('live')==='true');
+    var epgId=qs('epgId')||'';
     var uiCompact=(qs('ui')==='mini'||qs('sidebar')==='0'||qs('hideUi')==='1');
-    var titleEl=document.getElementById('titleEl'); var subEl=document.getElementById('subEl'); var logoImg=document.getElementById('logoImg'); var liveBadge=document.getElementById('liveBadge'); var replayBadge=document.getElementById('replayBadge');
-    titleEl.textContent=title; subEl.textContent=tvgName?('频道：'+tvgName):''; if(logo){logoImg.src=logo; logoImg.classList.remove('d-none')}
-    if(liveFlag) liveBadge.classList.remove('d-none');
-    
+    if(liveFlag===false){
+      isLive=false;
+    }
+    var sourceBtn=null;
+    var sourceLabelEl=null;
+    var sourcePanel=null;
+    var titleEl=document.getElementById('titleEl');
+    var subEl=document.getElementById('subEl');
+    var logoImg=document.getElementById('logoImg');
+    var liveBadge=document.getElementById('liveBadge');
+    var replayBadge=document.getElementById('replayBadge');
+    var channelLayer=document.getElementById('channelLayer');
+    var epgLayer=document.getElementById('epgLayer');
+    var closeBtn=document.getElementById('closeSidebarBtn');
+    var infoOverlay=document.querySelector('.player-info-overlay');
+    var uiTimer=null;
+    var isHoveringUi=false;
+    var UI_HIDE_MS=3000;
+    var lastHideTs=0;
+    var infoTimer=null;
+    var INFO_HIDE_MS=10000;
+    var epgHint=document.getElementById('epgHint');
+    var epgList=document.getElementById('epgList');
+    var epgSel=document.getElementById('epgSourceSel');
+    var epgRefresh=document.getElementById('epgRefreshBtn');
+    var epgDateTabs=document.getElementById('epgDateTabs');
+    var epgSources=[];
+    var selectedDate=new Date();
+
+    var catTabs=document.getElementById('catTabs');
+    var searchInput=document.getElementById('searchInput');
+    var channelList=document.getElementById('channelList');
+    var selectedCat='all';
+    var streams=[];
+    var current=null;
+    var currentReplayProgram=null;
+    var currentLiveProgram=null;
+    var currentLiveTitle='';
+    var channelNowTitleByKey={};
+    var themeToggleBtn=document.getElementById('themeToggleBtn');
+    var isChannelDark=false;
+    var progressInfoWrap=null;
+    var progressInfoMode=null;
+    var progressInfoStart=null;
+    var progressInfoTitle=null;
+    var progressInfoEnd=null;
+
+    if(titleEl) titleEl.textContent=title;
+    if(subEl) subEl.textContent=tvgName||'';
+    if(logo && logoImg){logoImg.src=logo; logoImg.classList.remove('d-none')}
+    if(liveFlag && liveBadge) liveBadge.classList.remove('d-none');
+    if(uiCompact){
+      if(channelLayer) channelLayer.classList.add('collapsed');
+      if(epgLayer) epgLayer.style.display='none';
+      if(closeBtn) closeBtn.classList.add('d-none');
+      if(themeToggleBtn) themeToggleBtn.classList.add('d-none');
+    }
+    applyChannelTheme();
+
+    function logStatus(msg){
+      console.log('[test-player]',msg);
+    }
+
+    function applyChannelTheme(){
+      if(!channelLayer) return;
+      if(isChannelDark){
+        channelLayer.classList.add('dark');
+        if(themeToggleBtn) themeToggleBtn.textContent='深色';
+      }else{
+        channelLayer.classList.remove('dark');
+        if(themeToggleBtn) themeToggleBtn.textContent='浅色';
+      }
+    }
+    if(themeToggleBtn){
+      themeToggleBtn.onclick=function(){
+        isChannelDark=!isChannelDark;
+        applyChannelTheme();
+      };
+    }
+
+    if(channelLayer){
+      channelLayer.addEventListener('mouseenter',function(){
+        isHoveringUi=true;
+        if(uiTimer) clearTimeout(uiTimer);
+      });
+      channelLayer.addEventListener('mouseleave',function(){
+        isHoveringUi=false;
+        resetUiTimer();
+      });
+    }
+    if(epgLayer){
+      epgLayer.addEventListener('mouseenter',function(){
+        isHoveringUi=true;
+        if(uiTimer) clearTimeout(uiTimer);
+      });
+      epgLayer.addEventListener('mouseleave',function(){
+        isHoveringUi=false;
+        resetUiTimer();
+      });
+    }
+
+    function updateLiveDotBlink(){
+      if(!liveDot) return;
+      if(isPlaying){
+        liveDot.classList.add('live-dot-blink');
+      }else{
+        liveDot.classList.remove('live-dot-blink');
+      }
+    }
+
+    function updateLiveBadge(){
+      if(!liveBtn || !liveDot) return;
+      if(isLive){
+        liveDot.style.background='#ef4444';
+      }else{
+        liveDot.style.background='#22c55e';
+      }
+      updateLiveDotBlink();
+      if(liveLabelEl) liveLabelEl.textContent='';
+    }
+
+    function ensureProgressProgramUi(){
+      if(progressInfoWrap && progressInfoTitle) return;
+      var root=qierPlayer&&qierPlayer.el;
+      if(!root) return;
+      var prog=root.querySelector('.qier-player_progress');
+      if(!prog) return;
+      if(getComputedStyle(prog).position==='static'){
+        prog.style.position='relative';
+      }
+      var wrap=document.createElement('div');
+      wrap.className='program-progress-label d-none';
+      var modeSpan=document.createElement('span');
+      var startSpan=document.createElement('span');
+      var titleSpan=document.createElement('span');
+      var endSpan=document.createElement('span');
+      modeSpan.className='program-progress-mode';
+      startSpan.className='program-progress-start';
+      titleSpan.className='program-progress-title';
+      endSpan.className='program-progress-end';
+      wrap.appendChild(modeSpan);
+      wrap.appendChild(startSpan);
+      wrap.appendChild(titleSpan);
+      wrap.appendChild(endSpan);
+      prog.appendChild(wrap);
+      progressInfoWrap=wrap;
+      progressInfoMode=modeSpan;
+      progressInfoStart=startSpan;
+      progressInfoTitle=titleSpan;
+      progressInfoEnd=endSpan;
+      updateProgramProgressLabel();
+    }
+
+    function formatHm(ms){
+      if(typeof ms!=='number') return '';
+      var d=new Date(ms);
+      var h=String(d.getHours()).padStart(2,'0');
+      var m=String(d.getMinutes()).padStart(2,'0');
+      return h+':'+m;
+    }
+
+    function updateProgramProgressLabel(){
+      if(!progressInfoWrap || !progressInfoTitle || !progressInfoStart || !progressInfoEnd || !progressInfoMode) return;
+      var prog=null;
+      var mode='';
+      if(currentReplayProgram){
+        prog=currentReplayProgram;
+        mode='replay';
+      }else if(currentLiveProgram){
+        prog=currentLiveProgram;
+        mode='live';
+      }
+      if(!prog){
+        progressInfoWrap.classList.add('d-none');
+        progressInfoStart.textContent='';
+        progressInfoTitle.textContent='';
+        progressInfoEnd.textContent='';
+        progressInfoMode.textContent='';
+        progressInfoMode.classList.remove('program-progress-mode-live','program-progress-mode-replay');
+        return;
+      }
+      var startStr=formatHm(prog.startMs);
+      var endStr=formatHm(prog.endMs);
+      var title=prog.title||'';
+      progressInfoStart.textContent=startStr;
+      progressInfoTitle.textContent=title||'';
+      progressInfoEnd.textContent=endStr;
+      if(mode==='live'){
+        progressInfoMode.textContent='直播';
+        progressInfoMode.classList.add('program-progress-mode-live');
+        progressInfoMode.classList.remove('program-progress-mode-replay');
+      }else if(mode==='replay'){
+        progressInfoMode.textContent='回放';
+        progressInfoMode.classList.add('program-progress-mode-replay');
+        progressInfoMode.classList.remove('program-progress-mode-live');
+      }else{
+        progressInfoMode.textContent='';
+        progressInfoMode.classList.remove('program-progress-mode-live','program-progress-mode-replay');
+      }
+      if(!startStr && !endStr && !title && !progressInfoMode.textContent){
+        progressInfoWrap.classList.add('d-none');
+      }else{
+        progressInfoWrap.classList.remove('d-none');
+      }
+    }
+
     function resolve(url){
-      var m=/\.m3u8(\?|$)/i.test(url)||url.indexOf('m3u8')>-1; 
+      var m=/\.m3u8(\?|$)/i.test(url)||url.indexOf('m3u8')>-1;
       return m?('/api/proxy/hls?url='+encodeURIComponent(url)):('/api/proxy/stream?url='+encodeURIComponent(url));
     }
-    
-    var playUrl=rawUrl?resolve(rawUrl):'';
-    var v=document.getElementById('video'); var urlInput=document.getElementById('urlInput'); var btnOpenRaw=document.getElementById('btnOpenRaw'); urlInput.value=rawUrl; if(playUrl) btnOpenRaw.href=playUrl;
-    
-    function toggleDocFullscreen(){ if(document.fullscreenElement){ if(document.exitFullscreen) document.exitFullscreen() } else { var el=document.documentElement; if(el.requestFullscreen) el.requestFullscreen() } }
-    v.addEventListener('dblclick', function(){ toggleDocFullscreen() }, {passive:true});
-    document.addEventListener('keydown', function(e){ var k=e.key||''; if(k.toLowerCase()==='f') toggleDocFullscreen() });
-    var btnDocFS=document.getElementById('btnDocFS');
-    function updateFsBtn(){ if(!btnDocFS) return; var i=btnDocFS.querySelector('i'); if(!i) return; if(document.fullscreenElement){ i.className='bi bi-fullscreen-exit fs-5' } else { i.className='bi bi-arrows-fullscreen fs-5' } }
-    if(btnDocFS){ btnDocFS.addEventListener('click', function(){ toggleDocFullscreen() }); }
-    document.addEventListener('fullscreenchange', updateFsBtn);
-    updateFsBtn();
 
-    var _reco={n:0,t:null,stall:null};
-    var currentPlayer=null;
-    function resetReco(){ _reco.n=0; if(_reco.t){clearTimeout(_reco.t);_reco.t=null} if(_reco.stall){clearTimeout(_reco.stall);_reco.stall=null} }
-    function scheduleReco(){ if(_reco.n>=5) return; var d=Math.min(15000, Math.round(1000*Math.pow(1.8,_reco.n))); _reco.n++; if(_reco.t) clearTimeout(_reco.t); _reco.t=setTimeout(function(){ if(playUrl){ start(playUrl) } }, d) }
+    function resetReco(){
+      _reco.n=0;
+      if(_reco.t){clearTimeout(_reco.t);_reco.t=null}
+      if(_reco.stall){clearTimeout(_reco.stall);_reco.stall=null}
+    }
+
+    function scheduleReco(playUrl){
+      if(_reco.n>=5) return;
+      var d=Math.min(15000,Math.round(1000*Math.pow(1.8,_reco.n)));
+      _reco.n++;
+      if(_reco.t) clearTimeout(_reco.t);
+      _reco.t=setTimeout(function(){
+        if(playUrl){ start(playUrl) }
+      },d);
+      logStatus('计划重试第 '+_reco.n+' 次，'+d+'ms 后');
+    }
 
     function destroyPlayer(){
       if(currentPlayer){
@@ -222,69 +774,349 @@
         try{currentPlayer.destroy&&currentPlayer.destroy()}catch(e){}
         currentPlayer=null;
       }
-      if(v._hls){ try{ v._hls.destroy() }catch(e){} v._hls=null }
-      if(v){ v.removeAttribute('src'); v.load() }
+      if(v && v._hls){
+        try{v._hls.destroy()}catch(e){}
+        v._hls=null;
+      }
+      if(v){
+        v.removeAttribute('src');
+        v.load();
+      }
     }
 
-    function start(url){
+    function renderSourceList(){
+      if(!sourcePanel) return;
+      sourcePanel.innerHTML='';
+      sources.forEach(function(s,idx){
+        var row=document.createElement('div');
+        row.className='source-row'+(idx===currentSourceIndex?' active':'');
+        var dot=document.createElement('span');
+        dot.className='source-tag';
+        row.appendChild(dot);
+        var text=document.createElement('span');
+        text.textContent=s.label;
+        row.appendChild(text);
+        row.addEventListener('click',function(e){
+          e.stopPropagation();
+          hideSourcePanel();
+          selectSource(idx,true);
+        });
+        sourcePanel.appendChild(row);
+      });
+    }
+
+    function ensureSourceUi(){
+      if(sourceBtn && sourcePanel) return;
+      var root=qierPlayer&&qierPlayer.el;
+      if(!root) return;
+      var volume=root.querySelector('.qier-player_controller_volume');
+      if(!volume) return;
+      var row=volume.parentElement;
+      if(!row) return;
+      liveBtn=document.createElement('button');
+      liveBtn.id='liveBtn';
+      liveDot=document.createElement('span');
+      liveDot.id='liveBtn_dot';
+      liveLabelEl=document.createElement('span');
+      liveBtn.appendChild(liveDot);
+      liveBtn.appendChild(liveLabelEl);
+      updateLiveBadge();
+
+      sourceBtn=document.createElement('button');
+      sourceBtn.id='sourceBtn';
+      sourceLabelEl=document.createElement('span');
+      sourceLabelEl.textContent='选择线路';
+      sourceBtn.appendChild(sourceLabelEl);
+      sourceBtn.addEventListener('mouseenter',function(e){
+        e.stopPropagation();
+        showSourcePanel();
+      });
+      sourceBtn.addEventListener('mouseleave',function(){
+        setTimeout(function(){
+          if(!sourcePanel) return;
+          if(!sourcePanel.matches(':hover') && !sourceBtn.matches(':hover')){
+            hideSourcePanel();
+          }
+        },80);
+      });
+      row.insertBefore(sourceBtn, volume);
+      row.insertBefore(liveBtn, sourceBtn);
+      sourcePanel=document.createElement('div');
+      sourcePanel.id='sourcePanel';
+      sourcePanel.className='qier-player_popover_panel';
+      sourcePanel.addEventListener('mouseleave',function(){
+        hideSourcePanel();
+      });
+      sourceBtn.appendChild(sourcePanel);
+      renderSourceList();
+    }
+
+    function showSourcePanel(){
+      if(!sourcePanel || !sourceBtn) return;
+      sourcePanel.style.display='block';
+    }
+
+    function hideSourcePanel(){
+      if(!sourcePanel) return;
+      sourcePanel.style.display='none';
+    }
+
+    function showInfo(){
+      if(!infoOverlay) return;
+      infoOverlay.classList.remove('is-hidden');
+      if(infoTimer) clearTimeout(infoTimer);
+      infoTimer=setTimeout(function(){
+        if(infoOverlay) infoOverlay.classList.add('is-hidden');
+      },INFO_HIDE_MS);
+    }
+
+    function hideUi(){
+      if(uiCompact) return;
+      if(isHoveringUi){
+        resetUiTimer();
+        return;
+      }
+      if(channelLayer) channelLayer.classList.add('collapsed');
+      if(epgLayer) epgLayer.classList.add('hidden');
+      lastHideTs=Date.now();
+    }
+
+    function showUi(){
+      if(uiCompact) return;
+      if(channelLayer) channelLayer.classList.remove('collapsed');
+      if(epgLayer) epgLayer.classList.remove('hidden');
+      resetUiTimer();
+    }
+
+    function resetUiTimer(){
+      if(uiCompact) return;
+      if(uiTimer) clearTimeout(uiTimer);
+      uiTimer=setTimeout(hideUi,UI_HIDE_MS);
+    }
+
+    if(closeBtn && !uiCompact){
+      closeBtn.onclick=function(){
+        hideUi();
+      };
+    }
+    if(!uiCompact){
+      document.addEventListener('mousemove',function(){
+        if(Date.now()-lastHideTs<800) return;
+        showUi();
+      });
+      document.addEventListener('touchstart',function(){
+        if(Date.now()-lastHideTs<800) return;
+        showUi();
+      });
+    }
+    document.addEventListener('mousemove',function(){showInfo()});
+    document.addEventListener('touchstart',function(){showInfo()});
+    showInfo();
+
+    function normalizeName(v){ return String(v||'').trim().replace(/\s+/g,''); }
+    function areaOf(r){
+      var m=String(r||'').trim().match(/^(\d+)\s*x\s*(\d+)$/i);
+      if(!m) return 0;
+      var w=parseInt(m[1],10),h=parseInt(m[2],10);
+      if(isNaN(w)||isNaN(h)) return 0;
+      return w*h;
+    }
+    function cctvNumberFrom(str){
+      var m=String(str||'').toUpperCase().match(/CCTV[ -]?(\d{1,2})/);
+      if(!m) return null;
+      var n=parseInt(m[1],10);
+      if(!isNaN(n)&&n>=1&&n<=60) return n;
+      return null;
+    }
+    function resTag(r){
+      var m=String(r||'').trim().match(/^(\d+)\s*x\s*(\d+)$/i);
+      if(!m) return '';
+      var w=parseInt(m[1],10),h=parseInt(m[2],10);
+      if((!isNaN(w)&&w>=3200)||(!isNaN(h)&&h>=1800)) return 'UHD';
+      if((!isNaN(w)&&w>=1280)||(!isNaN(h)&&h>=720)) return 'HD';
+      return 'SD';
+    }
+    function formatFps(fr){
+      var v2=parseFloat(fr);
+      if(isNaN(v2)) return '';
+      var r=Math.round(v2);
+      if(Math.abs(v2-r)<0.01) return String(r)+'fps';
+      return String(parseFloat(v2.toFixed(2)))+'fps';
+    }
+    function channelKeyFromStream(s){ return normalizeName(s.tvgName||s.name||''); }
+    function describeSource(it){
+      if(!it) return '';
+      var isMc=isMulticastStream(it);
+      var rt=resTag(it.resolution||'');
+      var fps=it.frameRate?formatFps(it.frameRate):'';
+      var base=isMc?'组播':'单播';
+      var tail=(rt?('-'+rt):'')+(fps?('-'+fps):'');
+      return base+tail;
+    }
+    function isMulticastStream(s){
+      var u=String(s.multicastUrl||'').trim();
+      var scheme=u.split(':')[0].toLowerCase();
+      return !!s.udpxyUrl||scheme==='rtp'||scheme==='udp'||u.indexOf('/rtp/')>-1;
+    }
+    function isCctvName(nm){ return /^(CCTV|央视)/i.test(String(nm||'')); }
+    function isWeiShiName(nm,grp){
+      var n=String(nm||''),g=String(grp||'');
+      return /卫视/.test(n)||/卫视/.test(g);
+    }
+    function matchSearch(s,q){
+      if(!q) return true;
+      var a=(String(s.name||'')+' '+String(s.tvgName||'')+' '+String(s.tvgId||'')+' '+String(s.groupTitle||'')).toLowerCase();
+      return a.indexOf(q.toLowerCase())>=0;
+    }
+    function groupByName(list){
+      var map={};
+      list.forEach(function(s){
+        var key=normalizeName(s.tvgName||s.name||'');
+        if(!map[key]) map[key]={name:(s.tvgName||s.name||'未命名频道'),key:key,logo:s.logo||'',items:[]};
+        map[key].items.push(s);
+      });
+      return map;
+    }
+    function classifyChannelEntry(entry){
+      var nm=String(entry&&entry.name||'');
+      var first=entry&&entry.items&&entry.items[0]||{};
+      var grp=String(first.groupTitle||'');
+      if(isCctvName(nm)){
+        var num=cctvNumberFrom(nm);
+        if(num===null||isNaN(num)) num=999;
+        return {cat:0,num:num,group:grp,name:nm};
+      }
+      if(isWeiShiName(nm,grp)){
+        return {cat:1,num:0,group:grp,name:nm};
+      }
+      return {cat:2,num:0,group:grp,name:nm};
+    }
+    function selectCategoryForStream(s){
+      if(s.groupTitle){
+        selectedCat='group:'+String(s.groupTitle);
+      }else{
+        selectedCat='all';
+      }
+      buildCatTabs();
+      renderChannels();
+    }
+
+    function mountQier(){
+      if(qierPlayer && qierPlayer.dispose){
+        try{qierPlayer.dispose()}catch(e){}
+      }
+      var PlayerCtor = window.QierPlayer && (window.QierPlayer.Player || window.QierPlayer.default || window.QierPlayer);
+      if(!PlayerCtor){
+        logStatus('QierPlayer 加载失败，未找到全局 Player');
+        return;
+      }
+      qierPlayer=new PlayerCtor({
+        src:'',
+        shortcutOptions:{disabled:false}
+      });
+      qierPlayer.mount('#app');
+      v=qierPlayer.video;
+      if(v && !v._iptvPlayHooked){
+        v._iptvPlayHooked=true;
+        v.addEventListener('play',function(){
+          isPlaying=true;
+          updateLiveDotBlink();
+        });
+        v.addEventListener('playing',function(){
+          isPlaying=true;
+          updateLiveDotBlink();
+        });
+        v.addEventListener('pause',function(){
+          isPlaying=false;
+          updateLiveDotBlink();
+        });
+        v.addEventListener('ended',function(){
+          isPlaying=false;
+          updateLiveDotBlink();
+        });
+      }
+      ensureSourceUi();
+      ensureProgressProgramUi();
+    }
+
+    function start(playUrl){
+      if(!playUrl){
+        logStatus('没有播放地址');
+        return;
+      }
+      if(!v){
+        mountQier();
+      }
       destroyPlayer();
-      var isM3u8=/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1; 
-      
-      // 1. HLS Logic
+      resetReco();
+      var isM3u8=/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1;
       if(isM3u8){
-         if(window.Hls && Hls.isSupported()){
-            var h=new Hls({
-              lowLatencyMode:false,
-              capLevelToPlayerSize:true,
-              backBufferLength:30,
-              liveSyncDurationCount:3,
-              liveMaxLatencyDurationCount:8,
-              maxBufferLength:20,
-              maxBufferHole:1,
-              nudgeOffset:0.1,
-              nudgeMaxRetry:5,
-              fragLoadingMaxRetry:3,
-              levelLoadingMaxRetry:3,
-              manifestLoadingMaxRetry:3,
-              fragLoadingRetryDelay:1000,
-              levelLoadingRetryDelay:1000,
-              manifestLoadingRetryDelay:1000
-            });
-            currentPlayer=h;
-            v._hls=h;
-            
-            h.on(Hls.Events.MEDIA_ATTACHED, function(){ resetReco() });
-            h.on(Hls.Events.LEVEL_UPDATED, function(){ resetReco() });
-            h.on(Hls.Events.ERROR, function(_, data){
-              if(!data || !data.fatal) return;
-              if(data.type===Hls.ErrorTypes.NETWORK_ERROR){ scheduleReco() }
-              else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){ try{ h.recoverMediaError() }catch(e){ scheduleReco() } }
-              else { scheduleReco() }
-            });
-            v.addEventListener('playing', resetReco, {passive:true});
-            v.addEventListener('loadeddata', resetReco, {passive:true});
-            
-            h.loadSource(url);
-            h.attachMedia(v);
+        if(window.Hls&&Hls.isSupported()){
+          var h=new Hls({
+            lowLatencyMode:false,
+            capLevelToPlayerSize:true,
+            backBufferLength:30,
+            liveSyncDurationCount:3,
+            liveMaxLatencyDurationCount:8,
+            maxBufferLength:20,
+            maxBufferHole:1,
+            nudgeOffset:0.1,
+            nudgeMaxRetry:5,
+            fragLoadingMaxRetry:3,
+            levelLoadingMaxRetry:3,
+            manifestLoadingMaxRetry:3,
+            fragLoadingRetryDelay:1000,
+            levelLoadingRetryDelay:1000,
+            manifestLoadingRetryDelay:1000
+          });
+          currentPlayer=h;
+          v._hls=h;
+          h.on(Hls.Events.MEDIA_ATTACHED,function(){resetReco();logStatus('HLS 已绑定媒体')});
+          h.on(Hls.Events.LEVEL_UPDATED,function(){resetReco()});
+          h.on(Hls.Events.ERROR,function(_,data){
+            if(!data||!data.fatal) return;
+            logStatus('HLS fatal error: '+data.type);
+            if(data.type===Hls.ErrorTypes.NETWORK_ERROR){scheduleReco(playUrl)}
+            else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){
+              try{h.recoverMediaError()}catch(e){scheduleReco(playUrl)}
+            }else{
+              scheduleReco(playUrl);
+            }
+          });
+          v.addEventListener('playing',resetReco,{once:true,passive:true});
+          v.addEventListener('loadeddata',function(){logStatus('已加载数据')},{once:true,passive:true});
+          h.loadSource(playUrl);
+          h.attachMedia(v);
+          v.play&&v.play().catch(function(e){logStatus('play 调用失败: '+e)});
+          logStatus('开始 HLS 播放');
+          return;
+        }
+        v.src=playUrl;
+        v.onstalled=function(){
+          if(_reco.stall) clearTimeout(_reco.stall);
+          _reco.stall=setTimeout(function(){
+            v.load();
             v.play&&v.play().catch(function(){});
-            return;
-         }
-         // Native HLS fallback
-         v.src=url;
-         v.onstalled=function(){ if(_reco.stall) clearTimeout(_reco.stall); _reco.stall=setTimeout(function(){ v.load(); v.play&&v.play().catch(function(){}) }, 15000) };
-         v.onwaiting=function(){ if(_reco.stall) clearTimeout(_reco.stall); _reco.stall=setTimeout(function(){ v.load(); v.play&&v.play().catch(function(){}) }, 15000) };
-         v.play&&v.play().catch(function(){});
-         return;
+          },15000);
+        };
+        v.onwaiting=v.onstalled;
+        v.play&&v.play().catch(function(e){logStatus('原生 HLS 播放失败: '+e)});
+        logStatus('使用原生 HLS 播放');
+        return;
       }
-      
-      // 2. MPEGTS Logic
       if(!window.mpegts||!mpegts.isSupported()||!mpegts.getFeatureList().mseLivePlayback){
-         v.src=url;
-         v.play().catch(function(){});
-         return;
+        v.src=playUrl;
+        v.play().catch(function(e){logStatus('直接播放 TS 失败: '+e)});
+        logStatus('环境不支持 mpegts.js，尝试直接播放');
+        return;
       }
-      
-      var mediaDataSource={type:'mse',isLive:true,url:url,liveBufferLatencyChasing:true};
+      if(mpegts.LoggingControl){
+        try{
+          mpegts.LoggingControl.enableDebug=false;
+          mpegts.LoggingControl.enableVerbose=false;
+        }catch(e){}
+      }
+      var mediaDataSource={type:'mse',isLive:true,url:playUrl,liveBufferLatencyChasing:true};
       var config={
         isLive:true,
         enableStashBuffer:true,
@@ -298,7 +1130,6 @@
         fixAudioTimestampGap:true,
         lazyLoad:false
       };
-      
       try{
         var player=mpegts.createPlayer(mediaDataSource,config);
         currentPlayer=player;
@@ -306,617 +1137,621 @@
         player.load();
         player.play();
         player.on(mpegts.Events.ERROR,function(type,detail){
-           console.error('mpegts error', type, detail);
-           // Simple retry for mpegts?
-           // For now just log. Maybe add basic retry later if needed.
+          logStatus('mpegts error: '+type);
+          scheduleReco(playUrl);
         });
+        logStatus('开始 mpegts.js 播放');
       }catch(e){
-        console.error('create mpegts player failed', e);
+        logStatus('创建 mpegts player 失败: '+e);
       }
     }
 
-    if(playUrl) start(playUrl);
-
-    // UI Logic (Sidebar, EPG, etc) - Copied and adapted
-    var channelLayer=document.getElementById('channelLayer'); var epgLayer=document.getElementById('epgLayer'); var toggleBtn=document.getElementById('toggleSidebarBtn'); var closeBtn=document.getElementById('closeSidebarBtn');
-    var triggerLeft=document.getElementById('triggerLeft'); var triggerRight=document.getElementById('triggerRight');
-    var uiTimer=null; var isHoveringUi=false; var UI_HIDE_MS=3000; var lastHideTs=0;
-    var infoOverlay=document.querySelector('.player-info-overlay'); var infoTimer=null; var INFO_HIDE_MS=10000;
-
-    function showUi(){
-      if(uiCompact) return;
-      channelLayer.classList.remove('collapsed');
-      epgLayer.classList.remove('hidden');
-      if(toggleBtn) toggleBtn.style.display='none';
-      resetUiTimer();
-    }
-    
-    function hideUi(){
-      if(uiCompact) return;
-      if(isHoveringUi) return;
-      channelLayer.classList.add('collapsed');
-      epgLayer.classList.add('hidden');
-      if(toggleBtn) toggleBtn.style.display='flex';
-      lastHideTs=Date.now();
-    }
-    
-    function resetUiTimer(){
-      if(uiCompact) return;
-      if(uiTimer) clearTimeout(uiTimer);
-      uiTimer = setTimeout(hideUi, UI_HIDE_MS);
-    }
-    
-    if(!uiCompact){
-      document.addEventListener('mousemove', function(){
-        if(Date.now()-lastHideTs<800) return;
-        showUi();
-      }, {passive:true});
-      document.addEventListener('touchstart', function(){
-        if(Date.now()-lastHideTs<800) return;
-        showUi();
-      }, {passive:true});
-    }
-    
-    function showInfo(){
-      if(!infoOverlay) return;
-      infoOverlay.classList.remove('is-hidden');
-      if(infoTimer) clearTimeout(infoTimer);
-      infoTimer = setTimeout(function(){ if(infoOverlay) infoOverlay.classList.add('is-hidden') }, INFO_HIDE_MS);
-    }
-    document.addEventListener('mousemove', function(){ showInfo() }, {passive:true});
-    document.addEventListener('touchstart', function(){ showInfo() }, {passive:true});
-    showInfo();
-
-    if(!uiCompact){
-      if(triggerLeft) triggerLeft.addEventListener('mouseenter', showUi);
-      if(triggerRight) triggerRight.addEventListener('mouseenter', showUi);
-    }
-    
-    var keepAliveEvents = ['mouseenter', 'mousemove', 'touchstart'];
-    if(!uiCompact){
-      [channelLayer, epgLayer].forEach(function(el){
-        if(!el) return;
-        keepAliveEvents.forEach(function(evt){ 
-          var opts = (evt === 'touchstart' || evt === 'touchmove') ? {passive: true} : false;
-          el.addEventListener(evt, function(){ isHoveringUi=true; resetUiTimer() }, opts);
-        });
-        el.addEventListener('mouseleave', function(){ isHoveringUi=false; resetUiTimer() });
-      });
-    }
-
-    function toggleSidebar(){
-      var isCollapsed = channelLayer.classList.contains('collapsed');
-      if(isCollapsed) showUi(); else hideUi();
-    }
-    if(!uiCompact){
-      if(toggleBtn) toggleBtn.onclick=toggleSidebar;
-      if(closeBtn) closeBtn.onclick=toggleSidebar;
-      if(!channelLayer.classList.contains('collapsed')) toggleBtn.style.display='none';
-    } else {
-      channelLayer.classList.add('collapsed');
-      epgLayer.classList.add('hidden');
-      if(toggleBtn) toggleBtn.style.display='none';
-    }
-
-    var epgHint=document.getElementById('epgHint'); var epgList=document.getElementById('epgList'); var epgSel=document.getElementById('epgSourceSel'); var epgRefresh=document.getElementById('epgRefreshBtn'); var epgDateTabs=document.getElementById('epgDateTabs'); var epgSources=[]; var selectedDate=new Date();
-
-    (function initEpgByQuery(){ if(!tvgId && !tvgName){ epgHint.textContent='提供 tvgId 或 tvgName 可显示节目单'; return } buildDateTabs(); loadEpgForQueryDay(); })();
-    
-    // EPG functions
-    function loadEpgForQueryDay(){ 
-      var d=selectedDate; 
-      var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0'); 
-      var params=new URLSearchParams(); 
-      params.set('scope','internal'); 
-      params.set('channelId', tvgId||tvgName||''); 
-      params.set('channelName', tvgName||title||''); 
-      params.set('date', y+'-'+m+'-'+dd); 
-      if(epgId) params.set('epgId', epgId); 
-      fetch('/api/epg/programs?'+params.toString()).then(r=>r.json()).then(x=>{ 
-        var list=Array.isArray(x&&x.programs)?x.programs:[]; 
-        var now=Date.now(); epgList.innerHTML=''; 
-        if(list.length===0){ epgHint.textContent='暂无节目单'; return } 
-        epgHint.textContent=''; 
-        list.forEach(function(p){ 
-          var it=document.createElement('button'); it.type='button'; it.className='list-group-item list-group-item-action bg-transparent text-white epg-item d-flex justify-content-between align-items-center'; 
-          var tm=new Date(p.startMs); var em=new Date(p.endMs); 
-          var t=String(tm.getHours()).padStart(2,'0')+':'+String(tm.getMinutes()).padStart(2,'0')+' - '+String(em.getHours()).padStart(2,'0')+':'+String(em.getMinutes()).padStart(2,'0'); 
-          var left=document.createElement('div'); left.innerHTML='<div class=\"small muted\">'+t+'</div><div>'+ (p.title||'无标题') +'</div>'; 
-          var right=document.createElement('div'); 
-          if(p.startMs<=now && p.endMs>now){ right.innerHTML='<span class=\"badge badge-live\">LIVE</span>' } 
-          else if(p.startMs>now){ right.innerHTML='<span class=\"badge bg-secondary\">未开始</span>' } 
-          else { right.innerHTML='<span class=\"badge bg-success\">已播</span>' } 
-          it.appendChild(left); it.appendChild(right); epgList.appendChild(it) 
-        }) 
-      }).catch(function(){ epgHint.textContent='节目单加载失败' }) 
-    }
-    function buildDateTabs(){ 
-      if(!epgDateTabs) return; 
-      epgDateTabs.innerHTML=''; 
-      var today=new Date(); today.setHours(0,0,0,0);
-      var items=[]; 
-      for(var i=-3;i<=3;i++){ var d=new Date(today); d.setDate(today.getDate()+i); items.push(d) } 
-      items.forEach(function(d){ 
-        var mm=String(d.getMonth()+1).padStart(2,'0'); 
-        var dd=String(d.getDate()).padStart(2,'0'); 
-        var w=['日','一','二','三','四','五','六'][d.getDay()]; 
-        var sd=new Date(selectedDate); sd.setHours(0,0,0,0);
-        var isSel = d.getTime() === sd.getTime();
-        var btn=document.createElement('button'); 
-        btn.className='nav-link py-0 px-2 small text-nowrap'+(isSel?' active':''); 
-        btn.textContent=(d.getTime()===today.getTime()?'今日':'周'+w)+' '+mm+'/'+dd; 
-        btn.onclick=function(){ 
-          selectedDate=new Date(d); 
-          buildDateTabs(); 
-          if(current) loadEpgForStream(current); else loadEpgForQueryDay(); 
-        }; 
-        var li=document.createElement('li'); li.className='nav-item'; li.appendChild(btn); 
-        epgDateTabs.appendChild(li); 
-        if(isSel){ setTimeout(function(){ li.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'}) }, 100); }
-      }); 
-    }
-    
-    // Channel & Stream Logic
-    var catTabs=document.getElementById('catTabs'); var searchInput=document.getElementById('searchInput'); var channelList=document.getElementById('channelList'); var selectedCat='cctv';
-    function buildCatTabs(){
-      if(!catTabs) return;
-      var map={};
-      streams.forEach(function(s){ var g=String(s.groupTitle||'').trim(); if(g) map[g]=true });
-      var groups=Object.keys(map).sort(function(a,b){ return String(a).localeCompare(String(b),'zh-CN',{numeric:true,sensitivity:'base'}) });
-      catTabs.innerHTML='';
-      var defs=[{t:'CCTV',v:'cctv'},{t:'卫视',v:'sat'},{t:'其他',v:'others'},{t:'全部',v:'all'}];
-      var all=defs.concat(groups.map(function(g){ return {t:g,v:'group:'+g} }));
-      all.forEach(function(it){
-        var li=document.createElement('li'); li.className='nav-item';
-        var btn=document.createElement('button'); btn.className='nav-link py-1'+(selectedCat===it.v?' active':''); btn.setAttribute('data-cat',it.v); btn.textContent=it.t;
-        btn.onclick=function(){
-          Array.from(catTabs.querySelectorAll('button[data-cat]')).forEach(function(x){ x.classList.remove('active') });
-          this.classList.add('active');
-          selectedCat=this.getAttribute('data-cat');
-          renderChannels();
-        };
-        li.appendChild(btn); catTabs.appendChild(li);
-      });
-    }
-
-    var streams=[]; var current=null; var currentReplayProgram=null;
-    function normalizeName(v){ return String(v||'').trim().replace(/\s+/g,'').replace(/4K$/i,'') }
-    function areaOf(r){ var m=String(r||'').trim().match(/^(\d+)\s*x\s*(\d+)$/i); if(!m) return 0; var w=parseInt(m[1],10), h=parseInt(m[2],10); if(isNaN(w)||isNaN(h)) return 0; return w*h }
-    function cctvNumberFrom(str){ var m=String(str||'').toUpperCase().match(/CCTV[ -]?(\d{1,2})/); if(!m) return null; var n=parseInt(m[1],10); if(!isNaN(n)&&n>=1&&n<=60) return n; return null }
-    function resTag(r){ var m=String(r||'').trim().match(/^(\d+)\s*x\s*(\d+)$/i); if(!m) return ''; var w=parseInt(m[1],10), h=parseInt(m[2],10); if((!isNaN(w)&&w>=3200)||(!isNaN(h)&&h>=1800)) return 'UHD'; if((!isNaN(w)&&w>=1280)||(!isNaN(h)&&h>=720)) return 'HD'; return 'SD' }
-    
-    function isMulticastStream(s) {
-        var u = String(s.multicastUrl || '').trim();
-        var scheme = u.split(':')[0].toLowerCase();
-        return !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp' || u.indexOf('/rtp/') > -1;
-    }
-
-    function isCctvName(nm){ return /^(CCTV|央视)/i.test(String(nm||'')) }
-    function isWeiShiName(nm, grp){ var n=String(nm||''); var g=String(grp||''); return /卫视/.test(n) || /卫视/.test(g) }
-    function matchSearch(s, q){ if(!q) return true; var a=(String(s.name||'')+' '+String(s.tvgName||'')+' '+String(s.tvgId||'')+' '+String(s.groupTitle||'')).toLowerCase(); return a.indexOf(q.toLowerCase())>=0 }
-    
-    function groupByName(list){ var map={}; list.forEach(function(s){ var key=normalizeName(s.tvgName||s.name||''); if(!map[key]) map[key]={ name:(s.tvgName||s.name||'未命名频道'), key:key, logo:s.logo||'', items:[] }; map[key].items.push(s) }); return map }
-
-    function selectCategoryForStream(s){
-      var nm = s.tvgName || s.name || '';
-      if (s.groupTitle) {
-        selectedCat = 'group:' + String(s.groupTitle);
-      } else if (isCctvName(nm)) {
-        selectedCat = 'cctv';
-      } else if (isWeiShiName(nm, s.groupTitle)) {
-        selectedCat = 'sat';
-      } else {
-        selectedCat = 'others';
+    function selectSource(idx,play){
+      if(idx<0||idx>=sources.length) return;
+      currentSourceIndex=idx;
+      var s=sources[idx];
+      if(sourceLabelEl){
+        sourceLabelEl.textContent=s.label;
       }
-      buildCatTabs();
-      renderChannels();
+      renderSourceList();
+      if(play){
+        rawUrl=s.url;
+        var playUrl=resolve(rawUrl);
+        start(playUrl);
+      }
     }
 
     function expandAndFocusChannel(key){
-      var listWrap = document.getElementById('channelList');
-      var scrollWrap = document.getElementById('channelScroll') || document.getElementById('channelLayer');
+      var listWrap=channelList;
+      var scrollWrap=document.getElementById('channelScroll')||channelLayer;
       if(!listWrap) return;
       var allBodies=listWrap.querySelectorAll('.channel-body');
-      allBodies.forEach(function(b){ b.classList.add('d-none'); b.classList.remove('d-flex'); });
+      allBodies.forEach(function(b){
+        b.classList.add('d-none');
+        b.classList.remove('d-flex');
+      });
       var allCarets=listWrap.querySelectorAll('.bi-caret-up-fill');
-      allCarets.forEach(function(c){ c.classList.replace('bi-caret-up-fill','bi-caret-down-fill') });
-      var item = listWrap.querySelector('.channel-item[data-key="'+key+'"]');
+      allCarets.forEach(function(c){
+        c.classList.replace('bi-caret-up-fill','bi-caret-down-fill');
+      });
+      var item=listWrap.querySelector('.channel-item[data-key="'+key+'"]');
       if(item){
-        var body = item.querySelector('.channel-body');
-        var caret = item.querySelector('.bi-caret-down-fill, .bi-caret-up-fill');
-        if(body){ body.classList.remove('d-none'); body.classList.add('d-flex'); }
-        if(caret && caret.classList.contains('bi-caret-down-fill')) caret.classList.replace('bi-caret-down-fill','bi-caret-up-fill');
+        var body=item.querySelector('.channel-body');
+        var caret=item.querySelector('.bi-caret-down-fill, .bi-caret-up-fill');
+        if(body){
+          body.classList.remove('d-none');
+          body.classList.add('d-flex');
+        }
+        if(caret && caret.classList.contains('bi-caret-down-fill')){
+          caret.classList.replace('bi-caret-down-fill','bi-caret-up-fill');
+        }
         var items=listWrap.querySelectorAll('.channel-item');
-        items.forEach(function(el){ if(el===item) el.classList.add('active'); else el.classList.remove('active') });
+        items.forEach(function(el){
+          if(el===item) el.classList.add('active'); else el.classList.remove('active');
+        });
         if(item.scrollIntoView){
-          item.scrollIntoView({behavior:'auto', block:'start'});
-        } else if(scrollWrap){
-          try{ scrollWrap.scrollTop = item.offsetTop - (scrollWrap.offsetTop||0); }catch(e){}
+          item.scrollIntoView({behavior:'auto',block:'start'});
+        }else if(scrollWrap){
+          try{scrollWrap.scrollTop=item.offsetTop-(scrollWrap.offsetTop||0);}catch(e){}
         }
       }
     }
 
-    function isPlayable(s){ 
-        var u=String(s.multicastUrl||'').trim(); 
-        // Allow HTTP(s), RTP, UDP
-        return /^https?:\/\//i.test(u) || /^(rtp|udp):\/\//i.test(u);
+    function isPlayable(s){
+      var u=String(s.multicastUrl||'').trim();
+      return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
     }
-    
-    function liveRawUrl(s){ 
-      var u = String(s.multicastUrl||'').trim();
-      var base = u;
-      // If RTP/UDP, try to combine with udpxyUrl
-      if(/^(rtp|udp):\/\//i.test(u) && s.udpxyUrl){
-          var udpxy = String(s.udpxyUrl).trim().replace(/\/+$/, '');
-          var addr = u.replace(/^(rtp|udp):\/\//i, '');
-          base = udpxy + '/rtp/' + addr;
+
+    function liveRawUrl(s){
+      var u=String(s.multicastUrl||'').trim();
+      var base=u;
+      if(/^(rtp|udp):\/\//i.test(u)&&s.udpxyUrl){
+        var udpxy=String(s.udpxyUrl).trim().replace(/\/+$/,'');
+        var addr=u.replace(/^(rtp|udp):\/\//i,'');
+        base=udpxy+'/rtp/'+addr;
       }
-      
-      var isMc = isMulticastStream(s);
-      var raw = base;
+      var isMc=isMulticastStream(s);
+      var raw=base;
       if(isMc && s.httpParam){
-          var hasQ = raw.indexOf('?') > -1;
-          if(raw.indexOf(s.httpParam) === -1){
-              raw = raw + (hasQ ? '&' : '?') + s.httpParam;
-          }
+        var hasQ=raw.indexOf('?')>-1;
+        if(raw.indexOf(s.httpParam)===-1){
+          raw=raw+(hasQ?'&':'?')+s.httpParam;
+        }
       }
       return raw;
     }
-    
-    // Legacy helper kept but unused in new logic
-    function httpM3u8(s){ return isPlayable(s) } 
+
+    function getScope(){
+      try{
+        return (localStorage.getItem('useExternal')==='true')?'external':'internal';
+      }catch(e){
+        return 'internal';
+      }
+    }
+
+    function channelKey(s){
+      return String((s&&s.tvgName)||s&&s.name||'').trim().replace(/\s+/g,'').replace(/4K$/i,'');
+    }
+
+    function playable(u){
+      return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
+    }
+
+    function sourcesForStream(s){
+      if(!s) return [];
+      var key=channelKey(s);
+      var list=streams.filter(function(x){
+        return channelKey(x)===key && playable(String(x.multicastUrl||''));
+      });
+      list.sort(function(a,b){
+        var aM=isMulticastStream(a)?1:0,bM=isMulticastStream(b)?1:0;
+        if(aM!==bM) return bM-aM;
+        var ar=areaOf(a.resolution),br=areaOf(b.resolution);
+        if(ar!==br) return br-ar;
+        var af=parseFloat(a.frameRate)||0,bf=parseFloat(b.frameRate)||0;
+        return bf-af;
+      });
+      return list;
+    }
+
+    function renderSourcePanelFor(s){
+      var list=sourcesForStream(s);
+      sources=list.map(function(it){
+        return {url:liveRawUrl(it),label:describeSource(it)};
+      });
+      var activeIdx=list.findIndex(function(it){
+        return it.multicastUrl===s.multicastUrl && it.resolution===s.resolution && it.frameRate===s.frameRate;
+      });
+      if(activeIdx<0 && list.length>0) activeIdx=0;
+      currentSourceIndex=activeIdx;
+      renderSourceList();
+      if(sourceLabelEl && currentSourceIndex>=0 && sources[currentSourceIndex]){
+        sourceLabelEl.textContent=sources[currentSourceIndex].label;
+      }
+    }
 
     function startLiveFor(s){
-      current=s; currentReplayProgram=null; 
-      var raw=liveRawUrl(s); 
-      if(!raw) return; 
-      var url=resolve(raw); 
-      rawUrl=raw; playUrl=url; urlInput.value=raw; btnOpenRaw.href=url;
-      
-      titleEl.textContent=s.name||s.tvgName||'IPTV 播放'; subEl.textContent=s.tvgName||s.name||'';
-      
-      var titleOverlay=document.getElementById('titleEl'); var subOverlay=document.getElementById('subEl');
-      if(titleOverlay) titleOverlay.textContent=s.name||s.tvgName||'IPTV 播放';
-      if(subOverlay) subOverlay.textContent=s.tvgName||s.name||'';
+      current=s;
+      currentReplayProgram=null;
+      currentLiveProgram=null;
+      if(titleEl) titleEl.textContent=s.name||s.tvgName||'IPTV 播放';
+      if(subEl) subEl.textContent=s.tvgName||s.name||'';
+      if(s.logo && logoImg){logoImg.src=s.logo;logoImg.classList.remove('d-none');}
+      if(liveBadge) liveBadge.classList.remove('d-none');
+      if(replayBadge) replayBadge.classList.add('d-none');
+      tvgId=s.tvgId||'';
+      tvgName=s.tvgName||s.name||'';
+      isLive=true;
+      updateLiveBadge();
+      updateProgramProgressLabel();
       showInfo();
-      
-      if(s.logo){ logoImg.src=s.logo; logoImg.classList.remove('d-none') }
-      liveBadge.classList.remove('d-none'); replayBadge.classList.add('d-none');
-      tvgId=s.tvgId||''; tvgName=s.tvgName||s.name||''; 
-      
-      start(url);
-      
-      selectedDate = new Date(); 
-      buildDateTabs(); 
+      renderSourcePanelFor(s);
+      if(sources.length>0){
+        var idx=(currentSourceIndex>=0)?currentSourceIndex:0;
+        selectSource(idx,true);
+      }
+      selectedDate=new Date();
+      buildDateTabs();
       loadEpgForStream(s);
-
-      // Switch category, re-render, expand and focus current channel at top
       selectCategoryForStream(s);
-      var k=normalizeName(s.tvgName||s.name||''); 
+      var k=normalizeName(s.tvgName||s.name||'');
       expandAndFocusChannel(k);
+    }
 
-      // Highlight source button
-      var curUrl = String(s.multicastUrl||'').trim();
-      var btns = document.querySelectorAll('.source-btn');
-      btns.forEach(function(b){
-        if(b.getAttribute('data-url') === curUrl){
-            b.classList.remove('btn-outline-light');
-            b.classList.add('btn-primary');
-        } else {
-            b.classList.remove('btn-primary');
-            b.classList.add('btn-outline-light');
-        }
+    function fetchAndRenderEpg(stream,opts){
+      var d=selectedDate||new Date();
+      d.setHours(0,0,0,0);
+      var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
+      var pd=new Date(d);
+      pd.setDate(d.getDate()-1);
+      var py=pd.getFullYear(),pm=String(pd.getMonth()+1).padStart(2,'0'),pdd=String(pd.getDate()).padStart(2,'0');
+      var s=stream||current||{};
+      var chId=s.tvgId||s.tvgName||s.name||tvgId||title||'';
+      var chName=s.tvgName||s.name||tvgName||title||'';
+      var baseParams=function(dateStr){
+        var p=new URLSearchParams();
+        p.set('scope','internal');
+        p.set('channelId',chId);
+        p.set('channelName',chName);
+        p.set('date',dateStr);
+        if(epgId||(epgSel&&epgSel.value)) p.set('epgId',(epgSel&&epgSel.value)||epgId);
+        if(opts&&opts.force) p.set('force','1');
+        p.set('t',String(Date.now()));
+        return p.toString();
+      };
+      var p1=fetch('/api/epg/programs?'+baseParams(y+'-'+m+'-'+dd)).then(function(r){return r.json()}).catch(function(){return{};});
+      var p2=fetch('/api/epg/programs?'+baseParams(py+'-'+pm+'-'+pdd)).then(function(r){return r.json()}).catch(function(){return{};});
+      Promise.all([p1,p2]).then(function(res){
+        var curr=Array.isArray(res[0].programs)?res[0].programs:[];
+        var prev=Array.isArray(res[1].programs)?res[1].programs:[];
+        var dayStart=d.getTime();
+        var dayEnd=dayStart+86400000;
+        var fromPrev=prev.filter(function(p){return p.endMs>dayStart;});
+        var fromCurr=curr.filter(function(p){return p.startMs<dayEnd;});
+        var map={};
+        fromPrev.forEach(function(p){map[p.startMs]=p;});
+        fromCurr.forEach(function(p){map[p.startMs]=p;});
+        var list=Object.values(map).sort(function(a,b){return a.startMs-b.startMs;});
+        list=list.filter(function(p){return p.startMs<dayEnd && p.endMs>dayStart;});
+        renderEpgList(list,stream);
       });
     }
 
     function loadEpgForStream(s){
       fetchAndRenderEpg(s);
     }
-    
-    function fetchAndRenderEpg(stream, opts){
-      // Reuse logic from player.html simplified for brevity or copy fully?
-      // Copying logic to maintain consistent EPG behavior
-      var d=selectedDate||new Date(); d.setHours(0,0,0,0);
-      var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
-      var pd=new Date(d); pd.setDate(d.getDate()-1);
-      var py=pd.getFullYear(), pm=String(pd.getMonth()+1).padStart(2,'0'), pdd=String(pd.getDate()).padStart(2,'0');
 
-      var s = stream || current || {};
-      var chId = s.tvgId||s.tvgName||s.name||tvgId||title||'';
-      var chName = s.tvgName||s.name||tvgName||title||'';
-      
-      var baseParams=function(dateStr){ 
-        var p=new URLSearchParams(); 
-        p.set('scope','internal'); 
-        p.set('channelId', chId); 
-        p.set('channelName', chName); 
-        p.set('date', dateStr); 
-        if(epgId||(epgSel&&epgSel.value)) p.set('epgId', (epgSel&&epgSel.value)||epgId); 
-        if(opts&&opts.force) p.set('force','1');
-        p.set('t', String(Date.now()));
-        return p.toString(); 
-      };
-
-      var p1 = fetch('/api/epg/programs?'+baseParams(y+'-'+m+'-'+dd)).then(r=>r.json()).catch(()=>({}));
-      var p2 = fetch('/api/epg/programs?'+baseParams(py+'-'+pm+'-'+pdd)).then(r=>r.json()).catch(()=>({}));
-
-      Promise.all([p1, p2]).then(function(res){
-        var curr = Array.isArray(res[0].programs)?res[0].programs:[];
-        var prev = Array.isArray(res[1].programs)?res[1].programs:[];
-        var dayStart = d.getTime();
-        var dayEnd = dayStart + 86400000;
-        
-        var fromPrev = prev.filter(function(p){ return p.endMs > dayStart });
-        var fromCurr = curr.filter(function(p){ return p.startMs < dayEnd });
-        
-        var map = {};
-        fromPrev.forEach(function(p){ map[p.startMs] = p });
-        fromCurr.forEach(function(p){ map[p.startMs] = p });
-        
-        var list = Object.values(map).sort(function(a,b){ return a.startMs - b.startMs });
-        list = list.filter(function(p){ return p.startMs < dayEnd && p.endMs > dayStart; });
-        
-        renderEpgList(list, stream);
-      });
-    }
-
-    function getScope(){ try{ return (localStorage.getItem('useExternal')==='true')?'external':'internal'; }catch(e){ return 'internal' } }
-    function doReplay(s,p){ 
-      currentReplayProgram=p; 
-      var qs=new URLSearchParams(); 
-      qs.set('scope', getScope()); 
-      // Use ku9 format as requested
-      qs.set('fmt','ku9'); 
-      qs.set('proto','http'); 
-      qs.set('name', s.name||''); 
-      qs.set('tvgName', s.tvgName||''); 
-      qs.set('resolution', s.resolution||''); 
-      qs.set('frameRate', s.frameRate||''); 
-      // IMPORTANT: use multicastUrl from stream data
-      qs.set('multicastUrl', s.multicastUrl||''); 
-      // IMPORTANT: use catchupBase from stream data
-      qs.set('catchupBase', s.catchupBase||''); 
-      qs.set('startMs', p.startMs); 
-      qs.set('endMs', p.endMs); 
-      
-      fetch('/api/catchup/play?'+qs.toString()).then(function(r){return r.json()}).then(function(x){ 
-        if(x&&x.success&&x.url){ 
-           var raw=x.url; 
-           // Replay is typically HLS m3u8
-           var isM3u8=/\.m3u8(\?|$)/i.test(raw)||raw.indexOf('m3u8')>-1; 
-           rawUrl=raw; 
-           playUrl=isM3u8?('/api/proxy/hls?url='+encodeURIComponent(raw)):('/api/proxy/stream?url='+encodeURIComponent(raw)); 
-           urlInput.value=raw; 
-           if(btnOpenRaw) btnOpenRaw.href=playUrl; 
-           liveBadge.classList.add('d-none'); 
-           replayBadge.classList.remove('d-none'); 
-           
-           // Update sub-title with program name
-           var subOverlay=document.getElementById('subEl'); 
-           if(subOverlay) subOverlay.textContent=p.title||'';
-           showInfo();
-           
-           start(playUrl);
-        } else {
-           alert('无法获取回放地址: '+(x.message||'未知错误'));
+    function doReplay(s,p){
+      currentReplayProgram=p;
+      updateProgramProgressLabel();
+      var qsObj=new URLSearchParams();
+      qsObj.set('scope',getScope());
+      qsObj.set('fmt','ku9');
+      qsObj.set('proto','http');
+      qsObj.set('name',s.name||'');
+      qsObj.set('tvgName',s.tvgName||'');
+      qsObj.set('resolution',s.resolution||'');
+      qsObj.set('frameRate',s.frameRate||'');
+      qsObj.set('multicastUrl',s.multicastUrl||'');
+      qsObj.set('catchupBase',s.catchupBase||'');
+      qsObj.set('startMs',p.startMs);
+      qsObj.set('endMs',p.endMs);
+      fetch('/api/catchup/play?'+qsObj.toString()).then(function(r){return r.json()}).then(function(x){
+        if(x&&x.success&&x.url){
+          var raw=x.url;
+          var isM3u8=/\.m3u8(\?|$)/i.test(raw)||raw.indexOf('m3u8')>-1;
+          rawUrl=raw;
+          var playUrl=isM3u8?('/api/proxy/hls?url='+encodeURIComponent(raw)):('/api/proxy/stream?url='+encodeURIComponent(raw));
+          if(subEl) subEl.textContent=p.title||'';
+          if(liveBadge) liveBadge.classList.add('d-none');
+          if(replayBadge) replayBadge.classList.remove('d-none');
+          isLive=false;
+          updateLiveBadge();
+          showInfo();
+          start(playUrl);
+        }else{
+          alert('无法获取回放地址');
         }
       }).catch(function(e){
-         alert('回放请求失败: '+e);
+        alert('回放请求失败: '+e);
       });
     }
 
-    function renderEpgList(list, s){
-      epgList.innerHTML=''; 
-      if(!Array.isArray(list) || list.length===0){ epgHint.textContent='暂无节目单'; return; } 
+    function renderEpgList(list,s){
+      if(!epgList||!epgHint) return;
+      epgList.innerHTML='';
+      if(!Array.isArray(list)||list.length===0){
+        epgHint.textContent='暂无节目单';
+        return;
+      }
       epgHint.textContent='';
       var now=Date.now();
-      var foundLive = false;
-      
+      var foundLive=false;
       list.forEach(function(p){
-        var it=document.createElement('button'); it.type='button'; it.className='list-group-item list-group-item-action bg-transparent text-white epg-item d-flex justify-content-between align-items-center';
-        var tm=new Date(p.startMs), em=new Date(p.endMs); 
+        var it=document.createElement('button');
+        it.type='button';
+        it.className='list-group-item list-group-item-action bg-transparent epg-item d-flex justify-content-between align-items-center';
+        var tm=new Date(p.startMs),em=new Date(p.endMs);
         var t=String(tm.getHours()).padStart(2,'0')+':'+String(tm.getMinutes()).padStart(2,'0')+' - '+String(em.getHours()).padStart(2,'0')+':'+String(em.getMinutes()).padStart(2,'0');
-        var left=document.createElement('div'); left.innerHTML='<div class="small muted">'+t+'</div><div>'+ (p.title||'无标题') +'</div>';
+        var left=document.createElement('div');
+        left.innerHTML='<div class="small muted">'+t+'</div><div>'+ (p.title||'无标题') +'</div>';
         var right=document.createElement('div');
-        
-        var isLive = p.startMs<=now && p.endMs>now;
-        var isPast = p.endMs<=now;
-        
-        if(isLive){ 
-          right.innerHTML='<span class="badge badge-live">LIVE</span>'; 
-          it.classList.add('active-epg'); 
-          foundLive = true;
-          var subOverlay=document.getElementById('subEl'); 
-          if(subOverlay && !replayBadge.classList.contains('d-none')===false){ subOverlay.textContent=p.title||''; }
+        var isLiveNow=p.startMs<=now && p.endMs>now;
+        var isPast=p.endMs<=now;
+        if(isLiveNow){
+          right.innerHTML='<span class="badge badge-live rounded-pill px-2 py-1">LIVE</span>';
+          it.classList.add('active-epg');
+          foundLive=true;
+          currentLiveTitle=p.title||'';
+        currentLiveProgram=p;
+          var keyForNow=null;
+          if(s){keyForNow=channelKeyFromStream(s);}
+          else if(current){keyForNow=channelKeyFromStream(current);}
+          if(keyForNow){channelNowTitleByKey[keyForNow]=p.title||'';}
+          if(subEl && replayBadge && replayBadge.classList.contains('d-none')){
+            subEl.textContent=p.title||'';
+          }
           showInfo();
-        } else if(!isPast){ 
-          right.innerHTML='<span class="badge bg-secondary">未开始</span>' 
-        } else { 
+        updateProgramProgressLabel();
+        }else if(!isPast){
+          right.innerHTML='<span class="badge bg-secondary">未开始</span>';
+        }else{
           if(currentReplayProgram && p.startMs===currentReplayProgram.startMs && p.title===currentReplayProgram.title){
-             right.innerHTML='<span class="badge badge-replay"><i class="bi bi-play-circle me-1"></i>正在回放</span>';
-             it.classList.add('active-epg');
-          } else {
-             right.innerHTML='<span class="badge bg-success">已播</span>'
+            right.innerHTML='<span class="badge badge-replay rounded-pill px-2 py-1">正在回放</span>';
+            it.classList.add('active-epg');
+          }else{
+            right.innerHTML='<span class="badge bg-success">已播</span>';
           }
         }
-        
-        it.appendChild(left); it.appendChild(right);
+        it.appendChild(left);
+        it.appendChild(right);
         it.onclick=function(){
-          if(isLive){ startLiveFor(s||current) }
-          else if(!isPast){ }
-          else {
-             // Replay click handler
-             var old=epgList.querySelectorAll('.badge-replay'); old.forEach(function(b){ b.className='badge bg-success'; b.textContent='已播' });
-             var oldAct=epgList.querySelectorAll('.active-epg'); oldAct.forEach(function(b){ b.classList.remove('active-epg') });
-             
-             // Update UI immediately
-             right.innerHTML='<span class="badge badge-replay"><i class="bi bi-play-circle me-1"></i>正在回放</span>';
-             it.classList.add('active-epg');
-             
-             doReplay(s||current, p);
+          if(isLiveNow){
+            currentReplayProgram=null;
+          currentLiveProgram=p;
+          updateProgramProgressLabel();
+            startLiveFor(s||current);
+            renderEpgList(list,s||current);
+          }else if(!isPast){
+          }else{
+            doReplay(s||current,p);
+            renderEpgList(list,s||current);
           }
         };
         epgList.appendChild(it);
       });
-      
       if(foundLive){
         setTimeout(function(){
           var act=epgList.querySelector('.active-epg');
-          if(act) act.scrollIntoView({behavior:'smooth', block:'center'});
-        }, 100);
+          if(act) act.scrollIntoView({behavior:'smooth',block:'center'});
+        },100);
       }
+    }
+
+    function buildDateTabs(){
+      if(!epgDateTabs) return;
+      epgDateTabs.innerHTML='';
+      var today=new Date();
+      today.setHours(0,0,0,0);
+      var items=[];
+      for(var i=-3;i<=3;i++){
+        var d=new Date(today);
+        d.setDate(today.getDate()+i);
+        items.push(d);
+      }
+      items.forEach(function(d){
+        var mm=String(d.getMonth()+1).padStart(2,'0');
+        var dd=String(d.getDate()).padStart(2,'0');
+        var w=['日','一','二','三','四','五','六'][d.getDay()];
+        var sd=new Date(selectedDate);
+        sd.setHours(0,0,0,0);
+        var isSel=d.getTime()===sd.getTime();
+        var btnEl=document.createElement('button');
+        btnEl.className='nav-link py-0 px-2 small text-nowrap'+(isSel?' active':'');
+        btnEl.textContent=(d.getTime()===today.getTime()?'今日':'周'+w)+' '+mm+'/'+dd;
+        btnEl.onclick=function(){
+          selectedDate=new Date(d);
+          buildDateTabs();
+          if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
+        };
+        var li=document.createElement('li');
+        li.className='nav-item';
+        li.appendChild(btnEl);
+        epgDateTabs.appendChild(li);
+        if(isSel){
+          setTimeout(function(){
+            li.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+          },100);
+        }
+      });
+    }
+
+    function buildCatTabs(){
+      if(!catTabs) return;
+      var map={};
+      streams.forEach(function(s){
+        var g=String(s.groupTitle||'').trim();
+        if(g) map[g]=true;
+      });
+      var groups=Object.keys(map).sort(function(a,b){
+        return String(a).localeCompare(String(b),'zh-CN',{numeric:true,sensitivity:'base'});
+      });
+      catTabs.innerHTML='';
+      var defs=[{t:'全部',v:'all'}];
+      var all=defs.concat(groups.map(function(g){return {t:g,v:'group:'+g};}));
+      all.forEach(function(it){
+        var li=document.createElement('li');
+        li.className='nav-item';
+        var btnEl=document.createElement('button');
+        btnEl.className='nav-link py-1'+(selectedCat===it.v?' active':'');
+        btnEl.setAttribute('data-cat',it.v);
+        btnEl.textContent=it.t;
+        btnEl.onclick=function(){
+          Array.from(catTabs.querySelectorAll('button[data-cat]')).forEach(function(x){x.classList.remove('active');});
+          this.classList.add('active');
+          selectedCat=this.getAttribute('data-cat');
+          renderChannels();
+        };
+        li.appendChild(btnEl);
+        catTabs.appendChild(li);
+      });
     }
 
     function renderChannels(){
+      if(!channelList) return;
       var q=searchInput?searchInput.value||'':'';
-      var filtered=streams.filter(function(s){ 
-        if(!matchSearch(s,q)) return false; 
-        var nm=s.tvgName||s.name||''; 
+      var filtered=streams.filter(function(s){
+        if(!matchSearch(s,q)) return false;
         if(selectedCat==='all') return true;
         if(/^group:/.test(selectedCat)) return String(s.groupTitle||'')===selectedCat.slice(6);
-        if(selectedCat==='cctv') return isCctvName(nm); 
-        if(selectedCat==='sat') return isWeiShiName(nm, s.groupTitle); 
-        return !isCctvName(nm) && !isWeiShiName(nm, s.groupTitle) 
+        return true;
       });
-      var grouped=groupByName(filtered); channelList.innerHTML='';
-      var entries=Object.keys(grouped).map(function(k){ return grouped[k] });
+      var grouped=groupByName(filtered);
+      channelList.innerHTML='';
+      var entries=Object.keys(grouped).map(function(k){return grouped[k];});
       entries.sort(function(a,b){
-        if(selectedCat==='cctv'){ var na=cctvNumberFrom(a.name), nb=cctvNumberFrom(b.name); if(na!==null && nb!==null) return na-nb; if(na!==null) return -1; if(nb!==null) return 1; }
-        return String(a.name||'').localeCompare(String(b.name||''), 'zh-CN', { numeric:true, sensitivity:'base' });
+        var ca=classifyChannelEntry(a);
+        var cb=classifyChannelEntry(b);
+        if(ca.cat!==cb.cat) return ca.cat-cb.cat;
+        if(ca.cat===0 && ca.num!==cb.num) return ca.num-cb.num;
+        var ga=String(ca.group||'');
+        var gb=String(cb.group||'');
+        var gcmp=ga.localeCompare(gb,'zh-CN',{numeric:true,sensitivity:'base'});
+        if(gcmp!==0) return gcmp;
+        return String(ca.name||'').localeCompare(String(cb.name||''),'zh-CN',{numeric:true,sensitivity:'base'});
       });
-      
-      entries.forEach(function(entry){
-        // Allow all streams that can be converted to HTTP or are HTTP
-        var sources=entry.items.filter(function(s){
-           var u = String(s.multicastUrl||'').trim();
-           return /^https?:\/\//i.test(u) || /^(rtp|udp):\/\//i.test(u);
-        }); 
-        if(sources.length===0) return;
-        
-        // Sort sources: UHD > HD > SD, then FPS desc
-        sources.sort(function(a,b){
-          var areaA=areaOf(a.resolution), areaB=areaOf(b.resolution);
+      entries.forEach(function(entry,idx){
+        var sourcesForEntry=entry.items.filter(function(s){
+          var u=String(s.multicastUrl||'').trim();
+          return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
+        });
+        if(sourcesForEntry.length===0) return;
+        sourcesForEntry.sort(function(a,b){
+          var areaA=areaOf(a.resolution),areaB=areaOf(b.resolution);
           if(areaA!==areaB) return areaB-areaA;
-          var fpsA=parseFloat(a.frameRate)||0, fpsB=parseFloat(b.frameRate)||0;
+          var fpsA=parseFloat(a.frameRate)||0,fpsB=parseFloat(b.frameRate)||0;
           return fpsB-fpsA;
         });
-        
-        var item=document.createElement('div'); var isAct=current&&normalizeName(current.tvgName||current.name||'')===entry.key; 
-        if(isAct && entry.name){
-          var cn = cctvNumberFrom(entry.name);
-          if(cn){ document.getElementById('channelNumBadge').textContent=cn; document.getElementById('channelNumBadge').classList.remove('d-none') }
-          else { document.getElementById('channelNumBadge').classList.add('d-none') }
-        }
-        item.className='list-group-item bg-transparent text-white channel-item'+(isAct?' active':''); item.setAttribute('data-key', entry.key);
-        
-        var head=document.createElement('div'); head.className='d-flex align-items-center gap-2';
-        if(entry.logo){ var im=document.createElement('img'); im.src=entry.logo; im.className='logo-img'; head.appendChild(im); }
-        var titleDiv=document.createElement('div'); titleDiv.className='flex-grow-1 text-truncate'; titleDiv.textContent=entry.name; head.appendChild(titleDiv);
-        var count=document.createElement('span'); count.className='badge bg-secondary'; count.textContent=String(sources.length)+'源'; head.appendChild(count);
-        var caret=document.createElement('i'); caret.className='bi bi-caret-down-fill'; head.appendChild(caret);
-        
-        var body=document.createElement('div'); body.className='d-flex flex-wrap gap-2 mt-2 channel-body d-none';
-        
-        sources.forEach(function(s,idx){ 
-          var isMc = isMulticastStream(s);
-          var typeLabel = isMc ? '组播' : '单播';
-          var rt=resTag(s.resolution||''); 
-          var fps=s.frameRate ? String(s.frameRate)+'fps' : '';
-          var label = typeLabel + rt + (fps ? ' '+fps : '');
-          if(!rt && !fps) label = typeLabel + ' 源' + (idx+1);
+        var item=document.createElement('div');
+        var isAct=current&&normalizeName(current.tvgName||current.name||'')===entry.key;
+        item.className='list-group-item border-0 channel-item'+(isAct?' active':'');
+        item.setAttribute('data-key',entry.key);
+        var head=document.createElement('div');
+        head.className='d-flex align-items-center gap-2';
 
-          var sb=document.createElement('button'); 
-          sb.type='button'; 
-          sb.className='btn btn-sm btn-outline-light source-btn text-center'; 
-          sb.setAttribute('data-url', String(s.multicastUrl||'').trim());
-          if(current===s){ sb.classList.remove('btn-outline-light'); sb.classList.add('btn-primary') }
-          sb.textContent=label; 
-          sb.onclick=function(){ startLiveFor(s) }; 
-          body.appendChild(sb); 
+        var idxSpan=document.createElement('div');
+        idxSpan.className='channel-index-badge';
+        idxSpan.textContent=String(idx+1);
+        head.appendChild(idxSpan);
+
+        var textWrap=document.createElement('div');
+        textWrap.className='flex-grow-1 overflow-hidden';
+
+        var groupTitle=(sourcesForEntry[0]&&sourcesForEntry[0].groupTitle)||'';
+        var hasReplay=entry.items.some(function(s){
+          var cb=String(s.catchupBase||'').trim();
+          if(cb) return true;
+          var hp=String(s.httpParam||'');
+          return /(?:^|[&?])fcc=/.test(hp);
         });
-        
+
+        var titleDiv=document.createElement('div');
+        titleDiv.className='channel-title d-flex align-items-center gap-1';
+        var titleSpan=document.createElement('span');
+        titleSpan.className='channel-title-text text-truncate';
+        titleSpan.textContent=entry.name;
+        titleDiv.appendChild(titleSpan);
+        if(hasReplay){
+          var replayIcon=document.createElement('i');
+          replayIcon.className='bi bi-clock-history channel-replay-icon';
+          replayIcon.title='支持回放';
+          titleDiv.appendChild(replayIcon);
+        }
+        textWrap.appendChild(titleDiv);
+
+        var subDiv=document.createElement('div');
+        subDiv.className='channel-sub small text-truncate';
+        var baseText=groupTitle||'';
+        if(baseText) subDiv.textContent=baseText;
+        var nowTitle=channelNowTitleByKey[entry.key]||'';
+        if(nowTitle){
+          subDiv.textContent=baseText ? (baseText+' · '+nowTitle) : nowTitle;
+        }else{
+          (function(entryRef,elRef,groupText){
+            var key=entryRef.key;
+            if(!key) return;
+            var s0=(entryRef.items && entryRef.items[0])?entryRef.items[0]:null;
+            if(!s0) return;
+            var chId=s0.tvgId||s0.tvgName||s0.name||'';
+            var chName=s0.tvgName||s0.name||'';
+            if(!chId && !chName) return;
+            var d=new Date();
+            var y=d.getFullYear();
+            var m=String(d.getMonth()+1).padStart(2,'0');
+            var dd=String(d.getDate()).padStart(2,'0');
+            var params=new URLSearchParams();
+            params.set('scope','internal');
+            params.set('channelId',chId);
+            params.set('channelName',chName);
+            params.set('date',y+'-'+m+'-'+dd);
+            if(epgId||(epgSel&&epgSel.value)) params.set('epgId',(epgSel&&epgSel.value)||epgId);
+            fetch('/api/epg/programs?'+params.toString()).then(function(r){return r.json()}).then(function(j){
+              var list=Array.isArray(j&&j.programs)?j.programs:[];
+              var now=Date.now();
+              var cur=null;
+              for(var i=0;i<list.length;i++){
+                var p=list[i];
+                if(p && p.startMs<=now && p.endMs>now){cur=p;break;}
+              }
+              if(!cur && list.length>0){
+                for(var j2=list.length-1;j2>=0;j2--){
+                  var pp=list[j2];
+                  if(pp && pp.startMs<=now){cur=pp;break;}
+                }
+                if(!cur) cur=list[0];
+              }
+              if(cur && cur.title){
+                channelNowTitleByKey[key]=cur.title;
+                if(elRef){
+                  var base=groupText||'';
+                  elRef.textContent=base ? (base+' · '+cur.title) : cur.title;
+                }
+              }
+            }).catch(function(){});
+          })(entry,subDiv,groupTitle);
+        }
+        textWrap.appendChild(subDiv);
+        head.appendChild(textWrap);
+
+        var rightWrap=document.createElement('div');
+        rightWrap.className='d-flex align-items-center gap-2 ms-auto';
+        var count=document.createElement('span');
+        count.className='badge channel-count-badge';
+        count.textContent=String(sourcesForEntry.length)+'源';
+        rightWrap.appendChild(count);
+        if(entry.logo){
+          var im=document.createElement('img');
+          im.src=entry.logo;
+          im.className='logo-img channel-logo-right';
+          rightWrap.appendChild(im);
+        }
+        head.appendChild(rightWrap);
+
         head.onclick=function(){
-          var isHidden = body.classList.contains('d-none');
-          var allBodies=channelList.querySelectorAll('.channel-body');
-          allBodies.forEach(function(b){ b.classList.add('d-none'); b.classList.remove('d-flex'); });
-          var allCarets=channelList.querySelectorAll('.bi-caret-up-fill');
-          allCarets.forEach(function(c){ c.classList.replace('bi-caret-up-fill','bi-caret-down-fill') });
-          if(isHidden){
-             body.classList.remove('d-none');
-             body.classList.add('d-flex');
-             caret.classList.replace('bi-caret-down-fill','bi-caret-up-fill');
-          }
+          var best=sourcesForEntry && sourcesForEntry.length>0 ? sourcesForEntry[0] : null;
+          if(best) startLiveFor(best);
         };
-        item.appendChild(head); item.appendChild(body); channelList.appendChild(item);
+        item.appendChild(head);
+        channelList.appendChild(item);
       });
     }
 
-    function loadStreams(){ 
+    function loadStreams(){
       function defaultStart(list){
-        if(current || rawUrl) return;
-        var cands=list.filter(function(s){ 
-           var u = String(s.multicastUrl||'').trim();
-           return /^https?:\/\//i.test(u) || /^(rtp|udp):\/\//i.test(u);
+        if(current||rawUrl) return;
+        var cands=list.filter(function(s){
+          var u=String(s.multicastUrl||'').trim();
+          return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
         });
-        
-        // Find all CCTV1
-        var cctv1List = cands.filter(function(x){ 
-            var n=String(x.tvgName||x.name||''); 
-            return /^CCTV\s*1(\b|[^0-9])/i.test(n) || /^CCTV1\b/i.test(n) 
+        var cctv1List=cands.filter(function(x){
+          var n=String(x.tvgName||x.name||'');
+          return /^CCTV\s*1(\b|[^0-9])/i.test(n)||/^CCTV1\b/i.test(n);
         });
-
-        var best = null;
-        if(cctv1List.length > 0){
-             // Sort: Multicast First -> Resolution High -> FrameRate High
-             cctv1List.sort(function(a,b){
-                 // Multicast priority
-                 var isMcA = isMulticastStream(a) ? 1 : 0;
-                 var isMcB = isMulticastStream(b) ? 1 : 0;
-                 if(isMcA !== isMcB) return isMcB - isMcA; // Mc first
-                 
-                 // Resolution priority
-                 var rA = areaOf(a.resolution), rB = areaOf(b.resolution);
-                 if(rA !== rB) return rB - rA;
-                 
-                 // FPS priority
-                 var fpsA = parseFloat(a.frameRate)||0, fpsB = parseFloat(b.frameRate)||0;
-                 return fpsB - fpsA;
-             });
-             best = cctv1List[0];
-        } else if(cands.length > 0){
-             best = cands[0];
+        var best=null;
+        if(cctv1List.length>0){
+          cctv1List.sort(function(a,b){
+            var isMcA=isMulticastStream(a)?1:0;
+            var isMcB=isMulticastStream(b)?1:0;
+            if(isMcA!==isMcB) return isMcB-isMcA;
+            var rA=areaOf(a.resolution),rB=areaOf(b.resolution);
+            if(rA!==rB) return rB-rA;
+            var fpsA=parseFloat(a.frameRate)||0,fpsB=parseFloat(b.frameRate)||0;
+            return fpsB-fpsA;
+          });
+          best=cctv1List[0];
+        }else if(cands.length>0){
+          best=cands[0];
         }
-        
         if(best) startLiveFor(best);
       }
-      fetch('/api/streams').then(function(r){return r.json()}).then(function(j){ 
-        var list=Array.isArray(j&&j.streams)?j.streams:[]; 
-        streams=list; buildCatTabs(); renderChannels(); 
-        var pre=tvgName||title; 
-        if(pre){ var p=list.filter(function(x){ return (x.tvgName||x.name||'')===pre }); if(p.length>0) startLiveFor(p[0]); else defaultStart(list); } 
-        else { defaultStart(list) } 
-      }).catch(function(){});
-    }
-    
-    // EPG Sources
-    function loadEpgSources(){
-      if(!epgSel) return;
-      epgSel.innerHTML = '<option value="">自动</option>';
-      fetch('/api/config/epg-sources').then(function(r){return r.json()}).then(function(j){
-        if(j && j.success && Array.isArray(j.sources)){
-          epgSources = j.sources;
-          j.sources.forEach(function(s){ var opt=document.createElement('option'); opt.value=s.id; opt.textContent=s.name+(s.scope?('('+s.scope+')'):''); epgSel.appendChild(opt) });
-          if(epgId) epgSel.value = epgId;
+      fetch('/api/streams').then(function(r){return r.json()}).then(function(j){
+        var list=Array.isArray(j&&j.streams)?j.streams:[];
+        streams=list;
+        buildCatTabs();
+        renderChannels();
+        var pre=tvgName||title;
+        if(pre){
+          var p=list.filter(function(x){return (x.tvgName||x.name||'')===pre;});
+          if(p.length>0) startLiveFor(p[0]); else defaultStart(list);
+        }else{
+          defaultStart(list);
         }
       }).catch(function(){});
     }
-    if(epgSel){ epgSel.onchange=function(){ if(current) loadEpgForStream(current); else loadEpgForQueryDay(); } }
-    if(epgRefresh){ epgRefresh.onclick=function(){ if(current) fetchAndRenderEpg(current,{force:true}); else fetchAndRenderEpg(null,{force:true}); } }
-    
-    if(searchInput){ searchInput.oninput=renderChannels }
-    
-    loadEpgSources();
-    loadStreams();
+
+    function loadEpgSources(){
+      if(!epgSel) return;
+      epgSel.innerHTML='<option value="">自动</option>';
+      fetch('/api/config/epg-sources').then(function(r){return r.json()}).then(function(j){
+        if(j && j.success && Array.isArray(j.sources)){
+          epgSources=j.sources;
+          j.sources.forEach(function(s){
+            var opt=document.createElement('option');
+            opt.value=s.id;
+            opt.textContent=s.name+(s.scope?('('+s.scope+')'):'');
+            epgSel.appendChild(opt);
+          });
+          if(epgId) epgSel.value=epgId;
+        }
+      }).catch(function(){});
+    }
+
+    if(epgSel){
+      epgSel.onchange=function(){
+        if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
+      };
+    }
+    if(epgRefresh){
+      epgRefresh.onclick=function(){
+        if(current) fetchAndRenderEpg(current,{force:true}); else fetchAndRenderEpg(null,{force:true});
+      };
+    }
+    if(searchInput){
+      searchInput.oninput=renderChannels;
+    }
+
+    mountQier();
+    if(uiCompact){
+      if(rawUrl){
+        var playUrlInit=resolve(rawUrl);
+        start(playUrlInit);
+      }
+    }else{
+      buildDateTabs();
+      loadEpgSources();
+      loadStreams();
+    }
   </script>
 </body>
 </html>
+

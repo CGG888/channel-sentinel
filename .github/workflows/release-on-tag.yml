@@ -3,6 +3,8 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -15,8 +17,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
-      ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Resolve tag name
@@ -70,53 +72,61 @@ jobs:
           target_commitish: ${{ github.sha }}
           body_path: ${{ steps.notes.outputs.path }}
           generate_release_notes: false
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract image tags
-        id: meta
-        run: |
-          TAG="${{ steps.vars.outputs.tag }}"
-          OWNER="${{ github.repository_owner }}"
-          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
-          STRIP=${TAG#v}
-          REPO=${OWNER_LC}/iptv-checker
-          echo "tags=ghcr.io/$REPO:$TAG,ghcr.io/$REPO:$STRIP" >> $GITHUB_OUTPUT
-      - name: Build and push to GHCR
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Login to Aliyun Registry
-        if: ${{ env.ACR_USERNAME != '' && env.ACR_PASSWORD != '' }}
+      - name: Login to Docker Hub
+        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         uses: docker/login-action@v3
         with:
-          registry: registry.cn-hongkong.aliyuncs.com
-          username: ${{ env.ACR_USERNAME }}
-          password: ${{ env.ACR_PASSWORD }}
-      - name: Push tags to Aliyun
-        if: ${{ env.ACR_USERNAME != '' && env.ACR_PASSWORD != '' }}
+          registry: docker.io
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+      - name: Push tags to Docker Hub
+        if: ${{ github.event_name == 'release' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
-          OWNER="${{ github.repository_owner }}"
-          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
           STRIP=${TAG#v}
+          OWNER="${{ env.DOCKERHUB_USERNAME }}"
+          if [ -z "$OWNER" ]; then
+            OWNER="${{ github.repository_owner }}"
+          fi
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
           IMAGE=iptv-checker
           SRC1=ghcr.io/$OWNER_LC/$IMAGE:$TAG
           SRC2=ghcr.io/$OWNER_LC/$IMAGE:$STRIP
-          DST1=registry.cn-hongkong.aliyuncs.com/$OWNER_LC/$IMAGE:$TAG
-          DST2=registry.cn-hongkong.aliyuncs.com/$OWNER_LC/$IMAGE:$STRIP
-          docker pull $SRC1
-          docker tag $SRC1 $DST1
-          docker push $DST1
-          docker pull $SRC2
-          docker tag $SRC2 $DST2
-          docker push $DST2
+          DST1=$OWNER_LC/$IMAGE:$TAG
+          DST2=$OWNER_LC/$IMAGE:$STRIP
+
+          echo "Syncing $SRC1 -> $DST1"
+          n=0
+          until [ $n -ge 10 ]
+          do
+            if docker pull "$SRC1"; then
+              break
+            fi
+            n=$((n+1))
+            echo "Retry $n for $SRC1..."
+            sleep 15
+          done
+
+          docker tag "$SRC1" "$DST1"
+          docker push "$DST1"
+
+          echo "Syncing $SRC2 -> $DST2"
+          n=0
+          until [ $n -ge 10 ]
+          do
+            if docker pull "$SRC2"; then
+              break
+            fi
+            n=$((n+1))
+            echo "Retry $n for $SRC2..."
+            sleep 15
+          done
+
+          docker tag "$SRC2" "$DST2"
+          docker push "$DST2"
