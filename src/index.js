@@ -1844,11 +1844,29 @@ app.get('/api/proxy/stream', async (req, res) => {
             return res.status(400).send('invalid url');
         }
         const hdrs = {};
-        ['range','referer','user-agent','origin','accept','accept-encoding','accept-language','cookie'].forEach(h => {
+        // 仅转发对流媒体有意义且兼容性最好的请求头，避免上游对 Referer/Origin/Cookie 的拦截
+        ['range','user-agent','accept','accept-language'].forEach(h => {
             const v = req.headers[h];
             if (v) hdrs[h] = v;
         });
-        const resp = await axios.get(url, { responseType: 'stream', headers: hdrs, validateStatus: () => true });
+        const extra = String(process.env.PROXY_PASS_HEADERS || '').trim();
+        if (extra) {
+            extra.split(',').map(x => x.trim().toLowerCase()).filter(Boolean).forEach(h => {
+                const v = req.headers[h];
+                if (v && !hdrs[h]) hdrs[h] = v;
+            });
+        }
+        if (process.env.PROXY_UA && !hdrs['user-agent']) hdrs['user-agent'] = process.env.PROXY_UA;
+        hdrs['Connection'] = 'close';
+        const resp = await axios.get(url, {
+            responseType: 'stream',
+            headers: hdrs,
+            maxRedirects: 5,
+            validateStatus: () => true
+        });
+        if (resp.status >= 400) {
+            try { console.warn('proxy_stream_upstream_status', resp.status, url); } catch(e){}
+        }
         res.status(resp.status);
         const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']);
         if (ct) res.set('Content-Type', ct);
@@ -1892,11 +1910,29 @@ app.get('/api/proxy/hls', async (req, res) => {
         const url = String(req.query.url || '').trim();
         if (!/^https?:\/\//i.test(url)) return res.status(400).send('invalid url');
         const hdrs = {};
-        ['referer','user-agent','origin','accept','accept-language','cookie'].forEach(h => {
+        // 保持最小头部集合，减少上游基于来源校验导致的失败
+        ['user-agent','accept','accept-language'].forEach(h => {
             const v = req.headers[h];
             if (v) hdrs[h] = v;
         });
-        const resp = await axios.get(url, { responseType: 'arraybuffer', headers: hdrs, validateStatus: () => true });
+        const extra = String(process.env.PROXY_PASS_HEADERS || '').trim();
+        if (extra) {
+            extra.split(',').map(x => x.trim().toLowerCase()).filter(Boolean).forEach(h => {
+                const v = req.headers[h];
+                if (v && !hdrs[h]) hdrs[h] = v;
+            });
+        }
+        if (process.env.PROXY_UA && !hdrs['user-agent']) hdrs['user-agent'] = process.env.PROXY_UA;
+        hdrs['Connection'] = 'close';
+        const resp = await axios.get(url, {
+            responseType: 'arraybuffer',
+            headers: hdrs,
+            maxRedirects: 5,
+            validateStatus: () => true
+        });
+        if (resp.status < 200 || resp.status >= 300) {
+            try { console.warn('proxy_hls_upstream_status', resp.status, url); } catch(e){}
+        }
         if (resp.status < 200 || resp.status >= 300) {
             res.status(resp.status).send(String(resp.data || ''));
             return;
