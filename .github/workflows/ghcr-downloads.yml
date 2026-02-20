@@ -29,6 +29,8 @@ jobs:
           REPO: Iptv-Checker
           PKG: iptv-checker
         run: |
+          set +e
+          set +o pipefail
           base="https://github.com/${OWNER}/${REPO}/pkgs/container/${PKG}/versions"
           total=0
           page=1
@@ -38,10 +40,10 @@ jobs:
             if [ -z "$html" ]; then
               break
             fi
-            cpage=$(echo "$html" | grep -Eo '[0-9]+[[:space:]]+Version downloads' | awk '{sum+=$1} END{print sum+0}')
+            cpage=$(echo "$html" | (grep -Eo '[0-9]+[[:space:]]+Version downloads' || true) | awk '{sum+=$1} END{print sum+0}')
             if [ "$cpage" = "" ]; then cpage=0; fi
             total=$(( total + cpage ))
-            next=$(echo "$html" | grep -Eo 'rel="next"')
+            next=$(echo "$html" | (grep -Eo 'rel="next"' || true))
             if [ -z "$next" ]; then
               # 如果没有下一页但本页包含下载数，则结束；若整页没有关键词也结束
               break
