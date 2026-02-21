@@ -1,7 +1,8 @@
 {
   "name": "iptv-checker",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "IPTV stream checker web application",
+  "license": "MIT",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -9,12 +10,14 @@
     "build:qier": "esbuild frontend/qier-player-entry.js --bundle --loader:.css=css --format=iife --global-name=IptvQierPlayer --minify --outfile=public/js/iptv-qier-player.bundle.js"
   },
   "dependencies": {
-    "axios": "^1.6.2",
+    "axios": "^1.13.5",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "dns-packet": "^5.6.1",
     "express": "^4.18.2",
     "fast-xml-parser": "^4.4.1",
+    "ip": "^2.0.1",
     "svg-captcha": "^1.4.0"
   },
   "devDependencies": {

@@ -93,8 +93,9 @@ function requireAuth(req, res, next) {
     }
     
     // 页面请求重定向到登录页
-    if (req.path === '/' || req.path === '/index.html' || req.path === '/results' || req.path === '/results.html') {
-        return res.redirect('/login.html');
+    if (req.path === '/' || req.path === '/index.html' || req.path === '/results' || req.path === '/results.html' || req.path === '/player.html') {
+        const back = encodeURIComponent(req.originalUrl || req.path || '/');
+        return res.redirect('/login.html?redirect=' + back);
     }
     
     next();
@@ -207,8 +208,9 @@ app.post('/api/auth/update', (req, res) => {
 // 由于 express.static 会直接返回文件，所以必须放在 static 之前
 // 但放在 static 之前会拦截 login.html css js 等资源
 // 方案：只拦截特定路径
-app.use(['/', '/index.html', '/results', '/results.html', '/api/*'], requireAuth);
+app.use(['/', '/index.html', '/results', '/results.html', '/player.html', '/api/*'], requireAuth);
 app.use('/vendor', express.static(path.join(__dirname, '../public/vendor')));
+app.use('/docs', express.static(path.join(__dirname, '../docs')));
 app.use(express.static('public'));
 
 // 存储组播地址列表
@@ -1314,6 +1316,217 @@ app.get('/api/config/logo-templates', (req, res) => {
     const listStr = listObj.map(x => x.url);
     res.json({ success: true, templates: listStr, current: currUrl, templatesObj: listObj, currentId: currId });
 });
+app.get('/api/logo', async (req, res) => {
+    try {
+        const nmRaw = String(req.query.name || '').trim();
+        const scope = String(req.query.scope || 'internal').toLowerCase();
+        if (!nmRaw) return res.status(400).send('missing name');
+        const cfg = readJson(CFG_LOGO, { templates: [{ id: 'ltpl-default', name: '默认模板', url: settings.logoTemplate, category: '内网台标' }], currentId: 'ltpl-default' });
+        const listRaw = Array.isArray(cfg.templates) ? cfg.templates : [];
+        const listObj = listRaw.map(t => {
+            if (typeof t === 'string') return { id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '未命名模板', url: t, category: '内网台标' };
+            return { id: t.id || ('ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36)), name: t.name || '未命名模板', url: t.url || '', category: typeof t.category === 'string' ? (t.category === '内网' ? '内网台标' : (t.category === '外网' ? '外网台标' : t.category)) : '内网台标' };
+        }).filter(x => x.url);
+        let tpl = '';
+        if (scope === 'external') {
+            const ext = listObj.find(x => x.category === '外网台标');
+            tpl = ext ? ext.url : '';
+        } else {
+            const int = listObj.find(x => x.category === '内网台标');
+            tpl = int ? int.url : '';
+        }
+        if (!tpl) {
+            const currId = typeof cfg.currentId === 'string' ? cfg.currentId : '';
+            const currItem = listObj.find(x => x.id === currId) || listObj[0] || null;
+            tpl = currItem ? currItem.url : settings.logoTemplate;
+        }
+        const nm = encodeURIComponent(nmRaw);
+        const target = tpl.replace('{name}', nm);
+        const resp = await axios.get(target, { responseType: 'arraybuffer', validateStatus: () => true, headers: { 'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0' } });
+        if (resp.status < 200 || resp.status >= 300) {
+            return res.status(404).send('not found');
+        }
+        const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
+        res.set('Content-Type', ct);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(resp.data));
+    } catch(e) {
+        res.status(404).send('not found');
+    }
+});
+app.get('/api/export/tvbox', (req, res) => {
+    const scope = String(req.query.scope || 'internal').toLowerCase();
+    const status = String(req.query.status || 'all').toLowerCase();
+    const fmt = String(req.query.catchupFmt || 'playseek').toLowerCase();
+    const udpxyCfg = readJson(CFG_UDPXY, { servers: [], currentId: '' });
+    const udpxyServers = Array.isArray(udpxyCfg.servers) ? udpxyCfg.servers : [];
+    const udpxyCurr = udpxyServers.find(x => x.id === udpxyCfg.currentId) || null;
+    const udpxyCurrUrl = udpxyCurr ? (udpxyCurr.url || '') : '';
+    const filtered = sortStreamsForExport(filterByStatus(multicastList, status));
+    const isMc = (s) => {
+        const u = String(s.multicastUrl || '').trim();
+        const scheme = u.split(':')[0].toLowerCase();
+        return !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp' || u.indexOf('/rtp/') > -1;
+    };
+    const buildLiveUrl = (s) => {
+        const u = String(s.multicastUrl || '').trim();
+        const hp = filterHttpParam(s.httpParam || '');
+        if (scope === 'external') {
+            const scheme = u.split(':')[0].toLowerCase();
+            const multi = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
+            if (multi) {
+                const extBase = getProxyByType('组播代理');
+                if (!(extBase && extBase.url)) return '';
+                let b = extBase.url;
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                let url = b + '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+                if (hp) url = url + (url.indexOf('?') === -1 ? '?' : '&') + hp;
+                return url;
+            } else {
+                const proxyBase = getProxyByType('单播代理');
+                if (!(proxyBase && proxyBase.url)) return '';
+                let b = proxyBase.url;
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                return b + '/' + stripScheme(stripQuery(u));
+            }
+        } else {
+            if (/^https?:\/\//i.test(u)) return stripQuery(u);
+            if ((/^rtp:\/\//i.test(u) || /^udp:\/\//i.test(u)) && (s.udpxyUrl || udpxyCurrUrl)) {
+                let base = String(s.udpxyUrl || udpxyCurrUrl || '').trim().replace(/\/+$/, '');
+                if (base && !/^https?:\/\//i.test(base)) base = 'http://' + base.replace(/^\/+/, '');
+                let url = base + '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+                if (hp) url = url + (url.indexOf('?') === -1 ? '?' : '&') + hp;
+                return url;
+            }
+            return u;
+        }
+    };
+    const buildCatchupBase = (s) => {
+        const cb = String(s.catchupBase || '').trim();
+        if (scope === 'external') {
+            if (cb) {
+                const proxyBase = getProxyByType('单播代理');
+                let b = proxyBase && proxyBase.url ? proxyBase.url : '';
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                if (b) return b.replace(/\/+$/,'') + '/' + stripScheme(stripQuery(cb));
+            }
+            const u = String(s.multicastUrl || '').trim();
+            if (/^https?:\/\//i.test(u)) {
+                const proxyBase = getProxyByType('单播代理');
+                let b = proxyBase && proxyBase.url ? proxyBase.url : '';
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                if (b) return b.replace(/\/+$/,'') + '/' + stripScheme(stripQuery(u));
+            }
+            return '';
+        } else {
+            if (cb) return stripQuery(cb);
+            const u = String(s.multicastUrl || '').trim();
+            if (/^https?:\/\//i.test(u)) return stripQuery(u);
+            return '';
+        }
+    };
+    const groupsMap = {};
+    filtered.forEach(s => {
+        const g = String(s.groupTitle || '').trim() || '未分类';
+        if (!groupsMap[g]) groupsMap[g] = [];
+        const name = s.tvgName || s.name || '';
+        const logo = '/api/logo?name=' + encodeURIComponent(name) + '&scope=' + scope;
+        let live = buildLiveUrl(s);
+        if (live.indexOf('$') !== -1) live = live.split('$')[0];
+        const cu = buildCatchupBase(s);
+        const ch = {
+            name: name,
+            logo: logo,
+            urls: live ? [live] : []
+        };
+        if (cu) ch.catchup = { base: cu, fmt: fmt };
+        groupsMap[g].push(ch);
+    });
+    const lives = Object.keys(groupsMap).map(k => ({ group: k, channels: groupsMap[k] }));
+    res.json({ success: true, lives });
+});
+app.get('/api/export/xtream', (req, res) => {
+    const scope = String(req.query.scope || 'internal').toLowerCase();
+    const status = String(req.query.status || 'all').toLowerCase();
+    const fmt = String(req.query.catchupFmt || 'ku9').toLowerCase();
+    const filtered = sortStreamsForExport(filterByStatus(multicastList, status));
+    const buildLive = (s) => {
+        const u = String(s.multicastUrl || '').trim();
+        if (scope === 'external') {
+            const scheme = u.split(':')[0].toLowerCase();
+            const multi = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
+            if (multi) {
+                const extBase = getProxyByType('组播代理');
+                if (!(extBase && extBase.url)) return '';
+                let b = extBase.url;
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                let url = b + '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+                const hp = filterHttpParam(s.httpParam || '');
+                if (hp) url = url + (url.indexOf('?') === -1 ? '?' : '&') + hp;
+                return url.indexOf('$') !== -1 ? url.split('$')[0] : url;
+            } else {
+                const proxyBase = getProxyByType('单播代理');
+                if (!(proxyBase && proxyBase.url)) return '';
+                let b = proxyBase.url;
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                let url = b + '/' + stripScheme(stripQuery(u));
+                return url.indexOf('$') !== -1 ? url.split('$')[0] : url;
+            }
+        } else {
+            if (/^https?:\/\//i.test(u)) return stripQuery(u);
+            const hp = filterHttpParam(s.httpParam || '');
+            if ((/^rtp:\/\//i.test(u) || /^udp:\/\//i.test(u)) && s.udpxyUrl) {
+                let base = String(s.udpxyUrl || '').trim().replace(/\/+$/, '');
+                if (base && !/^https?:\/\//i.test(base)) base = 'http://' + base.replace(/^\/+/, '');
+                let url = base + '/rtp/' + u.replace(/^rtp:\/\//i, '').replace(/^udp:\/\//i, '');
+                if (hp) url = url + (url.indexOf('?') === -1 ? '?' : '&') + hp;
+                return url;
+            }
+            return u;
+        }
+    };
+    const buildCatchupBase = (s) => {
+        const cb = String(s.catchupBase || '').trim();
+        if (scope === 'external') {
+            if (cb) {
+                const proxyBase = getProxyByType('单播代理');
+                let b = proxyBase && proxyBase.url ? proxyBase.url : '';
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                if (b) return b.replace(/\/+$/,'') + '/' + stripScheme(stripQuery(cb));
+            }
+            const u = String(s.multicastUrl || '').trim();
+            if (/^https?:\/\//i.test(u)) {
+                const proxyBase = getProxyByType('单播代理');
+                let b = proxyBase && proxyBase.url ? proxyBase.url : '';
+                if (b && !/^https?:\/\//i.test(b)) b = 'http://' + b.replace(/^\/+/, '');
+                if (b) return b.replace(/\/+$/,'') + '/' + stripScheme(stripQuery(u));
+            }
+            return '';
+        } else {
+            if (cb) return stripQuery(cb);
+            const u = String(s.multicastUrl || '').trim();
+            if (/^https?:\/\//i.test(u)) return stripQuery(u);
+            return '';
+        }
+    };
+    const live_streams = filtered.map((s, idx) => {
+        const name = s.tvgName || s.name || '';
+        const logo = '/api/logo?name=' + encodeURIComponent(name) + '&scope=' + scope;
+        const live = buildLive(s);
+        const cu = buildCatchupBase(s);
+        const o = {
+            name,
+            stream_id: idx + 1,
+            stream_icon: logo,
+            category_name: s.groupTitle || '',
+            stream_type: /^https?:\/\//i.test(String(s.multicastUrl || '')) ? 'http' : 'rtp',
+            stream_url: live || ''
+        };
+        if (cu) o.catchup = { base: cu, fmt: fmt };
+        return o;
+    });
+    res.json({ success: true, live_streams });
+});
 app.post('/api/config/logo-templates', (req, res) => {
     const { templates, current, templatesObj, currentId } = req.body || {};
     let listObj = Array.isArray(templatesObj) ? templatesObj.map(t => ({
@@ -1776,63 +1989,134 @@ app.get('/api/catchup/play', (req, res) => {
     const u = multicastUrl;
     const scheme = u ? u.split(':')[0].toLowerCase() : '';
     const isMulti = !!u && (scheme === 'rtp' || scheme === 'udp');
-    if (u && !isMulti && isHttpUrl(u)) {
-        unicastBase = buildUnicastCatchupBase(scope, u, proto);
-    } else {
-        const nm = tvgName || name || '';
-        const match = findUnicastMatchByMeta(nm, resolution, frameRate);
-        if (match && isHttpUrl(match.multicastUrl)) {
-            unicastBase = buildUnicastCatchupBase(scope, match.multicastUrl || '', proto);
+    const containsRtpPath = (s) => {
+        try {
+            const uo = new URL(s);
+            return /\/rtp\//i.test(uo.pathname);
+        } catch(e) {
+            return /\/rtp\//i.test(String(s || ''));
         }
-    }
-    if (!unicastBase && catchupBase && fmt === 'default') {
-        let cb = catchupBase;
+    };
+    if (catchupBase) {
+        let cb = String(catchupBase || '').trim();
+        // 去除 $ 后缀（清晰度/帧率标记）
+        if (cb.indexOf('$') !== -1) cb = cb.split('$')[0];
         if (scope === 'external') {
             const proxyBase = getProxyByType('单播代理');
-            let pb = proxyBase && proxyBase.url ? proxyBase.url : '';
+            let pb = proxyBase && proxyBase.url ? String(proxyBase.url).trim() : '';
             if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
-            if (pb) cb = pb + cb;
+            if (!pb) {
+                return res.json({ success: false, message: 'no proxy base for external catchup' });
+            }
+            // 规范化代理基址：去尾部斜杠
+            pb = pb.replace(/\/+$/, '');
+            // 规则：单播代理 + 回放源基础URL（保留 host:port 作为路径一部分）
+            if (/^https?:\/\//i.test(cb)) {
+                // 与导出外网单播保持一致：pb + '/' + stripScheme(cb)
+                unicastBase = pb + '/' + stripScheme(cb);
+            } else {
+                // 相对形式：尽量保留 '/rtp/' 路径或上游 host:port 前缀
+                let path = cb;
+                const rtpIdx = path.indexOf('/rtp/');
+                if (rtpIdx > -1) {
+                    path = path.slice(rtpIdx);
+                } else {
+                    path = path.startsWith('/') ? path : '/' + path;
+                }
+                unicastBase = pb + path;
+            }
+            if (containsRtpPath(unicastBase)) {
+                const nm2 = tvgName || name || '';
+                const match2 = findUnicastMatchByMeta(nm2, resolution, frameRate);
+                if (match2 && isHttpUrl(match2.multicastUrl) && !containsRtpPath(match2.multicastUrl)) {
+                    let alt = String(match2.multicastUrl || '').trim();
+                    if (alt.indexOf('$') !== -1) alt = alt.split('$')[0];
+                    alt = stripQuery(alt);
+                    unicastBase = pb + '/' + stripScheme(alt);
+                } else {
+                    return res.json({ success: false, message: 'no valid unicast http base for external catchup' });
+                }
+            }
+        } else {
+            unicastBase = cb;
         }
-        unicastBase = cb;
+    } else {
+        if (scope === 'external') {
+            const proxyBase = getProxyByType('单播代理');
+            let pb = proxyBase && proxyBase.url ? String(proxyBase.url).trim() : '';
+            if (pb && !/^https?:\/\//i.test(pb)) pb = 'http://' + pb.replace(/^\/+/, '');
+            if (!pb) return res.json({ success: false, message: 'no proxy base for external catchup' });
+            pb = pb.replace(/\/+$/, '');
+            let chosen = '';
+            if (u && !isMulti && isHttpUrl(u)) {
+                let c = stripQuery(u);
+                if (c.indexOf('/rtp/') === -1) chosen = c;
+            }
+            if (!chosen) {
+                const nm = tvgName || name || '';
+                const match = findUnicastMatchByMeta(nm, resolution, frameRate);
+                if (match && isHttpUrl(match.multicastUrl)) {
+                    let c2 = stripQuery(match.multicastUrl || '');
+                    if (c2.indexOf('/rtp/') === -1) chosen = c2;
+                }
+            }
+            if (!chosen) return res.json({ success: false, message: 'no valid unicast http base for external catchup' });
+            unicastBase = pb + '/' + stripScheme(chosen);
+        } else {
+            if (u && !isMulti && isHttpUrl(u)) {
+                unicastBase = buildUnicastCatchupBase(scope, u, proto);
+            } else {
+                const nm = tvgName || name || '';
+                const match = findUnicastMatchByMeta(nm, resolution, frameRate);
+                if (match && isHttpUrl(match.multicastUrl)) {
+                    unicastBase = buildUnicastCatchupBase(scope, match.multicastUrl || '', proto);
+                }
+            }
+        }
     }
+    if (scope === 'external' && containsRtpPath(unicastBase)) {
+        return res.json({ success: false, message: 'unicast base contains multicast path' });
+    }
+    if (unicastBase && unicastBase.indexOf('$') !== -1) unicastBase = unicastBase.split('$')[0];
     if (!unicastBase) return res.json({ success: false, message: 'no unicast base' });
     let url = unicastBase;
+    const delim = url.indexOf('?') === -1 ? '?' : '&';
     if (fmt === 'ku9') {
         const b = formatUtc(startMs, 'yyyyMMddHHmmss');
         const e = formatUtc(endMs, 'yyyyMMddHHmmss');
-        url += `?starttime=${b.slice(0,8)}T${b.slice(8)}&endtime=${e.slice(0,8)}T${e.slice(8)}`;
+        url += `${delim}starttime=${b.slice(0,8)}T${b.slice(8)}&endtime=${e.slice(0,8)}T${e.slice(8)}`;
     } else if (fmt === 'mytv') {
         const b = formatUtc(startMs, 'yyyyMMddHHmmss');
         const e = formatUtc(endMs, 'yyyyMMddHHmmss');
-        url += `?starttime=${b}&endtime=${e}`;
+        url += `${delim}starttime=${b}&endtime=${e}`;
     } else if (fmt === 'playseek') {
         const b = formatUtc(startMs, 'yyyyMMddHHmmss');
         const e = formatUtc(endMs, 'yyyyMMddHHmmss');
-        url += `?playseek=${b}-${e}`;
+        url += `${delim}playseek=${b}-${e}`;
     } else if (fmt === 'startend14') {
         const b = formatUtc(startMs, 'yyyyMMddHHmmss');
         const e = formatUtc(endMs, 'yyyyMMddHHmmss');
-        url += `?starttime=${b}&endtime=${e}`;
+        url += `${delim}starttime=${b}&endtime=${e}`;
     } else if (fmt === 'beginend14') {
         const b = formatUtc(startMs, 'yyyyMMddHHmmss');
         const e = formatUtc(endMs, 'yyyyMMddHHmmss');
-        url += `?begin=${b}&end=${e}`;
+        url += `${delim}begin=${b}&end=${e}`;
     } else if (fmt === 'iso8601') {
         const b = formatUtc(startMs, 'yyyy-MM-ddTHH:mm:ssZ');
         const e = formatUtc(endMs, 'yyyy-MM-ddTHH:mm:ssZ');
-        url += `?start=${encodeURIComponent(b)}&end=${encodeURIComponent(e)}`;
+        url += `${delim}start=${encodeURIComponent(b)}&end=${encodeURIComponent(e)}`;
     } else if (fmt === 'npt' || fmt === 'rtsp_range') {
         const b = formatUtc(startMs, 'HH:mm:ss');
         const e = formatUtc(endMs, 'HH:mm:ss');
-        url += `?npt=${b}-${e}`;
+        url += `${delim}npt=${b}-${e}`;
     } else if (fmt === 'unix_s') {
         const b = formatUtc(startMs, 'unix_s');
         const e = formatUtc(endMs, 'unix_s');
-        url += `?start=${b}&end=${e}`;
+        url += `${delim}start=${b}&end=${e}`;
     } else if (fmt === 'unix_ms') {
         const b = formatUtc(startMs, 'unix_ms');
         const e = formatUtc(endMs, 'unix_ms');
-        url += `?start=${b}&end=${e}`;
+        url += `${delim}start=${b}&end=${e}`;
     }
     res.json({ success: true, url });
 });
@@ -1975,30 +2259,101 @@ app.get('/api/system/info', (req, res) => {
 });
 
 // 系统更新接口
-app.post('/api/system/update', (req, res) => {
+app.post('/api/system/update', async (req, res) => {
     logger.info('收到系统更新请求');
-    // 简单判断是否在Docker容器中
     const isDocker = fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv');
-    // 检查是否挂载了 .git 目录（开发模式）
-    const hasGit = fs.existsSync(path.join(__dirname, '../.git'));
-    
+    const cwd = path.join(__dirname, '../');
+    const hasGit = fs.existsSync(path.join(cwd, '.git'));
     if (isDocker && !hasGit) {
         logger.warn('Docker环境无.git挂载，无法自动更新');
         return res.json({ success: false, message: 'Docker 环境请手动拉取新镜像更新：docker-compose pull && docker-compose up -d' });
     }
-
-    // 本地源码更新：执行 git pull
-    // 注意：需要系统安装了 git，且当前目录是 git 仓库
-    exec('git pull', { cwd: path.join(__dirname, '../') }, (error, stdout, stderr) => {
-        if (error) {
-            logger.error(`更新失败: ${error}`);
-            return res.json({ success: false, message: `更新失败: ${error.message}` });
-        }
-        logger.info(`git pull output: ${stdout}`);
-        // 更新成功后，理论上需要重启服务。
-        // 这里返回成功，由前端提示用户重启或刷新
-        res.json({ success: true, message: '更新成功，请手动重启服务生效！\n' + stdout });
+    const run = (cmd) => new Promise((resolve, reject) => {
+        exec(cmd, { cwd }, (error, stdout, stderr) => {
+            if (error) return reject(new Error(stderr || error.message));
+            resolve((stdout || '').trim());
+        });
     });
+    const targetTag = String((req.body && req.body.targetTag) || '').trim();
+    const remoteUrl = 'https://github.com/CGG888/Iptv-Checker.git';
+    try {
+        await run('git --version');
+    } catch (e) {
+        return res.json({ success: false, message: '未检测到 git，请先在系统安装 Git 后再尝试更新。' });
+    }
+    try {
+        await run('git rev-parse --is-inside-work-tree');
+    } catch (e) {
+        return res.json({ success: false, message: '当前目录不是 Git 仓库，无法自动更新。请使用 Docker 镜像或 git clone 部署。' });
+    }
+    try {
+        let cur = '';
+        try { cur = await run('git remote get-url origin'); } catch(e){}
+        if (!cur) {
+            await run(`git remote add origin ${remoteUrl}`);
+        } else if (cur.indexOf('CGG888/Iptv-Checker') === -1) {
+            await run(`git remote set-url origin ${remoteUrl}`);
+        }
+        await run('git fetch origin --tags --prune');
+    } catch (e) {
+        return res.json({ success: false, message: '获取远程失败：' + e.message });
+    }
+    // 若指定了目标 tag，直接切换到该版本，跳过上游分支设置
+    if (targetTag && /^v?\d+\.\d+\.\d+/.test(targetTag)) {
+        try {
+            const tag = targetTag.replace(/^v/i, 'v');
+            // 先尝试将工作区非提交内容保存到 stash，避免“untracked would be overwritten”错误
+            let stashMsg = '';
+            try {
+                const ts = new Date().toISOString().replace(/[:.]/g, '-');
+                stashMsg = await run(`git stash push -u -m "auto-update-backup ${ts}"`) || '';
+            } catch(e) {
+                // 忽略 stash 失败，继续尝试强制切换
+            }
+            await run(`git checkout -f -B release tags/${tag}`);
+            const rev = await run('git rev-parse --short HEAD');
+            const tip = stashMsg ? '\n已将本地未提交改动保存到 git stash（auto-update-backup），如需恢复可手动 git stash list/apply。' : '';
+            return res.json({ success: true, message: '已切换到版本 ' + tag + '（' + rev + '）。请手动重启服务生效。' + tip });
+        } catch (e) {
+            return res.json({ success: false, message: '切换到目标版本失败：' + e.message });
+        }
+    }
+    let branch = 'main';
+    try { branch = (await run('git rev-parse --abbrev-ref HEAD')) || 'main'; } catch(e){}
+    let hasUpstream = true;
+    try { await run('git rev-parse --abbrev-ref --symbolic-full-name @{u}'); } catch(e){ hasUpstream = false; }
+    if (!hasUpstream) {
+        try {
+            const remotes = (await run('git remote')) || '';
+            if (!/\borigin\b/m.test(remotes)) {
+                return res.json({ success: false, message: '未配置 origin 远程，无法自动更新。请先配置远程仓库。' });
+            }
+            await run('git fetch origin --prune');
+            let upstream = '';
+            try {
+                const m = await run('git ls-remote --heads origin main');
+                if (m && m.length) upstream = 'main';
+            } catch(e){}
+            if (!upstream) {
+                try {
+                    const ms = await run('git ls-remote --heads origin master');
+                    if (ms && ms.length) upstream = 'master';
+                } catch(e){}
+            }
+            if (!upstream) {
+                return res.json({ success: false, message: '无法检测到 origin/main 或 origin/master。请检查远程分支后再试。' });
+            }
+            try { await run(`git branch --set-upstream-to=origin/${upstream} ${branch}`); } catch(e){ await run(`git branch --set-upstream-to=origin/${upstream}`); }
+        } catch (e) {
+            return res.json({ success: false, message: '设置上游分支失败：' + e.message });
+        }
+    }
+    try {
+        const stdout = await run('git pull --ff-only');
+        return res.json({ success: true, message: '更新成功，请手动重启服务生效！\n' + stdout });
+    } catch (e) {
+        return res.json({ success: false, message: '更新失败：' + e.message });
+    }
 });
 
 // 提供前端页面

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IPTV Checker - 检测结果</title>
+<title> 检测结果 - IPTV Checker</title>
 <link rel="icon" type="image/png" href="/iptv.png">
 <link href="/vendor/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="/vendor/bootstrap-icons/1.7.2/font/bootstrap-icons.css">
@@ -87,27 +87,65 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
             }
         })();
     </script>
+<style>
+  .ver-dot{display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 0 rgba(255,59,59,0.7);animation:ver-blink 1.2s infinite}
+  @keyframes ver-blink{
+    0%{transform:scale(0.9);opacity:.85;box-shadow:0 0 0 0 rgba(255,59,59,.7)}
+    70%{transform:scale(1);opacity:1;box-shadow:0 0 0 6px rgba(255,59,59,0)}
+    100%{transform:scale(0.9);opacity:.85;box-shadow:0 0 0 0 rgba(255,59,59,0)}
+  }
+  .ver-dot.hide{display:none}
+  /* Wiki风格顶部导航 */
+  .wiki-nav{position:sticky;top:0;z-index:1030;background:rgba(255,255,255,.85);backdrop-filter: blur(8px); border-bottom:1px solid #e9ecef;}
+  .wiki-nav .actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;}
+  @media (max-width: 575.98px){ .wiki-nav .brand-text{display:none;} }
+  .title-center-wrap{position:relative;}
+  .title-center{position:absolute;left:50%;transform:translateX(-50%);}
+  .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;}
+</style>
 </head>
 <body>
+<nav class="navbar wiki-nav py-2">
+  <div class="container d-flex align-items-center gap-2 px-4" style="max-width:1400px;">
+    <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/" title="IPTV Checker">
+      <img src="/iptv.png" alt="" style="height:18px;width:auto;">
+      <span class="ms-2 fw-bold brand-text" style="color:#6f42c1;">IPTV Checker</span>
+    </a>
+    <div class="actions">
+      <a class="btn btn-sm btn-outline-secondary" href="/" title="主页">
+        <i class="bi bi-house me-1"></i>主页
+      </a>
+      <a class="btn btn-sm btn-outline-secondary" href="/results" title="频道/检测结果">
+        <i class="bi bi-collection-play me-1"></i>频道
+      </a>
+      <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器">
+        <i class="bi bi-play-circle me-1"></i>播放器
+      </a>
+      <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank">
+        <i class="bi bi-book me-1"></i>使用指南
+      </a>
+      <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
+        <i class="bi bi-github me-1"></i>GitHub
+      </a>
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
+            <i class="bi bi-person-circle"></i> <span id="userDisplay">Admin</span>
+        </button>
+        <ul class="dropdown-menu" style="width: 100%; min-width: 100%;">
+            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePwdModal">修改密码</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()">退出登录</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+ </nav>
 <div class="container-fluid px-4 py-4" style="max-width: 1400px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-            <img src="/iptv.png" alt="IPTV" style="height:1em;width:auto;display:inline-block;">
-            <span>IPTV Checker-组播单播检测结果</span>
+    <div class="d-flex justify-content-between align-items-center mb-4 title-center-wrap">
+        <h1 class="mb-0 d-flex align-items-center gap-2 title-center page-title">
+            <span>组播单播检测结果</span>
         </h1>
-        <div class="d-flex gap-2 align-items-center">
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
-                    <i class="bi bi-person-circle"></i> <span id="userDisplay">Admin</span>
-                </button>
-                <ul class="dropdown-menu" style="width: 100%; min-width: 100%;">
-                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePwdModal">修改密码</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()">退出登录</a></li>
-                </ul>
-            </div>
-            <a class="btn btn-outline-secondary" href="/"><i class="bi bi-arrow-left me-1"></i>返回主页</a>
-        </div>
+        <div></div>
     </div>
 
     <div class="row mb-4">
@@ -515,7 +553,9 @@ function showCenterLinks(title, links) {
       { label: labelMap['default'], href: '/api/export/m3u?status='+status+'&fmt=default&scope='+scope },
       { label: labelMap[f] || 'M3U', href: '/api/export/m3u?status='+status+'&fmt='+encodeURIComponent(f)+'&scope='+scope+'&proto='+encodeURIComponent(p) },
       { label: 'TXT', href: '/api/export/txt?status='+status+'&scope='+scope },
-      { label: 'JSON', href: '/api/export/json?status='+status+'&scope='+scope }
+      { label: 'JSON', href: '/api/export/json?status='+status+'&scope='+scope },
+      { label: 'TVBox JSON', href: '/api/export/tvbox?status='+status+'&scope='+scope+'&catchupFmt='+encodeURIComponent(f) },
+      { label: 'Xtream JSON', href: '/api/export/xtream?status='+status+'&scope='+scope+'&catchupFmt='+encodeURIComponent(f) }
     ];
   }
   function renderLinks(status) {
@@ -1081,14 +1121,16 @@ function openAppSettingsModal() {
     const eu = localStorage.getItem('externalUrl') || (appSettings.externalUrl || '');
     if (useInternalEl) useInternalEl.checked = !!ui;
     if (useExternalEl) useExternalEl.checked = !!ue;
-    if (internalUrlEl) internalUrlEl.value = iu;
+    if (internalUrlEl) internalUrlEl.value = (location.origin || iu);
+    if (internalUrlEl) internalUrlEl.readOnly = true;
+    if (internalUrlEl) internalUrlEl.placeholder = '内网地址自动获取';
     if (externalUrlEl) externalUrlEl.value = eu;
   } catch(e) {}
   const saveBtn = document.getElementById('appSettingsSaveR');
   if (saveBtn) saveBtn.onclick = async function(){
     const ui = !!(useInternalEl && useInternalEl.checked);
     const ue = !!(useExternalEl && useExternalEl.checked);
-    const iu = internalUrlEl ? (internalUrlEl.value || '').trim() : '';
+    const iu = location.origin;
     const eu = externalUrlEl ? (externalUrlEl.value || '').trim() : '';
     try {
       localStorage.setItem('useInternal', String(ui));
@@ -1121,7 +1163,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         localStorage.setItem('useInternal', String(ui));
         appSettings.useExternal = ue;
         appSettings.useInternal = ui;
-        const iu = localStorage.getItem('internalUrl') || (appSettings.internalUrl || '');
+        const iu = location.origin;
         const eu = localStorage.getItem('externalUrl') || (appSettings.externalUrl || '');
         await fetch('/api/settings/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ useInternal: ui, useExternal: ue, internalUrl: iu, externalUrl: eu }) });
       } catch(e) {}
@@ -2300,32 +2342,65 @@ function openEpgForIndex(index){
           function ensureHttpMulticastUrl(obj){
             var u=String(obj.multicastUrl||'').trim();
             var addr=u.replace(/^(rtp|udp):\/\//i,'');
-            // 1) 优先使用频道自带 udpxyUrl
-            if(obj.udpxyUrl && /^https?:\/\//i.test(obj.udpxyUrl)){
-              var b=obj.udpxyUrl.replace(/\/+$/,'');
-              return b + '/rtp/' + addr;
-            }
-            // 2) 若 displayUrlBase 可用且已是完整 http /rtp/ 路径，直接用
-            if(typeof displayUrlBase==='function'){
+            var useExternal = (function(){ 
+              try{ 
+                if(typeof getScope==='function'){ var sc=getScope(); if(sc==='external') return true; }
+              }catch(e){} 
+              try{ return (localStorage.getItem('useExternal')==='true'); }catch(e){ return false; }
+            })();
+            if(useExternal){
+              // 外网：使用“组播代理”
               try{
-                var dv=String(displayUrlBase(obj)||'').trim();
-                if(/^https?:\/\//i.test(dv)){ return dv; }
+                var proxyList=[]; 
+                try{ proxyList=JSON.parse(localStorage.getItem('proxyList')||'[]'); }catch(e){ proxyList=[]; }
+                if(proxyList.length===0 && Array.isArray(appSettings.proxyList)) proxyList=appSettings.proxyList;
+                var item=proxyList.find(function(x){ return x && x.type==='组播代理'; });
+                var base=item && item.url ? String(item.url).trim() : '';
+                if(base && !/^https?:\/\//i.test(base)) base='http://'+base.replace(/^\/+/,'');
+                if(base) return base.replace(/\/+$/,'') + '/rtp/' + addr;
+              }catch(e){}
+            } else {
+              // 内网：优先频道自带 udpxyUrl ；否则取当前 UDPXY
+              if(obj.udpxyUrl && /^https?:\/\//i.test(obj.udpxyUrl)){
+                var b=obj.udpxyUrl.replace(/\/+$/,'');
+                return b + '/rtp/' + addr;
+              }
+              if(typeof displayUrlBase==='function'){
+                try{
+                  var dv=String(displayUrlBase(obj)||'').trim();
+                  if(/^https?:\/\//i.test(dv)){ return dv; }
+                }catch(e){}
+              }
+              try{
+                var list=JSON.parse(localStorage.getItem('udpxyServers')||'[]');
+                var currId=localStorage.getItem('udpxyCurrentId')||'';
+                var item2=list.find(function(x){return x.id===currId;});
+                var url=item2?(item2.url||''):'';
+                if(!url){ url=(window.appSettings&& (appSettings.udpxyCurrentUrl||appSettings.internalUrl))||''; }
+                if(url && /^https?:\/\//i.test(url)){ return url.replace(/\/+$/,'') + '/rtp/' + addr; }
               }catch(e){}
             }
-            // 3) 浏览器本地配置回退
-            try{
-              var list=JSON.parse(localStorage.getItem('udpxyServers')||'[]');
-              var currId=localStorage.getItem('udpxyCurrentId')||'';
-              var item=list.find(x=>x.id===currId);
-              var url=item?(item.url||''):'';
-              if(!url){ url=(window.appSettings&& (appSettings.udpxyCurrentUrl||appSettings.internalUrl))||''; }
-              if(url && /^https?:\/\//i.test(url)){ return url.replace(/\/+$/,'') + '/rtp/' + addr; }
-            }catch(e){}
-            // 4) 实在没有，返回原始（可能失败）
             return u;
           }
           function buildLiveRawFor(obj){
-            var base = isMulticast(obj) ? ensureHttpMulticastUrl(obj) : String(obj.multicastUrl||'').trim();
+            var useExternal = (function(){ 
+              try{ if(typeof getScope==='function' && getScope()==='external') return true; }catch(e){}
+              try{ return (localStorage.getItem('useExternal')==='true'); }catch(e){ return false; }
+            })();
+            var raw = String(obj.multicastUrl||'').trim();
+            var base = isMulticast(obj) ? ensureHttpMulticastUrl(obj) : raw;
+            if(!isMulticast(obj) && useExternal){
+              // 外网单播：单播代理 + 去协议路径
+              try{
+                var proxyList=[]; 
+                try{ proxyList=JSON.parse(localStorage.getItem('proxyList')||'[]'); }catch(e){ proxyList=[]; }
+                if(proxyList.length===0 && Array.isArray(appSettings.proxyList)) proxyList=appSettings.proxyList;
+                var item=proxyList.find(function(x){ return x && x.type==='单播代理'; });
+                var b=item && item.url ? String(item.url).trim() : '';
+                if(b && !/^https?:\/\//i.test(b)) b='http://'+b.replace(/^\/+/,'');
+                if(b){ base=b.replace(/\/+$/,'') + '/' + String(raw).replace(/^https?:\/\//i,'').replace(/^\/+/,''); }
+              }catch(e){}
+            }
             if(isMulticast(obj) && obj.httpParam){
               var hasQ = base.indexOf('?')>-1;
               if(base.indexOf(obj.httpParam)===-1){ base = base + (hasQ?'&':'?') + obj.httpParam; }
@@ -2384,7 +2459,16 @@ function openEpgForIndex(index){
   function ensureHls(cb){ if(window.Hls){ cb(); return; } var sc=document.createElement('script'); sc.src='/vendor/hls.js/1.5.8/hls.min.js'; sc.onload=cb; document.head.appendChild(sc); }
   const now=new Date(); const y=now.getFullYear(); const mo=String(now.getMonth()+1).padStart(2,'0'); const d=String(now.getDate()).padStart(2,'0'); var dateEl=document.getElementById('epgDateR'); if(dateEl) dateEl.value=`${y}-${mo}-${d}`;
   m.style.display='block'; m.querySelector('.modal').classList.add('show');
-  function getScope(){ try{ const v=(document.getElementById('scopeSelectR')||{value:'internal'}).value||'internal'; return v; }catch(e){ return 'internal'; } }
+  function getScope(){
+    try{
+      var el=document.getElementById('scopeSelectR');
+      var v=el && el.value ? el.value : '';
+      if(v) return v;
+    }catch(e){}
+    try{
+      return (localStorage.getItem('useExternal')==='true') ? 'external' : 'internal';
+    }catch(e){ return 'internal'; }
+  }
   
   // Fetch EPG Sources
   function loadEpgSources() {
@@ -2593,15 +2677,39 @@ function openEpgForIndex(index){
                playState.title = p.title || '无标题';
                // Live rules: multicast -> 地址+FCC 用 mpegts；unicast -> 原地址用 hls
                function isMulticast(obj){ var u=String(obj.multicastUrl||'').trim(); var sch=u.split(':')[0].toLowerCase(); return !!obj.udpxyUrl||sch==='rtp'||sch==='udp'; }
-               function ensureHttpMulticastUrl(obj){
-                 var u=String(obj.multicastUrl||'').trim(); var addr=u.replace(/^(rtp|udp):\/\//i,'');
-                 if(obj.udpxyUrl && /^https?:\/\//i.test(obj.udpxyUrl)){ return obj.udpxyUrl.replace(/\/+$/,'') + '/rtp/' + addr; }
-                 if(typeof displayUrlBase==='function'){ try{ var dv=String(displayUrlBase(obj)||'').trim(); if(/^https?:\/\//i.test(dv)){ return dv; } }catch(e){} }
-                 try{ var list=JSON.parse(localStorage.getItem('udpxyServers')||'[]'); var currId=localStorage.getItem('udpxyCurrentId')||''; var item=list.find(x=>x.id===currId); var url=item?(item.url||''):''; if(!url){ url=(window.appSettings&&(appSettings.udpxyCurrentUrl||appSettings.internalUrl))||''; } if(url && /^https?:\/\//i.test(url)){ return url.replace(/\/+$/,'') + '/rtp/' + addr; } }catch(e){}
-                 return u;
-               }
+              function ensureHttpMulticastUrl(obj){
+                var u=String(obj.multicastUrl||'').trim(); var addr=u.replace(/^(rtp|udp):\/\//i,'');
+                var useExternal=(function(){ try{ if(typeof getScope==='function'&&getScope()==='external') return true; }catch(e){} try{ return (localStorage.getItem('useExternal')==='true'); }catch(e){ return false; }})();
+                if(useExternal){
+                  try{
+                    var proxyList=[]; try{ proxyList=JSON.parse(localStorage.getItem('proxyList')||'[]'); }catch(e){ proxyList=[]; }
+                    if(proxyList.length===0 && Array.isArray(appSettings.proxyList)) proxyList=appSettings.proxyList;
+                    var item=proxyList.find(function(x){ return x&&x.type==='组播代理'; });
+                    var base=item&&item.url?String(item.url).trim():'';
+                    if(base && !/^https?:\/\//i.test(base)) base='http://'+base.replace(/^\/+/,'');
+                    if(base) return base.replace(/\/+$/,'') + '/rtp/' + addr;
+                  }catch(e){}
+                } else {
+                  if(obj.udpxyUrl && /^https?:\/\//i.test(obj.udpxyUrl)){ return obj.udpxyUrl.replace(/\/+$/,'') + '/rtp/' + addr; }
+                  if(typeof displayUrlBase==='function'){ try{ var dv=String(displayUrlBase(obj)||'').trim(); if(/^https?:\/\//i.test(dv)){ return dv; } }catch(e){} }
+                  try{ var list=JSON.parse(localStorage.getItem('udpxyServers')||'[]'); var currId=localStorage.getItem('udpxyCurrentId')||''; var item2=list.find(function(x){return x.id===currId;}); var url=item2?(item2.url||''):''; if(!url){ url=(window.appSettings&&(appSettings.udpxyCurrentUrl||appSettings.internalUrl))||''; } if(url && /^https?:\/\//i.test(url)){ return url.replace(/\/+$/,'') + '/rtp/' + addr; } }catch(e){}
+                }
+                return u;
+              }
                function buildLiveRawFor(obj){
-                 var base=isMulticast(obj)?ensureHttpMulticastUrl(obj):String(obj.multicastUrl||'').trim();
+                var useExternal=(function(){ try{ if(typeof getScope==='function'&&getScope()==='external') return true; }catch(e){} try{ return (localStorage.getItem('useExternal')==='true'); }catch(e){ return false; }})();
+                var raw=String(obj.multicastUrl||'').trim();
+                var base=isMulticast(obj)?ensureHttpMulticastUrl(obj):raw;
+                if(!isMulticast(obj) && useExternal){
+                  try{
+                    var proxyList=[]; try{ proxyList=JSON.parse(localStorage.getItem('proxyList')||'[]'); }catch(e){ proxyList=[]; }
+                    if(proxyList.length===0 && Array.isArray(appSettings.proxyList)) proxyList=appSettings.proxyList;
+                    var item=proxyList.find(function(x){ return x&&x.type==='单播代理'; });
+                    var b=item&&item.url?String(item.url).trim():'';
+                    if(b && !/^https?:\/\//i.test(b)) b='http://'+b.replace(/^\/+/,'');
+                    if(b){ base=b.replace(/\/+$/,'') + '/' + raw.replace(/^https?:\/\//i,'').replace(/^\/+/,''); }
+                  }catch(e){}
+                }
                  if(isMulticast(obj) && obj.httpParam){ var hasQ=base.indexOf('?')>-1; if(base.indexOf(obj.httpParam)===-1){ base=base+(hasQ?'&':'?')+obj.httpParam; } }
                  return base;
                }
@@ -3507,8 +3615,39 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
                         isDockerEnv = true;
                         document.getElementById('dockerBadge').style.display = 'inline-block';
                     }
+                    flagUpdateIfAny(j.version).catch(()=>{});
                 }
             } catch(e) {}
+        }
+        
+        async function flagUpdateIfAny(currVersion){
+            try{
+                const endpoints=[
+                    'https://gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                    'https://hk.gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                    'https://cdn.gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                    'https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                    'https://mirror.ghproxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
+                    'https://ghapi.hacxy.workers.dev/repos/cgg888/iptv-checker/releases/latest'
+                ];
+                const controller=new AbortController();
+                const to=(ms)=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
+                let data=null;
+                for(const u of endpoints){
+                    try{
+                        const p=fetch(u,{headers:{'Accept':'application/vnd.github+json'},signal:controller.signal});
+                        const r=await Promise.race([p,to(5000)]);
+                        if(r&&r.ok){ data=await r.json(); if(data&&data.tag_name) break; }
+                    }catch(e){}
+                }
+                if(!(data&&data.tag_name)) return;
+                const remote=(String(data.tag_name||'').replace(/^v/i,'')||'').trim();
+                const local=(String(currVersion||'').replace(/^v/i,'')||'').trim();
+                const dot=document.getElementById('versionDot');
+                if(dot && remote && local && remote!==local){
+                    dot.classList.remove('hide');
+                }
+            }catch(e){}
         }
         
         // 显示弹窗并检查更新
@@ -3589,7 +3728,9 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
             btn.textContent = '更新中...';
             
             try {
-                const r = await fetch('/api/system/update', { method: 'POST' });
+                const latestEl = document.getElementById('modalLatestVersion');
+                const targetTag = (latestEl && latestEl.textContent || '').trim();
+                const r = await fetch('/api/system/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetTag }) });
                 const j = await r.json();
                 alert(j.message);
                 if (j.success) {
@@ -3644,8 +3785,11 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.1</span>
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.2</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
             </span>
+            <a href="/docs/" target="_blank" class="small text-decoration-none ms-3" style="color:#6c757d; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'">
+                <i class="bi bi-book me-1"></i>使用指南
+            </a>
         </div>
     </footer>
 
@@ -3657,7 +3801,7 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
                 <div class="modal-header border-0 pb-0 pt-4 px-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
                     <h5 class="modal-title fw-bold text-dark d-flex align-items-center">
                         <span class="bg-white p-2 rounded-circle shadow-sm me-2 d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
-                            <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+                            <img src="/iptv.png" alt="IPTV" style="height:22px;width:auto;">
                         </span>
                         关于 IPTV Checker
                     </h5>
@@ -3668,7 +3812,10 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
                     <!-- 项目简介卡片 -->
                     <div class="bg-white p-3 rounded-3 shadow-sm mb-3">
                         <p class="text-secondary small mb-0" style="line-height: 1.6;">
-                            一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能。
+                            IPTV Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播/单播流检测与管理工具，
+                            提供现代化 Web 界面与生态导出，支持单播/组播批量检测、EPG 与回看、独立播放器（内/外网模式）、
+                            台标模板（内/外网区分）、多格式导出（M3U/TXT/JSON、TVBox、Xtream）、安全登录与令牌保护等能力，
+                            适用于运营网与实验环境的频道维护、线路切换与对接。
                         </p>
                     </div>
 
@@ -3706,8 +3853,11 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
 
                 <!-- 底部按钮 -->
                 <div class="modal-footer border-0 p-3 bg-white justify-content-center">
-                    <a href="https://github.com/cgg888/iptv-checker" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
-                        <i class="bi bi-github me-1"></i> GitHub
+                    <a href="/docs/" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
+                        <i class="bi bi-book me-1"></i> 使用指南
+                    </a>
+                    <a href="https://github.com/CGG888/Iptv-Checker/releases" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
+                        <i class="bi bi-github me-1"></i> 发布页
                     </a>
                     <button type="button" class="btn btn-primary shadow-sm rounded-pill px-4 ms-2 fw-medium hover-shadow transition-all" id="btnUpdate" onclick="doUpdate()">
                         <i class="bi bi-arrow-repeat me-1"></i> 检查更新

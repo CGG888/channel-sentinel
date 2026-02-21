@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title> 使用指南 - IPTV Checker</title>
+  <link rel="icon" type="image/png" href="/iptv.png">
+  <link rel="shortcut icon" href="/iptv.png">
+  <link href="/vendor/bootstrap/5.3.2/bootstrap.min.css" rel="stylesheet">
+  <link href="/vendor/bootstrap-icons/1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    html { scroll-behavior: smooth; }
+    :root{
+      --bg:#f7f8fa; --card:#fff; --text:#212529; --muted:#6c757d; --border:#e9ecef; --link:#0d6efd;
+      --code-bg:#0e1116; --code-fg:#e6edf3;
+    }
+    body.dark{
+      --bg:#0b0f13; --card:#0f141a; --text:#e6edf3; --muted:#9aa4af; --border:#1f2630; --link:#6ea8fe;
+      --code-bg:#0e1116; --code-fg:#e6edf3;
+      color-scheme: dark;
+    }
+    body { background:var(--bg); color:var(--text); }
+    .doc-wrap { display:flex; align-items:flex-start; gap:16px; }
+    .markdown-body { box-sizing: border-box; min-width: 200px; margin: 0; padding: 24px; background:var(--card); border-radius:12px; border:1px solid var(--border); flex:1; }
+    .toc { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow: auto; }
+    .toc a { text-decoration: none; color:var(--muted); display:block; padding:4px 8px; border-radius:6px; }
+    .toc a:hover { color:var(--link); }
+    .toc a.active { color:var(--link); font-weight:600; background: rgba(13,110,253,.12); border-left: 3px solid var(--link); padding-left: 5px; }
+    pre { background:var(--code-bg); color:var(--code-fg); padding:12px; border-radius:8px; overflow:auto; position:relative; }
+    pre .copy-btn { position:absolute; top:8px; right:8px; border:1px solid var(--border); }
+    code { background: rgba(27,31,35,.05); padding: 2px 6px; border-radius: 6px; }
+    h1, h2, h3 { scroll-margin-top: 96px; }
+    .page-header { background: linear-gradient(135deg, rgba(13,110,253,.06) 0%, transparent 100%); }
+    .page-header .container { position: relative; }
+    .page-header .title-center { position: absolute; left: 50%; transform: translateX(-50%); }
+    .muted { color:var(--muted)!important; }
+    .btn-toggle { border:1px solid var(--border); }
+    .anchor-link { visibility:hidden; margin-left:.5rem; font-size:.875rem; }
+    h1:hover .anchor-link, h2:hover .anchor-link, h3:hover .anchor-link { visibility:visible; }
+    .backtop { position: fixed; right: 16px; bottom: 16px; z-index: 10; display:none; }
+    .toc input[type="search"] { border:1px solid var(--border); border-radius: 10px; }
+    .toc::-webkit-scrollbar { width: 8px; }
+    .toc::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 8px; }
+    .navbar { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(8px); background: rgba(255,255,255,.8); }
+    body.dark .navbar { background: rgba(15,20,26,.6); }
+    .navbar .container { display:flex; align-items:center; gap:12px; }
+    .navbar .actions { margin-left:auto; display:flex; gap:8px; flex-wrap:nowrap; align-items:center; }
+    @media (min-width: 992px) {
+      /* 保证左侧目录在可视区域内持续可见 */
+      .toc { max-height: calc(100vh - 100px); }
+    }
+    /* XL 及以上：将目录固定在视口左侧中部，正文右移留白，避免遮挡 */
+    @media (min-width: 1200px) {
+      .doc-wrap { padding-left: 300px; }
+      .doc-toc { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); width: 260px; flex: 0 0 260px; }
+      .doc-toc .toc { max-height: 70vh; }
+    }
+    @media (max-width: 991.98px) {
+      .doc-wrap { flex-direction: column; }
+      .doc-toc { position: static; max-height: none; }
+    }
+    @media print {
+      nav, .toc, .page-header, .backtop { display:none !important; }
+      .markdown-body { box-shadow:none; border:none; padding:0; }
+      body { background:#fff; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold d-flex align-items-center" href="/" style="white-space:nowrap;">
+        <img src="/iptv.png" alt="IPTV" class="me-2" style="height:18px;width:auto;">IPTV Checker
+      </a>
+      <div class="actions">
+        <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
+          <i class="bi bi-github me-1"></i>GitHub
+        </a>
+        <a class="btn btn-sm btn-primary" href="/" title="返回首页" style="white-space:nowrap;">
+          <i class="bi bi-house-door me-1"></i>返回
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="page-header py-4 mb-3 border-bottom">
+    <div class="container d-flex align-items-center justify-content-between">
+      <h1 class="h4 mb-0 fw-bold d-flex align-items-center title-center">
+        <img src="/iptv.png" alt="IPTV" class="me-2" style="height:1.25em;width:auto;">使用指南（Wiki）
+      </h1>
+      <div class="d-flex align-items-center gap-2">
+        <span id="lastUpd" class="small muted d-none d-md-inline"></span>
+        <a class="btn btn-sm btn-outline-secondary" href="/docs/WIKI.md" target="_blank" title="查看原始 Markdown">
+          <i class="bi bi-filetype-md me-1"></i>原文
+        </a>
+        <div class="btn-group" role="group" aria-label="字体大小">
+          <button id="btnFontDec" class="btn btn-sm btn-outline-secondary btn-toggle" title="减小字体"><i class="bi bi-dash-lg"></i></button>
+          <button id="btnFontInc" class="btn btn-sm btn-outline-secondary btn-toggle" title="增大字体"><i class="bi bi-plus-lg"></i></button>
+        </div>
+        <button id="btnTheme" class="btn btn-sm btn-outline-secondary btn-toggle" title="切换主题">
+          <i class="bi bi-moon-stars me-1"></i><span>暗色</span>
+        </button>
+        <button id="btnCopyLink" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-link-45deg me-1"></i>复制章节链接
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container my-3">
+    <div id="docWrap" class="doc-wrap">
+      <nav class="doc-toc d-none d-md-block" style="width:260px; flex:0 0 260px;">
+        <div class="toc bg-white border rounded-3 p-3 shadow-sm" style="background:var(--card); border-color:var(--border);">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-list-ul me-2 text-primary"></i><span class="fw-semibold">目录</span>
+          </div>
+          <input id="tocSearch" type="search" class="form-control form-control-sm mb-2" placeholder="搜索标题…">
+          <nav id="tocNav" class="small"></nav>
+        </div>
+      </nav>
+      <article id="doc" class="markdown-body shadow-sm"></article>
+    </div>
+  </main>
+
+  <footer class="py-4 mt-4 text-center text-muted small">
+    <div class="container">
+      <span>© IPTV Checker</span>
+    </div>
+  </footer>
+
+  <script src="/vendor/snarkdown/snarkdown.min.js"></script>
+  <script>
+    // 状态
+    const STORE_THEME = 'wiki:theme';
+    const STORE_FS = 'wiki:fontScale';
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    function applyTheme(theme){
+      const dark = theme==='dark';
+      document.body.classList.toggle('dark', dark);
+      const btn = document.getElementById('btnTheme');
+      if(btn){ btn.querySelector('span').textContent = dark ? '亮色' : '暗色'; btn.querySelector('i').className = dark?'bi bi-sun':'bi bi-moon-stars'; }
+      localStorage.setItem(STORE_THEME, dark?'dark':'light');
+    }
+    function applyFontScale(scale){
+      document.documentElement.style.fontSize = (16 * scale) + 'px';
+      localStorage.setItem(STORE_FS, String(scale));
+    }
+    function initPrefs(){
+      const theme = localStorage.getItem(STORE_THEME) || (prefersDark?'dark':'light');
+      const fs = parseFloat(localStorage.getItem(STORE_FS)) || 1;
+      applyTheme(theme);
+      applyFontScale(fs);
+      document.getElementById('btnTheme').onclick = ()=> applyTheme(document.body.classList.contains('dark')?'light':'dark');
+      document.getElementById('btnFontInc').onclick = ()=> applyFontScale(Math.min(1.5, (parseFloat(localStorage.getItem(STORE_FS))||1) + 0.1));
+      document.getElementById('btnFontDec').onclick = ()=> applyFontScale(Math.max(0.8, (parseFloat(localStorage.getItem(STORE_FS))||1) - 0.1));
+    }
+
+    async function loadDoc() {
+      const res = await fetch('/docs/WIKI.md');
+      const md = await res.text();
+      const html = snarkdown(md);
+      const docEl = document.getElementById('doc');
+      docEl.innerHTML = html;
+      generateDocCatalog();
+      enhanceHeadings();
+      enhanceCodeCopy();
+      buildToc();
+      applyHashScroll();
+      const lm = res.headers.get('last-modified');
+      if(lm){ const d = new Date(lm); const el = document.getElementById('lastUpd'); el.textContent = '更新于 ' + d.toLocaleString(); el.classList.remove('d-none'); }
+    }
+
+    function buildToc() {
+      const nav = document.getElementById('tocNav');
+      // 仅使用 H1 和 H2 作为目录；跳过“目录”自身
+      const allHeads = Array.from(document.querySelectorAll('#doc h1, #doc h2'));
+      const heads = allHeads.filter(h => !(h.tagName==='H2' && /目录/.test(h.textContent)));
+      const ul = document.createElement('ul');
+      ul.className = 'list-unstyled';
+      ul.style.counterReset = 'sec';
+      const linkMap = {};
+      heads.forEach(h => {
+        const id = h.getAttribute('id') || h.textContent.trim().toLowerCase().replace(/[^\w\u00C0-\u017F -]/g,'').replace(/\s+/g,'-');
+        h.id = id;
+        const li = document.createElement('li');
+        li.className = h.tagName==='H1'?'mb-1':'';
+        const a = document.createElement('a');
+        a.href = '#' + id;
+        const rawText = h.textContent.trim();
+        const cleanText = rawText.replace(/^\d+[\.\u3001]\s*/, ''); // 去掉标题自带数字前缀，避免重复
+        a.textContent = cleanText;
+        a.className = h.tagName==='H1'?'d-block fw-semibold mb-1 toc-h1':'d-block ms-2 toc-h2';
+        if (h.tagName==='H2') {
+          a.style.position = 'relative';
+          a.style.paddingLeft = '0.75rem';
+          a.style.display = 'block';
+          a.style.borderLeft = '2px solid transparent';
+          li.style.counterIncrement = 'sec';
+          a.insertAdjacentHTML('afterbegin','<span class="me-1 small muted" style="position:absolute;left:0;top:2px;">' + (Array.from(ul.children).filter(x=>x.querySelector('.toc-h2')).length+1) + '.</span>');
+        }
+        a.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          scrollingByClick = true;
+          scrollToId(id);
+          setActive(id);
+          history.replaceState(null,'','#'+id);
+          setTimeout(()=>scrollingByClick=false, 400);
+        });
+        linkMap[id] = a;
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+      nav.innerHTML = '';
+      nav.appendChild(ul);
+
+      // 搜索
+      const search = document.getElementById('tocSearch');
+      search.addEventListener('input', ()=>{
+        const q = search.value.trim().toLowerCase();
+        nav.querySelectorAll('a').forEach(a=>{
+          const text = a.textContent;
+          const show = !q || text.toLowerCase().includes(q);
+          a.parentElement.style.display = show ? '' : 'none';
+          // 简易高亮
+          if (q && show) {
+            const idx = text.toLowerCase().indexOf(q);
+            if (idx !== -1) {
+              a.innerHTML = text.substring(0,idx) + '<mark class="px-0 py-0">' + text.substring(idx, idx+q.length) + '</mark>' + text.substring(idx+q.length);
+            }
+          } else {
+            a.textContent = text;
+          }
+        });
+      });
+
+      // 高亮当前章节（基于滚动位置，兼容性更好）
+      const sections = heads.map(h=>({ id: h.id, el: h, top: 0 }));
+      const tocBox = nav.closest('.toc');
+      const setActive = (id)=>{
+        Object.values(linkMap).forEach(a=>a.classList.remove('active'));
+        const a = linkMap[id];
+        if(a){
+          a.classList.add('active');
+          // 仅滚动目录容器，避免影响页面主滚动
+          if (tocBox) {
+            const top = a.offsetTop;
+            const bot = top + a.offsetHeight;
+            const viewTop = tocBox.scrollTop;
+            const viewBot = viewTop + tocBox.clientHeight;
+            if (top < viewTop + 8) {
+              tocBox.scrollTop = Math.max(0, top - 8);
+            } else if (bot > viewBot - 8) {
+              tocBox.scrollTop = bot - tocBox.clientHeight + 8;
+            }
+          }
+        }
+      };
+      function refreshPositions(){
+        sections.forEach(s=>{
+          s.top = s.el.getBoundingClientRect().top + window.scrollY;
+        });
+        sections.sort((a,b)=>a.top-b.top);
+      }
+      const HEADER_OFFSET = 92;
+      let ticking = false;
+      let scrollingByClick = false;
+      function onScroll(){
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(()=>{
+          const y = window.scrollY + HEADER_OFFSET + 4;
+          let cur = sections[0];
+          for (let i=0;i<sections.length;i++){
+            if (sections[i].top <= y) cur = sections[i];
+            else break;
+          }
+          if(cur){
+            setActive(cur.id);
+            if(!scrollingByClick){
+              history.replaceState(null,'','#'+cur.id);
+            }
+          }
+          ticking = false;
+        });
+      }
+      document.addEventListener('scroll', onScroll, { passive:true });
+      window.addEventListener('resize', ()=>{ refreshPositions(); onScroll(); });
+      // 内容图片/资源加载后重新计算
+      setTimeout(()=>{ refreshPositions(); onScroll(); }, 50);
+      window.addEventListener('load', ()=>{ refreshPositions(); onScroll(); });
+      // 初始同步一次
+      refreshPositions(); onScroll();
+
+      // 复制当前章节链接
+      document.getElementById('btnCopyLink').onclick = () => {
+        const active = nav.querySelector('a.active') || nav.querySelector('a'); 
+        const url = location.origin + location.pathname + (active ? active.getAttribute('href') : '');
+        navigator.clipboard.writeText(url).then(()=>{
+          const btn = document.getElementById('btnCopyLink');
+          const old = btn.innerHTML;
+          btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>已复制';
+          setTimeout(()=>btn.innerHTML=old, 1500);
+        });
+      };
+    }
+
+    function applyHashScroll() {
+      if (location.hash) {
+        const t = document.getElementById(location.hash.substring(1));
+        if (t) t.scrollIntoView({behavior:'smooth', block:'start'});
+      }
+      window.addEventListener('hashchange', () => {
+        const t = document.getElementById(location.hash.substring(1));
+        if (t) t.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    }
+
+    function enhanceHeadings(){
+      document.querySelectorAll('#doc h1, #doc h2, #doc h3').forEach(h=>{
+        const id = h.id || h.textContent.trim().toLowerCase().replace(/[^\w\u00C0-\u017F -]/g,'').replace(/\s+/g,'-');
+        h.id = id;
+        const a = document.createElement('a');
+        a.href = '#'+id;
+        a.className = 'anchor-link text-decoration-none muted';
+        a.innerHTML = '<i class="bi bi-link-45deg"></i>';
+        h.appendChild(a);
+      });
+    }
+
+    function enhanceCodeCopy(){
+      document.querySelectorAll('#doc pre').forEach(pre=>{
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-light copy-btn';
+        btn.innerHTML = '<i class="bi bi-clipboard"></i>';
+        btn.title = '复制代码';
+        btn.onclick = ()=>{
+          const code = pre.innerText;
+          navigator.clipboard.writeText(code).then(()=>{
+            const old = btn.innerHTML; btn.innerHTML = '<i class="bi bi-clipboard-check"></i>';
+            setTimeout(()=>btn.innerHTML=old, 1200);
+          });
+        };
+        pre.appendChild(btn);
+      });
+    }
+
+    // 返回顶部
+    const backBtn = document.createElement('button');
+    backBtn.className = 'btn btn-primary rounded-circle backtop';
+    backBtn.innerHTML = '<i class="bi bi-arrow-up"></i>';
+    backBtn.onclick = ()=>window.scrollTo({top:0, behavior:'smooth'});
+    document.body.appendChild(backBtn);
+    document.addEventListener('scroll', ()=>{
+      backBtn.style.display = window.scrollY > 300 ? 'block' : 'none';
+    }, { passive:true });
+
+    // 从标题生成正文里的“目录”块（覆盖 Markdown 内的静态列表，确保编号一致且不重复）
+    function generateDocCatalog(){
+      const heads = Array.from(document.querySelectorAll('#doc h1, #doc h2'));
+      const h2s = heads.filter(h=>h.tagName==='H2' && !/目录/.test(h.textContent));
+      const catTitle = Array.from(document.querySelectorAll('#doc h2')).find(h=>/目录/.test(h.textContent));
+      if(!catTitle) return;
+      // 清除“目录”标题到下一个 H2 之间的所有元素，避免原 Markdown 列表残留造成重复
+      let sib = catTitle.nextSibling;
+      const toRemove = [];
+      while (sib && !(sib.nodeType===1 && sib.tagName==='H2')) {
+        toRemove.push(sib);
+        sib = sib.nextSibling;
+      }
+      toRemove.forEach(n=>n.parentNode && n.parentNode.removeChild(n));
+      // 构建有序列表，并插入到“目录”标题之后
+      const ol = document.createElement('ol');
+      ol.className = 'mt-2';
+      h2s.forEach(h=>{
+        const id = h.id || h.textContent.trim().toLowerCase().replace(/[^\w\u00C0-\u017F -]/g,'').replace(/\s+/g,'-');
+        h.id = id;
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = '#'+id;
+        a.textContent = (h.textContent || '').replace(/^\d+[\.\u3001]\s*/,''); // 避免重复数字
+        a.addEventListener('click',(e)=>{ e.preventDefault(); scrollToId(id); });
+        li.appendChild(a);
+        ol.appendChild(li);
+      });
+      catTitle.parentNode.insertBefore(ol, catTitle.nextSibling);
+    }
+
+    function scrollToId(id){
+      const t = document.getElementById(id);
+      if(!t) return;
+      const HEADER_OFFSET = 92;
+      const y = t.getBoundingClientRect().top + window.pageYOffset - HEADER_OFFSET;
+      window.scrollTo({ top: y, behavior:'smooth' });
+    }
+
+    initPrefs();
+    loadDoc().catch(()=>{
+      document.getElementById('doc').innerHTML =
+        '<div class="alert alert-danger">无法加载文档，请稍后重试。</div>';
+    });
+  </script>
+</body>
+</html>
+

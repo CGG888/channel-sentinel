@@ -170,9 +170,19 @@
             document.getElementById('captcha').value = '';
         }
 
+        function getRedirect(){
+            try{
+                const p=new URLSearchParams(location.search);
+                let r=p.get('redirect')||'/';
+                if(/^https?:/i.test(r)){
+                    try{ const u=new URL(r, location.origin); if(u.origin!==location.origin) return '/'; return u.pathname+u.search+u.hash; }catch(e){ return '/'; }
+                }
+                return r.startsWith('/')?r:'/';
+            }catch(e){ return '/'; }
+        }
         // 检查是否已经登录
         fetch('/api/auth/check').then(r => r.json()).then(j => {
-            if (j.success) window.location.href = '/';
+            if (j.success) window.location.href = getRedirect();
         }).catch(() => {});
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
@@ -196,7 +206,7 @@
                 const data = await res.json();
                 
                 if (data.success) {
-                    window.location.href = '/';
+                    window.location.href = getRedirect();
                 } else {
                     errorDiv.textContent = data.message || '登录失败';
                     errorDiv.classList.remove('d-none');

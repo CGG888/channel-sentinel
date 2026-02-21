@@ -3,10 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>IPTV Checker-播放器</title>
+  <title> 播放器 - IPTV Checker</title>
   <link rel="icon" type="image/png" href="/iptv.png">
   <link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
   <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <script>
+    (async function(){
+      try{
+        const r=await fetch('/api/auth/check');
+        const j=await r.json();
+        if(!j.success){
+          var back=location.pathname+location.search+location.hash;
+          location.href='/login.html?redirect='+encodeURIComponent(back);
+        }
+      }catch(e){
+        var back=location.pathname+location.search+location.hash;
+        location.href='/login.html?redirect='+encodeURIComponent(back);
+      }
+    })();
+  </script>
   <style>
     html,body{
       margin:0;
@@ -61,11 +76,16 @@
       border-bottom:1px solid #e5e7eb;
       background:#ffffff;
       gap:8px;
+      position:relative;
     }
     .channel-header-title{
       font-weight:600;
       font-size:15px;
       color:#111827;
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      text-align:center;
     }
     .channel-actions{
       display:flex;
@@ -202,8 +222,11 @@
       box-shadow:0 2px 6px rgba(15,23,42,0.28);
       padding:3px 6px;
     }
+    :root{--epg-gap:112px}
+    @media (max-height:800px){:root{--epg-gap:96px}}
+    @media (max-height:680px){:root{--epg-gap:80px}}
     #epgLayer{
-      position:fixed; top:88px; left:20px; width:300px; bottom:88px; z-index:4;
+      position:fixed; top:var(--epg-gap); left:20px; width:300px; bottom:var(--epg-gap); z-index:4;
       background:rgba(10,12,24,0.32); backdrop-filter:blur(10px);
       border-radius:12px; border:1px solid rgba(255,255,255,.08);
       display:flex; flex-direction:column; transition:opacity 0.3s ease, transform 0.3s ease;
@@ -339,7 +362,7 @@
       padding:4px 6px 6px;
     }
     .epg-item{
-      font-size:13px;
+      font-size:14px;
       padding:6px 10px;
       margin:2px 0;
       border-radius:14px;
@@ -566,6 +589,8 @@
     var epgRefresh=document.getElementById('epgRefreshBtn');
     var epgDateTabs=document.getElementById('epgDateTabs');
     var epgSources=[];
+    var settingsCache=null;
+    var externalLogoTpl='';
     var selectedDate=new Date();
 
     var catTabs=document.getElementById('catTabs');
@@ -1016,6 +1041,15 @@
       });
       qierPlayer.mount('#app');
       v=qierPlayer.video;
+      if(v){
+        try{
+          v.muted=false;
+          try{ v.removeAttribute('muted'); }catch(e){}
+          v.playsInline=true;
+          v.setAttribute('playsinline','');
+          v.setAttribute('webkit-playsinline','');
+        }catch(e){}
+      }
       if(v && !v._iptvPlayHooked){
         v._iptvPlayHooked=true;
         v.addEventListener('play',function(){
@@ -1039,6 +1073,7 @@
       ensureProgressProgramUi();
     }
 
+    var autoplayAwaitClick=false;
     function start(playUrl){
       if(!playUrl){
         logStatus('没有播放地址');
@@ -1049,6 +1084,7 @@
       }
       destroyPlayer();
       resetReco();
+      logStatus('准备播放: '+playUrl);
       var isM3u8=/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1;
       if(isM3u8){
         if(window.Hls&&Hls.isSupported()){
@@ -1087,7 +1123,23 @@
           v.addEventListener('loadeddata',function(){logStatus('已加载数据')},{once:true,passive:true});
           h.loadSource(playUrl);
           h.attachMedia(v);
-          v.play&&v.play().catch(function(e){logStatus('play 调用失败: '+e)});
+          if(v){
+            try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
+            var _p=v.play&&v.play();
+            if(_p&&_p.catch){
+              _p.catch(function(e){
+                logStatus('play 调用失败: '+e);
+                if(String(e).indexOf('NotAllowedError')!==-1){
+                  autoplayAwaitClick=true;
+                  document.addEventListener('click',function(){
+                    autoplayAwaitClick=false;
+                    try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
+                    v.play&&v.play().catch(function(){});
+                  },{once:true});
+                }
+              });
+            }
+          }
           logStatus('开始 HLS 播放');
           return;
         }
@@ -1100,7 +1152,23 @@
           },15000);
         };
         v.onwaiting=v.onstalled;
-        v.play&&v.play().catch(function(e){logStatus('原生 HLS 播放失败: '+e)});
+        if(v){
+          try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
+          var _p0=v.play&&v.play();
+          if(_p0&&_p0.catch){
+            _p0.catch(function(e){
+              logStatus('原生 HLS 播放失败: '+e);
+              if(String(e).indexOf('NotAllowedError')!==-1){
+                autoplayAwaitClick=true;
+                document.addEventListener('click',function(){
+                  autoplayAwaitClick=false;
+                  try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
+                  v.play&&v.play().catch(function(){});
+                },{once:true});
+              }
+            });
+          }
+        }
         logStatus('使用原生 HLS 播放');
         return;
       }
@@ -1120,10 +1188,10 @@
       var config={
         isLive:true,
         enableStashBuffer:true,
-        stashInitialSize:512*1024,
+        stashInitialSize:256*1024,
         liveBufferLatencyChasing:true,
         liveBufferLatencyMaxLatency:1.2,
-        liveBufferLatencyMinRemain:0.5,
+        liveBufferLatencyMinRemain:0.3,
         autoCleanupSourceBuffer:true,
         autoCleanupMaxBackwardDuration:120,
         autoCleanupMinBackwardDuration:60,
@@ -1135,10 +1203,23 @@
         currentPlayer=player;
         player.attachMediaElement(v);
         player.load();
-        player.play();
+        var _pp = player.play && player.play();
+        if(_pp && _pp.catch){
+          _pp.catch(function(e){
+            if(String(e).indexOf('NotAllowedError')!==-1){
+              autoplayAwaitClick=true;
+              document.addEventListener('click',function(){
+                autoplayAwaitClick=false;
+                player.play&&player.play();
+              },{once:true});
+            }
+          });
+        }
         player.on(mpegts.Events.ERROR,function(type,detail){
           logStatus('mpegts error: '+type);
-          scheduleReco(playUrl);
+          if(!autoplayAwaitClick){
+            scheduleReco(playUrl);
+          }
         });
         logStatus('开始 mpegts.js 播放');
       }catch(e){
@@ -1204,6 +1285,7 @@
 
     function liveRawUrl(s){
       var u=String(s.multicastUrl||'').trim();
+      if(u.indexOf('$')!==-1){ u=u.split('$')[0]; }
       var base=u;
       if(/^(rtp|udp):\/\//i.test(u)&&s.udpxyUrl){
         var udpxy=String(s.udpxyUrl).trim().replace(/\/+$/,'');
@@ -1276,7 +1358,10 @@
       currentLiveProgram=null;
       if(titleEl) titleEl.textContent=s.name||s.tvgName||'IPTV 播放';
       if(subEl) subEl.textContent=s.tvgName||s.name||'';
-      if(s.logo && logoImg){logoImg.src=s.logo;logoImg.classList.remove('d-none');}
+      var logoC=s.logo;
+      var alt=logoUrlFor(s.tvgName||s.name||'');
+      if(alt) logoC=alt;
+      if(logoC && logoImg){logoImg.src=logoC;logoImg.classList.remove('d-none');}
       if(liveBadge) liveBadge.classList.remove('d-none');
       if(replayBadge) replayBadge.classList.add('d-none');
       tvgId=s.tvgId||'';
@@ -1310,7 +1395,7 @@
       var chName=s.tvgName||s.name||tvgName||title||'';
       var baseParams=function(dateStr){
         var p=new URLSearchParams();
-        p.set('scope','internal');
+        p.set('scope',getScope());
         p.set('channelId',chId);
         p.set('channelName',chName);
         p.set('date',dateStr);
@@ -1356,19 +1441,39 @@
       qsObj.set('catchupBase',s.catchupBase||'');
       qsObj.set('startMs',p.startMs);
       qsObj.set('endMs',p.endMs);
+      function resolveReplaySmart(raw){
+        var isM3u8=/\.m3u8(\?|$)/i.test(raw)||raw.toLowerCase().indexOf('m3u8')>-1;
+        if(isM3u8){
+          return Promise.resolve('/api/proxy/hls?url='+encodeURIComponent(raw));
+        }
+        var hlsProbe='/api/proxy/hls?url='+encodeURIComponent(raw);
+        return fetch(hlsProbe, {method:'GET'}).then(function(resp){
+          return resp.text().then(function(t){
+            var ct=(resp.headers.get('content-type')||'').toLowerCase();
+            var head=t.slice(0,32);
+            if(resp.ok && (ct.indexOf('application/vnd.apple.mpegurl')>-1 || head.indexOf('#EXTM3U')===0 || t.indexOf('#EXTM3U')>-1)){
+              return hlsProbe;
+            }
+            return '/api/proxy/stream?url='+encodeURIComponent(raw);
+          });
+        }).catch(function(){
+          return '/api/proxy/stream?url='+encodeURIComponent(raw);
+        });
+      }
       fetch('/api/catchup/play?'+qsObj.toString()).then(function(r){return r.json()}).then(function(x){
         if(x&&x.success&&x.url){
-          var raw=x.url;
-          var isM3u8=/\.m3u8(\?|$)/i.test(raw)||raw.indexOf('m3u8')>-1;
-          rawUrl=raw;
-          var playUrl=isM3u8?('/api/proxy/hls?url='+encodeURIComponent(raw)):('/api/proxy/stream?url='+encodeURIComponent(raw));
-          if(subEl) subEl.textContent=p.title||'';
-          if(liveBadge) liveBadge.classList.add('d-none');
-          if(replayBadge) replayBadge.classList.remove('d-none');
-          isLive=false;
-          updateLiveBadge();
-          showInfo();
-          start(playUrl);
+          var raw=x.url||'';
+          if(raw.indexOf('$')!==-1){ raw=raw.split('$')[0]; }
+          resolveReplaySmart(raw).then(function(playUrl){
+            rawUrl=raw;
+            if(subEl) subEl.textContent=p.title||'';
+            if(liveBadge) liveBadge.classList.add('d-none');
+            if(replayBadge) replayBadge.classList.remove('d-none');
+            isLive=false;
+            updateLiveBadge();
+            showInfo();
+            start(playUrl);
+          });
         }else{
           alert('无法获取回放地址');
         }
@@ -1414,13 +1519,13 @@
           showInfo();
         updateProgramProgressLabel();
         }else if(!isPast){
-          right.innerHTML='<span class="badge bg-secondary">未开始</span>';
+          right.innerHTML='<span class="badge bg-secondary">待播</span>';
         }else{
           if(currentReplayProgram && p.startMs===currentReplayProgram.startMs && p.title===currentReplayProgram.title){
             right.innerHTML='<span class="badge badge-replay rounded-pill px-2 py-1">正在回放</span>';
             it.classList.add('active-epg');
           }else{
-            right.innerHTML='<span class="badge bg-success">已播</span>';
+            right.innerHTML='<span class="badge bg-success">回看</span>';
           }
         }
         it.appendChild(left);
@@ -1517,6 +1622,24 @@
       });
     }
 
+    // 并发控制：限制“当前节目”并发请求，避免首屏卡顿
+    var NOW_FETCH_MAX=4;
+    var nowFetchInFlight=0;
+    var nowFetchQueue=[];
+    function runNowFetchQueue(){
+      if(nowFetchInFlight>=NOW_FETCH_MAX) return;
+      var t=nowFetchQueue.shift();
+      if(!t) return;
+      nowFetchInFlight++;
+      t(function done(){
+        nowFetchInFlight=Math.max(0,nowFetchInFlight-1);
+        if(nowFetchQueue.length>0){
+          // 让浏览器喘口气
+          setTimeout(runNowFetchQueue,0);
+        }
+      });
+    }
+
     function renderChannels(){
       if(!channelList) return;
       var q=searchInput?searchInput.value||'':'';
@@ -1540,7 +1663,13 @@
         if(gcmp!==0) return gcmp;
         return String(ca.name||'').localeCompare(String(cb.name||''),'zh-CN',{numeric:true,sensitivity:'base'});
       });
-      entries.forEach(function(entry,idx){
+      // 分批渲染，减少长任务
+      var BATCH=40, startIdx=0;
+      function renderBatch(){
+        var end=Math.min(entries.length,startIdx+BATCH);
+        for(var i=startIdx;i<end;i++){
+          var entry=entries[i];
+          (function(entry,idx){
         var sourcesForEntry=entry.items.filter(function(s){
           var u=String(s.multicastUrl||'').trim();
           return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
@@ -1605,39 +1734,43 @@
             var chId=s0.tvgId||s0.tvgName||s0.name||'';
             var chName=s0.tvgName||s0.name||'';
             if(!chId && !chName) return;
-            var d=new Date();
-            var y=d.getFullYear();
-            var m=String(d.getMonth()+1).padStart(2,'0');
-            var dd=String(d.getDate()).padStart(2,'0');
-            var params=new URLSearchParams();
-            params.set('scope','internal');
-            params.set('channelId',chId);
-            params.set('channelName',chName);
-            params.set('date',y+'-'+m+'-'+dd);
-            if(epgId||(epgSel&&epgSel.value)) params.set('epgId',(epgSel&&epgSel.value)||epgId);
-            fetch('/api/epg/programs?'+params.toString()).then(function(r){return r.json()}).then(function(j){
-              var list=Array.isArray(j&&j.programs)?j.programs:[];
-              var now=Date.now();
-              var cur=null;
-              for(var i=0;i<list.length;i++){
-                var p=list[i];
-                if(p && p.startMs<=now && p.endMs>now){cur=p;break;}
-              }
-              if(!cur && list.length>0){
-                for(var j2=list.length-1;j2>=0;j2--){
-                  var pp=list[j2];
-                  if(pp && pp.startMs<=now){cur=pp;break;}
+            // 入队，限制并发
+            nowFetchQueue.push(function(done){
+              var d=new Date();
+              var y=d.getFullYear();
+              var m=String(d.getMonth()+1).padStart(2,'0');
+              var dd=String(d.getDate()).padStart(2,'0');
+              var params=new URLSearchParams();
+              params.set('scope',getScope());
+              params.set('channelId',chId);
+              params.set('channelName',chName);
+              params.set('date',y+'-'+m+'-'+dd);
+              if(epgId||(epgSel&&epgSel.value)) params.set('epgId',(epgSel&&epgSel.value)||epgId);
+              fetch('/api/epg/programs?'+params.toString()).then(function(r){return r.json()}).then(function(j){
+                var list=Array.isArray(j&&j.programs)?j.programs:[];
+                var now=Date.now();
+                var cur=null;
+                for(var i=0;i<list.length;i++){
+                  var p=list[i];
+                  if(p && p.startMs<=now && p.endMs>now){cur=p;break;}
                 }
-                if(!cur) cur=list[0];
-              }
-              if(cur && cur.title){
-                channelNowTitleByKey[key]=cur.title;
-                if(elRef){
-                  var base=groupText||'';
-                  elRef.textContent=base ? (base+' · '+cur.title) : cur.title;
+                if(!cur && list.length>0){
+                  for(var j2=list.length-1;j2>=0;j2--){
+                    var pp=list[j2];
+                    if(pp && pp.startMs<=now){cur=pp;break;}
+                  }
+                  if(!cur) cur=list[0];
                 }
-              }
-            }).catch(function(){});
+                if(cur && cur.title){
+                  channelNowTitleByKey[key]=cur.title;
+                  if(elRef){
+                    var base=groupText||'';
+                    elRef.textContent=base ? (base+' · '+cur.title) : cur.title;
+                  }
+                }
+              }).catch(function(){}).finally(function(){done()});
+            });
+            runNowFetchQueue();
           })(entry,subDiv,groupTitle);
         }
         textWrap.appendChild(subDiv);
@@ -1649,12 +1782,10 @@
         count.className='badge channel-count-badge';
         count.textContent=String(sourcesForEntry.length)+'源';
         rightWrap.appendChild(count);
-        if(entry.logo){
-          var im=document.createElement('img');
-          im.src=entry.logo;
-          im.className='logo-img channel-logo-right';
-          rightWrap.appendChild(im);
-        }
+        var im=document.createElement('img');
+        im.src=logoUrlFor(entry.name||entry.key||'');
+        im.className='logo-img channel-logo-right';
+        rightWrap.appendChild(im);
         head.appendChild(rightWrap);
 
         head.onclick=function(){
@@ -1663,7 +1794,49 @@
         };
         item.appendChild(head);
         channelList.appendChild(item);
-      });
+          })(entry,i);
+        }
+        startIdx=end;
+        if(startIdx<entries.length){
+          setTimeout(renderBatch,0);
+        }
+      }
+      renderBatch();
+    }
+
+    function getSettings(){
+      if(settingsCache) return Promise.resolve(settingsCache);
+      return fetch('/api/settings').then(function(r){return r.json()}).then(function(j){
+        settingsCache=(j&&j.settings)||{};
+        return settingsCache;
+      }).catch(function(){return {};});
+    }
+    function loadLogoTemplate(){
+      return fetch('/api/config/logo-templates').then(function(r){return r.json()}).then(function(j){
+        var list=Array.isArray(j&&j.templatesObj)?j.templatesObj:[];
+        var useExt=(localStorage.getItem('useExternal')==='true');
+        var pick=null;
+        if(useExt){
+          pick=list.find(function(x){return x&&x.category==='外网台标';})||null;
+        }else{
+          pick=list.find(function(x){return x&&x.category==='内网台标';})||null;
+        }
+        externalLogoTpl=pick&&pick.url||'';
+      }).catch(function(){});
+    }
+    function isExternalHost(){
+      var h=window.location.hostname||'';
+      if(h==='localhost'||h==='127.0.0.1') return false;
+      if(/^192\.168\./.test(h)) return false;
+      if(/^10\./.test(h)) return false;
+      if(/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h)) return false;
+      return true;
+    }
+    function logoUrlFor(name){
+      var nm=String(name||'').trim();
+      if(!nm) return '';
+      var scope=isExternalHost()?'external':getScope();
+      return '/api/logo?name='+encodeURIComponent(nm)+'&scope='+scope;
     }
 
     function loadStreams(){
@@ -1694,19 +1867,62 @@
         }
         if(best) startLiveFor(best);
       }
-      fetch('/api/streams').then(function(r){return r.json()}).then(function(j){
-        var list=Array.isArray(j&&j.streams)?j.streams:[];
-        streams=list;
-        buildCatTabs();
-        renderChannels();
-        var pre=tvgName||title;
-        if(pre){
-          var p=list.filter(function(x){return (x.tvgName||x.name||'')===pre;});
-          if(p.length>0) startLiveFor(p[0]); else defaultStart(list);
-        }else{
-          defaultStart(list);
-        }
-      }).catch(function(){});
+      var useExt=(localStorage.getItem('useExternal')==='true');
+      if(useExt){
+        Promise.all([getSettings(),loadLogoTemplate()]).then(function(arr){
+          var st=arr[0]||{};
+          var qs='?status=all&scope=external';
+          if(st&&st.enableToken&&st.securityToken){ qs+='&token='+encodeURIComponent(st.securityToken); }
+          return fetch('/api/export/json'+qs).then(function(r){
+            if(r.status===403){return {success:false,streams:[]};}
+            return r.json();
+          }).then(function(j){
+            var lst=Array.isArray(j&&j.streams)?j.streams:[];
+            var mapped=lst.map(function(it){
+              var httpUrl=it.httpUrl||'';
+              if(httpUrl.indexOf('$')!==-1){ httpUrl=httpUrl.split('$')[0]; }
+              return {
+                name:it.name||it.tvgName||'',
+                tvgName:it.tvgName||it.name||'',
+                tvgId:it.tvgId||'',
+                logo:it.logo||logoUrlFor(it.tvgName||it.name||''),
+                groupTitle:it.groupTitle||'',
+                resolution:it.resolution||'',
+                frameRate:it.frameRate||'',
+                multicastUrl:httpUrl,
+                udpxyUrl:'',
+                catchupBase:it.catchupBase||'',
+                httpParam:it.httpParam||'',
+                isAvailable:!!it.isAvailable
+              };
+            }).filter(function(x){return x.multicastUrl;});
+            streams=mapped;
+            buildCatTabs();
+            renderChannels();
+            var pre=tvgName||title;
+            if(pre){
+              var p=mapped.filter(function(x){return (x.tvgName||x.name||'')===pre;});
+              if(p.length>0) startLiveFor(p[0]); else defaultStart(mapped);
+            }else{
+              defaultStart(mapped);
+            }
+          }).catch(function(){});
+        });
+      }else{
+        fetch('/api/streams').then(function(r){return r.json()}).then(function(j){
+          var list=Array.isArray(j&&j.streams)?j.streams:[];
+          streams=list;
+          buildCatTabs();
+          renderChannels();
+          var pre=tvgName||title;
+          if(pre){
+            var p=list.filter(function(x){return (x.tvgName||x.name||'')===pre;});
+            if(p.length>0) startLiveFor(p[0]); else defaultStart(list);
+          }else{
+            defaultStart(list);
+          }
+        }).catch(function(){});
+      }
     }
 
     function loadEpgSources(){
@@ -1736,8 +1952,17 @@
         if(current) fetchAndRenderEpg(current,{force:true}); else fetchAndRenderEpg(null,{force:true});
       };
     }
+    // 输入框节流，减少频繁渲染
+    function debounce(fn,wait){
+      var t=null;
+      return function(){
+        var ctx=this,args=arguments;
+        if(t) clearTimeout(t);
+        t=setTimeout(function(){fn.apply(ctx,args)},wait);
+      };
+    }
     if(searchInput){
-      searchInput.oninput=renderChannels;
+      searchInput.oninput=debounce(renderChannels,200);
     }
 
     mountQier();

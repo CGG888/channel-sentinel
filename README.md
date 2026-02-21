@@ -12,52 +12,116 @@
 ![GHCR](https://img.shields.io/badge/GHCR-iptv--checker-2ea44f?logo=github)
 ![Docker Pulls](https://img.shields.io/docker/pulls/cgg888/iptv-checker?logo=docker)
 ![GHCR Downloads](./ghcr-downloads.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+
+👉 [查看完整使用指南（Wiki）](./docs/WIKI.md)
 
 ---
 
+## 许可证
+
+本项目采用 MIT License 开源许可。你可以在保留版权与许可声明的前提下，自由使用、复制、修改、合并、发布、分发、再许可及/或出售本软件的副本。本软件按“现状”提供，不附带任何明示或默示的担保，作者与贡献者不对使用本软件产生的任何损失负责。
+
+MIT License 原文：
+
+```
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
 ## 🌟 项目简介（当前版本：![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/cgg888/iptv-checker?sort=semver)）
 
-Iptv-Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能，适用于 IPTV 网络环境下的组播流批量检测、维护和导出。（软件基于湖南常德电信IPTV测试，单播为中兴平台http单播，请知悉）
+Iptv-Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播/单播流检测与管理工具，提供现代化 Web 界面与丰富生态导出。支持单播、组播批量检测、EPG 与回看、单播组播独立播放器、内/外网模式、台标模板（内/外网区分）、多种导出（M3U/TXT/JSON、TVBox、Xtream）、安全登录与令牌保护等能力，适用于运营网与实验环境中的频道维护、线路切换与对接。（基于湖南常德电信 IPTV 场景测试；单播以中兴平台 HTTP 单播为主）
+
+### 核心特性一览
+- 批量检测：在线/离线、分辨率、帧率、编码，合并同源不覆写元数据
+- 智能播放：组播直播走 mpegts.js，单播/回看走 hls.js；默认非静音；失败自动重试
+- EPG/回看：节目单查询、状态联动、快捷切换；回看拼接严格遵循规范
+- 内/外网模式：按访问场景切换地址拼接策略、台标模板与 EPG 源
+- 台标模板：支持内/外网模板与占位回退，统一 /api/logo 加载
+- 导出丰富：TXT/M3U/JSON 以及 TVBox/猫影视 JSON、Xtream Codes JSON
+- 接口集合：一键生成“播放器直连接口链接”，支持状态/范围/协议/回看格式参数
+- 安全鉴权：登录保护（含播放器页）、外网导出可加 Token，验证码防爆破
+- 版本与数据：版本快照管理，data 目录集中配置（代理、UDPXY、FCC、模板、分组等）
+
+### 支持的回看格式与规则
+- 格式：iso8601、ku9、mytv、npt、rtsp_range、playseek、startend14、beginend14、unix_s、unix_ms
+- 外网回看拼接规则：单播代理 + 回放源基础 URL + 酷9（等）时间参数
+- 拦截策略：杜绝把组播 /rtp/ 路径拼入回看，确保外网可播通路
+
+### 内/外网模式说明
+- 内网
+  - 组播：udpxy（或 rtp2httpd）基址 + /rtp/ + ip:port + ?fcc=...
+  - 单播：保留原始 http(s) 地址
+  - EPG/台标：使用“内网”源与模板
+- 外网
+  - 组播：使用“组播代理”基址拼接 /rtp/ip:port 并继承 httpParam
+  - 单播与回看：使用“单播代理”基址 + 去协议路径；回看附加对应时间参数
+  - EPG/台标：使用“外网”源与模板
+
+### 典型使用场景
+- 运营维护：批量体检频道质量，按组规则归类与导出，随时切换主备线路
+- 对外对接：为 TVBox/猫影视或 Xtream 生态生成可用 JSON/链接，并可加 Token
+- 内外网切换：同一套数据在内/外网环境下稳定可播，减少手工改地址成本
 
 ---
 
 ## ⚡ 软件功能说明
-- 🔍 检测与列表
-  - 批量/单条检测：自动获取在线状态、分辨率、帧率、编码等
-  - 筛选：全部/在线/离线、组播/单播
-  - 搜索：支持 名称/分组/地址/tvg/FCC/分辨率
-  - 排序：同名按质量优先（组播 4K > 1080p > 720p > 单播），考虑帧率
-  - 合并策略：同地址仅刷新状态，不覆盖名称/分组/Logo 等元数据
-  - 实时统计：总数、在线、离线
-- 🎬 播放与 EPG/回看
-  - 网页播放器：组播直播用 mpegts.js；单播直播与回看用 hls.js；支持简洁模式（ui=mini）
-  - 组播地址规范：udpxy 基址 + /rtp/ + 纯地址，自动追加 FCC，避免重复
-  - EPG 与回看弹窗：节目单查询、当前直播/回看状态联动、上一频道/停止/下一频道
-  - 新窗口播放：根据状态自适应选择 mpegts.js（组播直播）或 hls.js（单播/回看）
-  - 弹窗最大化：一键在全屏与卡片式之间切换
-  - 外部播放器：桌面调用 PotPlayer、移动端调用 VLC（设备自适应）
-- �️ 编辑与配置
-  - 频道编辑：名称、tvg-id/name、Logo 预览、分组、时移（catchupFormat/catchupBase/httpParam）
-  - 台标模板：支持模板管理与一键匹配
-  - 代理/UDProxy：配置组播代理、单播代理；udpxy 列表与 currentId
-  - EPG 源管理：内/外网 EPG 源增删改与选择
-  - 应用设置：内/外网模式与基址、外网使用开关
-- � 导出与接口
-  - 导出 TXT/M3U：包含 tvg-*、group-title、catchup 与 catchup-source，支持 ?fcc 与质量后缀（$标清/高清/超高清）
-  - 接口弹窗：状态/范围/单播协议（HTTP/RTSP）/回放格式（iso8601、ku9、mytv、npt、rtsp_range、playseek、startend14、beginend14、unix_s、unix_ms）
-  - 安全：外网导出需 Token；支持生成直连接口链接
-  - API：提供 /api/persist、/api/export、/api/config 等读写接口
-- 💾 版本与更新
-  - 版本管理：保存/加载/删除版本，自动加载最新版本
-  - 版本显示与更新检查：页面展示当前版本，检查 GitHub 最新版本；Docker 提示拉镜像，本地支持 git pull 引导
-- 🔐 安全与部署
-  - 登录鉴权：账号密码登录（默认 admin/admin），图形验证码防爆破
-  - 部署方式：Docker 运行/开发映射、本地 Node.js、Linux 一键部署脚本
-  - 数据持久化：data 目录映射与多配置文件（udpxy、fcc、分组、模板、代理、设置等）
-- ⚙️ 稳定性与体验
-  - 内核切换：切换直播/回看自动销毁 mpegts/hls 实例，避免冲突与泄露
-  - 错误处理：增强日志与异常捕获
-  - UI：自适配 PC/移动端，现代化卡片式界面
+
+### 检测与列表
+- 批量/单条检测：状态、分辨率、帧率、编码；同源合并不覆写元数据
+- 筛选/搜索：在线/离线、组播/单播；名称/分组/地址/tvg/FCC/分辨率
+- 排序与统计：同名按质量优先；展示总数、在线、离线
+
+### 播放
+- 组播直播→mpegts.js；单播/回看→hls.js；支持 ui=mini；默认非静音
+- 新窗口播放与外部播放器（PotPlayer/VLC）；弹窗一键全屏
+- 页面受登录保护，登录后自动回跳
+
+### EPG 与回看
+- 节目单查询与状态联动；节目单上下留白不贴边
+- 外网回看拼接：单播代理 + 回放源基础 URL + 时间参数（详见上文“回看格式与规则”）
+- 支持格式：iso8601、ku9、mytv、npt、rtsp_range、playseek、startend14、beginend14、unix_s、unix_ms
+
+### 编辑与配置
+- 频道：名称、tvg-id/name、Logo 预览、分组、时移（catchupFormat/Base/httpParam）
+- 台标模板：内/外网模板区分，统一通过 /api/logo 加载
+- 代理与 UDPXY：组播代理/单播代理配置；udpxy 列表与 currentId
+- EPG 源：内/外网源维护与选择；应用设置支持内/外网模式切换
+
+### 导出与接口
+- TXT/M3U（含 tvg-*、group-title、catchup、catchup-source、?fcc 与质量后缀）
+- JSON 导出：TVBox/猫影视（/api/export/tvbox）、Xtream Codes（/api/export/xtream）
+- 接口弹窗：状态/范围/协议/回看格式参数；支持直连集合（复制/打开/播放）
+- 外网导出可启用 Token；提供 /api/persist、/api/export、/api/config 等接口
+
+### 版本、部署与安全
+- 版本管理：保存/加载/删除，启动自动加载最新版本
+- 部署：Docker（生产/开发映射）、本地 Node.js、Linux 一键脚本
+- 登录鉴权：账号密码 + 验证码；页面与 API 路由保护（含 player.html）
+- 数据持久化：data 目录集中配置（udpxy、fcc、分组、模板、代理、设置等）
+
+### 稳定性与体验
+- 内核切换时自动销毁实例；错误处理与重试更健壮
+- UI 自适配 PC/移动端，现代卡片式界面
 
 ---
 
@@ -122,6 +186,7 @@ services:
 - 部署时通过环境变量 `IPTV_PORT` 覆盖应用监听端口（默认 3000）
 - 生产仅映射 data；不要映射 src/public 以免覆盖镜像内代码
 - 宿主机数据目录需可写；必要时设置 user: "1000:1000"
+- 镜像许可：MIT（与仓库 LICENSE 一致）
 
 ### 方式二：本地 Node.js（开发/轻量）
 环境准备：
@@ -262,24 +327,6 @@ sudo systemctl enable --now iptv-checker
 sudo systemctl status iptv-checker --no-pager
 ```
 
-## 使用指南（简要）
-
-- 批量检测
-  - 文本粘贴：在页面输入框粘贴 “频道名,rtp://ip:端口” 列表，点击开始检测
-  - 网络加载：填入远程 txt/m3u 链接（http/https），点击“网络加载”抓取并解析，内部使用接口解析文本
-  - 本地上传：上传本地 txt/m3u 文件，自动解析并填充列表
-- 内/外网模式
-  - 内网：组播导出使用当前 rtp2httpd（udpxy）服务器的 currentId 指向的地址作为基址
-  - 外网：导出走外网代理或外网 UDPXY；若启用 token，则必须携带正确 token
-- 频道编辑弹窗
-  - 字段：名称、tvgId/tvgName、Logo、分组、时移（catchupFormat/catchupBase/httpParam）
-  - 台标预览：Logo 输入后自动显示预览
-  - 播放按钮：可调用 PotPlayer（potplayer://play?url=...）；需本机已安装 PotPlayer
-- 时移（Catchup）
-  - 全局参数：在设置页配置 globalFcc；生成 httpParam（fcc=...）并应用到新检测记录
-  - 导出格式：fmt=default/ku9/mytv，不同格式生成不同 catchup-source
-  - 单播基址：内网保留原始地址；外网通过“代理”类型的基址拼接
-
 ## 版本管理
 
 - 前端操作：首页与结果页均提供版本下拉与按钮
@@ -311,25 +358,8 @@ sudo systemctl status iptv-checker --no-pager
 - ffprobe 超时时间约 8 秒；检测结果缓存 5 分钟以提升性能
 - 数据存储在内存，重启后清空；请使用版本管理或自行持久化
 
-## 常见操作
 
-- 同名排序：组播 4K > HD > SD > 单播，帧率高者优先
-- 检测合并：同地址仅刷新状态字段，不覆盖名称、分组、Logo 等
-- 跨域播放：调试 HLS 可使用 /api/proxy/stream
-- PotPlayer 播放：点击编辑弹窗按钮或使用 potplayer://play?url=... schema
-
-
-#### 💡 常见问题
-1. 🔄 如果端口被占用，修改端口映射（例如："8080:3000"）
-2. 🔒 如果拉取失败，检查 Docker 登录状态
-3. 🌐 国内用户如果 GitHub 镜像拉取较慢，建议切换到阿里云镜像
-4. 📋 查看实时日志：`docker-compose logs -f`
-5. 🔄 重启容器：`docker-compose restart`
-6. ⬆️ 更新镜像：`docker-compose pull && docker-compose up -d`
-
-
-
-#### 6 注意事项
+####  注意事项
 - ✅ 确保系统已安装 Docker 和 Docker Compose
 - 🔐 使用 GitHub 镜像源需要先登录 ghcr.io
 - 🚀 国内用户建议使用阿里云镜像源，速度更快
@@ -345,20 +375,29 @@ sudo systemctl status iptv-checker --no-pager
 - 🔄 容器配置了自动重启策略（unless-stopped）
 - 🌐 应用默认监听 3000 端口，可根据需要修改映射端口
 
-#### 7 常见问题解决
-- 📡 **无法拉取镜像**：
-  - GitHub 镜像拉取慢：尝试使用阿里云镜像
-  - 网络问题：检查网络连接和防火墙设置
-- 🚫 **容器无法启动**：
-  - 检查端口是否被占用：`netstat -nltp | grep 3000`
-  - 查看容器日志：`docker logs iptv-checker`
-- 💾 **数据持久化问题**：
-  - 确保挂载目录存在且有正确的权限
-  - 可执行 `docker exec -it iptv-checker ls -la /app/data` 检查容器内权限
 
 ---
 
 ## 版本历史
+### v1.3.2 (2026-02-21)
+- 安全与认证
+  - 将 player.html 纳入登录保护；未登录重定向至登录页并支持 redirect 回跳
+  - login.html 增加 redirect 解析与同源校验
+- 播放体验
+  - 默认不静音；若浏览器拦截自动播放，首次点击后继续以未静音播放
+  - EPG 节目单面板上下对称留白，避免贴近黑边与进度条
+- 回看与地址规范
+  - 外网回看拼接遵循“单播代理 + 回放源基础 URL + 酷9时间参数”，阻断 /rtp/ 组播路径误拼
+  - EPG/回看在外网模式下统一走单播代理
+- 台标与外观
+  - 内/外网台标模板自动选择，统一通过 /api/logo 加载
+- 导出与接口
+  - 新增 TVBox/猫影视 JSON（/api/export/tvbox）与 Xtream Codes JSON（/api/export/xtream）
+  - 接口弹窗新增上述直连接口项
+- 文档与许可
+  - 重构 README：简介与功能说明精简、美化，新增 GHCR/DockerHub 简介段
+  - 新增 LICENSE（MIT）与 MIT 徽章；package.json 增加 license 字段
+  
 ### v1.3.1 (2026-02-21)
 - 播放与检测联动
   - 检测结果列表与“编辑频道信息”弹窗的“网页播放”按钮统一使用“频道地址 (只读)”作为基址：组播自动在只读地址后拼接 FCC 参数；单播直接使用只读地址，避免任何硬编码
@@ -374,6 +413,7 @@ sudo systemctl status iptv-checker --no-pager
   - 检测页与结果页标题前新增 IPTV PNG 图标，图标高度与标题文字字体大小一致，提升识别度
 - 版本
   - 软件版本更新至 1.3.1
+  
 ### v1.3.0 (2026-02-19)
 - EPG 与回看
   - 组播直播：统一使用 HTTP 基址 + /rtp/ + 组播地址，并追加 FCC 参数；通过 mpegts.js 播放 TS，修复 400 Bad Request 问题；按需加载 mpegts.js，提升首开速度
@@ -430,6 +470,25 @@ sudo systemctl status iptv-checker --no-pager
   - 优化登录页、结果页样式
   - 调整版本弹窗为居中卡片式设计
 
+### v1.3.2 (2026-02-21)
+- 安全与认证
+  - 将 player.html 纳入登录保护；未登录重定向至登录页并支持 redirect 回跳
+  - login.html 增加 redirect 解析与同源校验
+- 播放体验
+  - 默认不静音；若浏览器拦截自动播放，首次点击后继续以未静音播放
+  - EPG 节目单面板上下对称留白，避免贴近黑边与进度条
+- 回看与地址规范
+  - 外网回看拼接遵循“单播代理 + 回放源基础 URL + 酷9时间参数”，阻断 /rtp/ 组播路径误拼
+  - EPG/回看在外网模式下统一走单播代理
+- 台标与外观
+  - 内/外网台标模板自动选择，统一通过 /api/logo 加载
+- 导出与接口
+  - 新增 TVBox/猫影视 JSON（/api/export/tvbox）与 Xtream Codes JSON（/api/export/xtream）
+  - 接口弹窗新增上述直连接口项
+- 文档与许可
+  - 重构 README：简介与功能说明精简、美化，新增 GHCR/DockerHub 简介段
+  - 新增 LICENSE（MIT）与 MIT 徽章；package.json 增加 license 字段
+
 ### v1.0.1 (2026-02-17)
 - 🔐 外网导出支持 token 验证，未携带或错误 token 拒绝访问
 - 🐛 修复导出接口异常（TXT ordered 未定义、M3U udpxyServers 未定义）
@@ -459,24 +518,24 @@ sudo systemctl status iptv-checker --no-pager
 
 ---
 
-## 📌 其他说明
-- 💻 支持 Windows、Linux、Docker 部署
-- ⚙️ 如需自定义端口，请修改 `src/index.js` 中的 `port` 变量
-- 💾 如需持久化存储，可自行扩展存储逻辑
-- 💡 建议定期备份检测结果（如有需求可自行开发导出/导入功能）
-- 🔄 如遇到页面功能异常，请尝试刷新页面或更换浏览器
+🙏 感谢您的使用！如需了解完整许可内容，请查阅根目录的 [LICENSE](file:///c:/Users/%E8%B6%85%E5%93%A5%E5%93%A5/Downloads/Iptv-web-Checker/LICENSE) 文件。
 
 ---
 
----
+## 容器镜像页面简介（GHCR / Docker Hub 可复制）
 
-🙏 感谢您的使用！
+```
+IPTV Checker —— IPTV 组播/单播流检测与管理工具
 
----
+• 批量检测：在线/离线、分辨率、帧率、编码
+• 播放内核：组播→mpegts.js，单播/回看→hls.js（默认非静音）
+• EPG/回看：节目单联动，外网回看遵循“单播代理 + 基础URL + 时间参数”
+• 内/外网：代理/UDPXY/FCC/台标模板/EPG 源按内外网区分
+• 导出生态：TXT/M3U/JSON、TVBox/猫影视 JSON、Xtream Codes JSON
+• 安全：登录保护，外网导出可加 Token
 
-## 页面预览
+开源许可：MIT（详见仓库 LICENSE）
 
-![Iptv-Checker 界面截图](./public/preview.png)
-![Iptv-Checker 界面截图](./public/preview1.png)
-![Iptv-Checker 界面截图](./public/preview2.png)
-![Iptv-Checker 界面截图](./public/preview3.png)
+快速启动（host 模式）：
+docker run -d --network host --name iptv-checker -e TZ=Asia/Shanghai -e PORT=${IPTV_PORT:-3000} -v $(pwd)/data:/app/data ghcr.io/cgg888/iptv-checker:latest
+```
