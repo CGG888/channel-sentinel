@@ -48,6 +48,19 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(bodyParser.json());
 app.use(cookieParser());
+try{
+    const compression = require('compression');
+    if (typeof compression === 'function') {
+        app.use(compression({ filter: (req, res) => {
+            const type = res.getHeader('Content-Type') || '';
+            if (String(req.path||'').startsWith('/api/proxy/')) return false;
+            return /json|text|javascript|svg|xml|css|html/i.test(String(type));
+        }}));
+        logger.info('已启用 compression 中间件');
+    }
+}catch(e){
+    // 若未安装 compression，跳过
+}
 
 // 鉴权中间件
 const USERS_FILE = path.join(__dirname, '../data/users.json');
@@ -209,9 +222,16 @@ app.post('/api/auth/update', (req, res) => {
 // 但放在 static 之前会拦截 login.html css js 等资源
 // 方案：只拦截特定路径
 app.use(['/', '/index.html', '/results', '/results.html', '/player.html', '/api/*'], requireAuth);
-app.use('/vendor', express.static(path.join(__dirname, '../public/vendor')));
+app.use('/vendor', express.static(path.join(__dirname, '../public/vendor'), { maxAge: '30d', immutable: true }));
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
-app.use(express.static('public'));
+app.use(express.static('public', {
+    maxAge: '7d',
+    setHeaders: (res, p) => {
+        if (p.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
+}));
 
 // 存储组播地址列表
 let multicastList = [];
@@ -492,9 +512,13 @@ app.post('/api/check-stream', async (req, res) => {
     const fullUrl = `${udpxyUrl}/rtp/${multicastUrl.replace('rtp://', '')}`;
     ffprobeCheck(fullUrl, ({ isAvailable, frameRate, bitRate, speed, resolution, codec, serviceName, raw }) => {
         // 更新或添加组播地址
-        const existingIndex = multicastList.findIndex(item => 
+        let existingIndex = multicastList.findIndex(item =>
             String(item.udpxyUrl || '').trim() === udpxyUrl && String(item.multicastUrl || '').trim() === multicastUrl
         );
+        if (existingIndex === -1) {
+            const byUrl = multicastList.findIndex(item => String(item.multicastUrl || '').trim() === multicastUrl);
+            if (byUrl !== -1) existingIndex = byUrl;
+        }
         const detectFields = {
             udpxyUrl,
             multicastUrl,
@@ -520,7 +544,7 @@ app.post('/api/check-stream', async (req, res) => {
                 groupTitle: '',
                 catchupFormat: '',
                 catchupBase: '',
-                httpParam: ''
+                httpParam: prevGlobalParam()
             });
         }
         res.json({
@@ -673,9 +697,13 @@ app.post('/api/check-streams-batch', async (req, res) => {
     logger.info('批量检测完成');
     // 合并到全局multicastList
     results.forEach(result => {
-        const existingIndex = multicastList.findIndex(item =>
+        let existingIndex = multicastList.findIndex(item =>
             String(item.udpxyUrl || '').trim() === udpxyUrl && String(item.multicastUrl || '').trim() === result.multicastUrl
         );
+        if (existingIndex === -1) {
+            const byUrl = multicastList.findIndex(item => String(item.multicastUrl || '').trim() === result.multicastUrl);
+            if (byUrl !== -1) existingIndex = byUrl;
+        }
         if (existingIndex !== -1) {
             const prev = multicastList[existingIndex];
             // 只更新状态字段
@@ -1034,7 +1062,11 @@ app.get('/api/export/m3u', (req, res) => {
                 unicastBase = buildUnicastCatchupBase(scope, match.multicastUrl || '', proto);
             }
         }
-        if (!unicastBase && s.catchupBase && fmt === 'default') {
+        if (s.m3uCatchupSource) {
+            const cu = String(s.m3uCatchupSource || '').trim();
+            const ck = String(s.m3uCatchup || 'default').trim() || 'default';
+            catchupAttr = ` catchup="${ck}" catchup-source="${cu}"`;
+        } else if (!unicastBase && s.catchupBase && fmt === 'default') {
             let cb = s.catchupBase;
             if (scope === 'external') {
                 const proxyBase = getProxyByType('单播代理');
@@ -1044,7 +1076,7 @@ app.get('/api/export/m3u', (req, res) => {
             }
             unicastBase = cb;
         }
-        if (unicastBase) {
+        if (!catchupAttr && unicastBase) {
             if (fmt === 'ku9') {
                 catchupAttr = ` catchup="default" catchup-source="${unicastBase}?starttime=${'${(b)yyyyMMdd|UTC}'}T${'${(b)HHmmss|UTC}'}&endtime=${'${(e)yyyyMMdd|UTC}'}T${'${(e)HHmmss|UTC}'}"`;
             } else if (fmt === 'mytv') {
@@ -1209,7 +1241,13 @@ app.post('/api/stream/update', (req, res) => {
             udpxyUrl,
             multicastUrl,
             isAvailable: false,
-            lastChecked: new Date().toISOString()
+            lastChecked: new Date().toISOString(),
+            httpParam: (function(){
+                const u = String(multicastUrl || '').trim();
+                const scheme = u.split(':')[0].toLowerCase();
+                if (scheme === 'rtp' || scheme === 'udp') return prevGlobalParam();
+                return '';
+            })()
         };
         multicastList.push(obj);
         index = multicastList.length - 1;
@@ -1346,10 +1384,74 @@ app.get('/api/logo', async (req, res) => {
         if (resp.status < 200 || resp.status >= 300) {
             return res.status(404).send('not found');
         }
-        const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
-        res.set('Content-Type', ct);
-        res.set('Cache-Control', 'public, max-age=3600');
-        res.send(Buffer.from(resp.data));
+        const accept = String(req.headers['accept'] || '').toLowerCase();
+        const fmtRaw = String(req.query.fmt || '').toLowerCase();
+        const wRaw = parseInt(String(req.query.w || '').trim(), 10);
+        const hRaw = parseInt(String(req.query.h || '').trim(), 10);
+        const fitRaw = String(req.query.fit || '').toLowerCase();
+        const clamp = (n, lo, hi) => (isFinite(n) && n > 0 ? Math.max(lo, Math.min(hi, n)) : undefined);
+        const w = clamp(wRaw, 1, 512);
+        const h = clamp(hRaw, 1, 512);
+        const fitMap = { contain: 'inside', cover: 'cover', fill: 'fill', inside: 'inside', outside: 'outside' };
+        const fit = fitMap[fitRaw] || 'inside';
+        let wantFmt = '';
+        if (fmtRaw === 'webp' || fmtRaw === 'avif' || fmtRaw === 'png' || fmtRaw === 'jpeg' || fmtRaw === 'jpg') {
+            wantFmt = fmtRaw === 'jpg' ? 'jpeg' : fmtRaw;
+        } else {
+            if (accept.includes('image/avif')) wantFmt = 'avif';
+            else if (accept.includes('image/webp')) wantFmt = 'webp';
+            else wantFmt = '';
+        }
+        let sharpLib = null;
+        try { sharpLib = require('sharp'); } catch(e) { sharpLib = null; }
+        const srcBuf = Buffer.from(resp.data);
+        const crypto = require('crypto');
+        async function sendWithCache(buf, contentType) {
+            const etag = '"' + crypto.createHash('sha1').update(buf).digest('hex') + '"';
+            const inm = String(req.headers['if-none-match'] || '');
+            if (inm && inm === etag) {
+                res.status(304);
+                res.set('ETag', etag);
+                res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+                return res.end();
+            }
+            res.set('ETag', etag);
+            res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+            res.type(contentType);
+            return res.send(buf);
+        }
+        if (sharpLib) {
+            try {
+                let img = sharpLib(srcBuf, { failOnError: false });
+                if (w || h) {
+                    img = img.resize({ width: w, height: h, fit, withoutEnlargement: true });
+                }
+                let outType = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
+                if (wantFmt === 'webp') {
+                    img = img.webp({ quality: 70, effort: 4 });
+                    outType = 'image/webp';
+                } else if (wantFmt === 'avif') {
+                    img = img.avif({ quality: 45, effort: 4 });
+                    outType = 'image/avif';
+                } else if (wantFmt === 'png') {
+                    img = img.png({ compressionLevel: 9 });
+                    outType = 'image/png';
+                } else if (wantFmt === 'jpeg') {
+                    img = img.jpeg({ quality: 70, mozjpeg: true });
+                    outType = 'image/jpeg';
+                }
+                const outBuf = await img.toBuffer();
+                return await sendWithCache(outBuf, outType);
+            } catch(e) {
+                // 失败回退到原图
+                const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
+                return await sendWithCache(srcBuf, ct);
+            }
+        } else {
+            // 无图像处理库，直接透传但提供长缓存
+            const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
+            return await sendWithCache(srcBuf, ct);
+        }
     } catch(e) {
         res.status(404).send('not found');
     }

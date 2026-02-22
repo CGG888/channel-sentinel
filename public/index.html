@@ -516,6 +516,8 @@ async function batchCheckStreams(udpxyUrl, batchText) {
         const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
         const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
         showProgress(multicastList.length, multicastList.length, detectCancel ? `检测停止 | 已完成: ${onlineCount+offlineCount} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
+        try { showDetectionSummary(allData.streams || []); } catch(e) {}
+        try { notifyDetectionDone(onlineCount, offlineCount, (allData.streams||[]).length); } catch(e) {}
         getStreams();
     } catch (error) {
         showProgress(1, 1, '批量检测请求失败');
@@ -526,35 +528,155 @@ async function batchCheckStreams(udpxyUrl, batchText) {
 function parsePlaylistText(t) {
     const lines = t.split('\n').map(s => s.trim()).filter(s => s);
     const out = [];
+    const epgUrls = [];
+    const headMatches = [];
+    for (const ln of lines) {
+        if (/^#EXTM3U/i.test(ln)) headMatches.push(ln);
+        else if (/^#EXTINF/i.test(ln)) break;
+    }
+    headMatches.forEach(h => {
+        const rx1 = /x-tvg-url\s*=\s*"([^"]+)"/ig;
+        const rx2 = /x-tvg-url\s*=\s*'([^']+)'/ig;
+        let m;
+        while ((m = rx1.exec(h)) !== null) epgUrls.push(m[1]);
+        while ((m = rx2.exec(h)) !== null) epgUrls.push(m[1]);
+    });
     if (t.includes('#EXTM3U')) {
-        let curName = '';
+        let curAttrs = {};
         for (let i = 0; i < lines.length; i++) {
             const ln = lines[i];
-            if (ln.startsWith('#EXTINF')) {
-                const idx = ln.lastIndexOf(',');
-                curName = idx !== -1 ? ln.slice(idx + 1).trim() : '';
+            if (/^#EXTINF/i.test(ln)) {
+                const kv = ln.replace(/^#EXTINF:[^ ]*\s*/i, '');
+                const idx = kv.lastIndexOf(',');
+                const attrStr = idx !== -1 ? kv.slice(0, idx).trim() : '';
+                const nm = idx !== -1 ? kv.slice(idx + 1).trim() : '';
+                const attrs = {};
+                const re = /([\w\-]+)\s*=\s*"([^"]*)"|([\w\-]+)\s*=\s*'([^']*)'/g;
+                let m;
+                while ((m = re.exec(attrStr)) !== null) {
+                    const k = (m[1] || m[3] || '').trim();
+                    const v = (m[2] || m[4] || '').trim();
+                    if (k) attrs[k] = v;
+                }
+                curAttrs = {
+                    name: nm.replace(/^[`'"]+|[`'"]+$/g, ''),
+                    tvgId: attrs['tvg-id'] || '',
+                    tvgName: attrs['tvg-name'] || '',
+                    tvgLogo: attrs['tvg-logo'] || '',
+                    groupTitle: attrs['group-title'] || '',
+                    catchup: attrs['catchup'] || '',
+                    catchupSource: attrs['catchup-source'] || ''
+                };
             } else if (!ln.startsWith('#')) {
                 const uRaw = ln.trim();
                 const u = uRaw.replace(/^[`'"]+|[`'"]+$/g, '');
-                const nm = (curName || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                out.push({ name: nm, url: u });
+                const item = {
+                    name: curAttrs.name || '',
+                    url: u,
+                    tvgId: curAttrs.tvgId || '',
+                    tvgName: curAttrs.tvgName || '',
+                    tvgLogo: curAttrs.tvgLogo || '',
+                    groupTitle: curAttrs.groupTitle || '',
+                    catchup: curAttrs.catchup || '',
+                    catchupSource: curAttrs.catchupSource || ''
+                };
+                out.push(item);
+                curAttrs = {};
             }
         }
     } else {
         for (const ln of lines) {
             if (ln.startsWith('#')) continue;
             if (ln.includes(',')) {
-                const [n, u] = ln.split(',');
+                const sp = ln.split(',');
+                const n = sp.shift();
+                const u = sp.join(',');
                 const nm = (n || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
                 const url = (u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                out.push({ name: nm, url: url });
+                out.push({ name: nm, url: url, tvgId: '', tvgName: '', tvgLogo: '', groupTitle: '', catchup: '', catchupSource: '' });
             } else {
                 const url = ln.trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                out.push({ name: '', url });
+                out.push({ name: '', url, tvgId: '', tvgName: '', tvgLogo: '', groupTitle: '', catchup: '', catchupSource: '' });
             }
         }
     }
-    return out.filter(it => it.url && (it.url.startsWith('rtp://') || it.url.startsWith('http://') || it.url.startsWith('https://')));
+    const filtered = out.filter(it => it.url && (it.url.startsWith('rtp://') || it.url.startsWith('http://') || it.url.startsWith('https://')));
+    try { window.__lastM3UImport = { epgHeaderUrls: Array.from(new Set(epgUrls)), items: filtered }; } catch(e) {}
+    return filtered;
+}
+function classifyScopeByUrl(u) {
+    try {
+        const x = new URL(u);
+        const h = x.hostname || '';
+        if (h === 'localhost' || h === '127.0.0.1') return '内网EPG';
+        if (/^192\.168\./.test(h)) return '内网EPG';
+        if (/^10\./.test(h)) return '内网EPG';
+        if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h)) return '内网EPG';
+        return '外网EPG';
+    } catch(e) { return '外网EPG'; }
+}
+async function persistImportedMeta(items) {
+    try {
+        const epgUrls = (window.__lastM3UImport && window.__lastM3UImport.epgHeaderUrls) ? window.__lastM3UImport.epgHeaderUrls : [];
+        let groups = Array.from(new Set(items.map(x => String(x.groupTitle||'').trim()).filter(Boolean)));
+        try {
+            const cur = await fetch('/api/config/group-titles').then(r=>r.json()).catch(()=>({titles:[],titlesObj:[]}));
+            const now = Array.isArray(cur.titles) ? cur.titles : [];
+            const merged = Array.from(new Set(now.concat(groups))).filter(Boolean).map(n => ({name:n,color:''}));
+            await fetch('/api/config/group-titles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titlesObj:merged})});
+        } catch(e) {}
+        if (Array.isArray(epgUrls) && epgUrls.length>0) {
+            try {
+                const cur = await fetch('/api/config/epg-sources').then(r=>r.json()).catch(()=>({sources:[]}));
+                const list = Array.isArray(cur.sources)?cur.sources:[];
+                const add = [];
+                epgUrls.forEach(u=>{
+                    const scope = classifyScopeByUrl(u);
+                    const exists = list.find(x => x && x.url === u);
+                    if (!exists) add.push({ name: '导入EPG/'+(function(){try{ return new URL(u).hostname }catch(e){ return '源' }})(), url: u, scope });
+                });
+                if (add.length>0) {
+                    const merged = list.concat(add).map(x=>({id:x.id||'',name:x.name||'未命名EPG',url:x.url,scope:(x.scope==='外网EPG'?'外网EPG':'内网EPG')}));
+                    await fetch('/api/config/epg-sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sources:merged})});
+                }
+            } catch(e) {}
+        }
+        let existing = [];
+        try { existing = await fetch('/api/streams').then(r=>r.json()).then(j=>Array.isArray(j.streams)?j.streams:[]); } catch(e) { existing = []; }
+        const byKey = {};
+        existing.forEach(s => { const k = normalizeKey(String(s.multicastUrl||'').trim()); if (k) byKey[k] = s; });
+        const tasks = [];
+        items.forEach(it=>{
+            const u = String(it.url||'').trim();
+            if(!u) return;
+            const key = normalizeKey(u);
+            const cur = byKey[key] || {};
+            let mUrl = cur.multicastUrl || (function(){
+                try {
+                    const uu = new URL(u);
+                    if (uu.pathname.includes('/rtp/')) {
+                        const seg = uu.pathname.split('/rtp/')[1] || '';
+                        const ip = seg.split('?')[0] || '';
+                        if (ip) return 'rtp://' + ip;
+                    }
+                } catch(e) {}
+                return u;
+            })();
+            const upd = {};
+            if (!cur.tvgId && it.tvgId) upd.tvgId = it.tvgId;
+            if (!cur.tvgName && it.tvgName) upd.tvgName = it.tvgName;
+            if (!cur.groupTitle && it.groupTitle) upd.groupTitle = it.groupTitle;
+            if (!cur.name && it.name) upd.name = it.name;
+            const logoNow = String(cur.logo||'').trim();
+            if (!logoNow && it.tvgLogo) upd.logo = it.tvgLogo;
+            if (it.catchup) upd.m3uCatchup = it.catchup;
+            if (it.catchupSource) upd.m3uCatchupSource = it.catchupSource;
+            if (Object.keys(upd).length>0) {
+                tasks.push(fetch('/api/stream/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({udpxyUrl:cur.udpxyUrl||'',multicastUrl:mUrl,update:upd})}).catch(()=>null));
+            }
+        });
+        if (tasks.length>0) await Promise.all(tasks);
+    } catch(e) {}
 }
 function normalizeKey(url) {
     if (url.startsWith('rtp://')) {
@@ -695,6 +817,8 @@ async function batchCheckStreamsMixed(udpxyUrl, batchText) {
         const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
         const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
         showProgress(list.length, list.length, detectCancel ? `检测停止 | 已完成: ${finished} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${list.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
+        try { showDetectionSummary(allData.streams || []); } catch(e) {}
+        try { notifyDetectionDone(onlineCount, offlineCount, (allData.streams||[]).length); } catch(e) {}
         getStreams();
     } catch (error) {
         showProgress(1, 1, '批量检测请求失败');
@@ -1686,11 +1810,12 @@ function playStreamByIndex(index){
         var title = String(s.name||s.tvgName||'').trim();
         var tvgName = String(s.tvgName||s.name||'').trim();
         var logo = String(s.logo||'').trim();
+        var useExternal = (localStorage.getItem('useExternal')==='true');
         var qs = new URLSearchParams();
         qs.set('url', base);
         if(title) qs.set('title', title);
         if(tvgName) qs.set('tvgName', tvgName);
-        if(logo) qs.set('logo', logo);
+        if(!useExternal && logo) qs.set('logo', logo);
         qs.set('live','1');
         qs.set('ui','mini');
         var w = window.open('/player.html?'+qs.toString(), 'player_live', 'width=1200,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
@@ -1853,6 +1978,212 @@ function showCenterConfirm(msg, callback, onlyOk = false) {
     okBtn.onclick = function() { close(); if (callback) callback(true); };
     cancelBtn.onclick = function() { close(); if (callback) callback(false); };
 }
+function buildDetectionStats(list) {
+    const arr = Array.isArray(list) ? list : [];
+    const total = arr.length;
+    const online = arr.filter(s => s.isAvailable).length;
+    const offline = total - online;
+    const grpMap = {};
+    arr.forEach(s => {
+        const g = (s.groupTitle || '未分组').trim() || '未分组';
+        grpMap[g] = (grpMap[g] || 0) + 1;
+    });
+    const groups = Object.entries(grpMap).sort((a,b)=>b[1]-a[1]);
+    const groupCount = groups.length;
+    let multicast = 0, unicast = 0;
+    const udpxyMap = {};
+    const domainMap = {};
+    let bitrateSum = 0, bitrateCnt = 0, fpsSum = 0, fpsCnt = 0;
+    arr.forEach(s => {
+        const u = String(s.multicastUrl || '').trim();
+        const scheme = u.split(':')[0].toLowerCase();
+        const isMc = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
+        if (isMc) {
+            multicast++;
+            const h = (String(s.udpxyUrl||'').trim() || '').replace(/^https?:\/\//,'').split('/')[0] || '未知';
+            udpxyMap[h] = (udpxyMap[h]||0)+1;
+        } else {
+            unicast++;
+            let host = '未知';
+            try { const uu = new URL(u); host = uu.hostname; } catch(e) {}
+            domainMap[host] = (domainMap[host]||0)+1;
+        }
+        if (s.isAvailable && typeof s.bitRate === 'number' && s.bitRate > 0) { bitrateSum += s.bitRate; bitrateCnt++; }
+        const fr = parseFloat(String(s.frameRate||'').toString());
+        if (!Number.isNaN(fr) && fr > 0) { fpsSum += fr; fpsCnt++; }
+    });
+    const resMap = { '3840x2160':0,'1920x1080':0,'1280x720':0,'其他':0 };
+    arr.forEach(s => {
+        const r = String(s.resolution || '').trim();
+        if (r === '3840x2160') resMap['3840x2160']++;
+        else if (r === '1920x1080') resMap['1920x1080']++;
+        else if (r === '1280x720') resMap['1280x720']++;
+        else resMap['其他']++;
+    });
+    const codecMap = {};
+    arr.forEach(s => {
+        const c = (s.codec || '').trim() || '-';
+        codecMap[c] = (codecMap[c] || 0) + 1;
+    });
+    const epgCovered = arr.filter(s => (s.tvgId && s.tvgId.trim()) || (s.tvgName && s.tvgName.trim())).length;
+    const withLogo = arr.filter(s => String(s.logo||'').trim()).length;
+    const avgBitrateMbps = bitrateCnt ? (bitrateSum/bitrateCnt/1000000) : 0;
+    const avgFps = fpsCnt ? (fpsSum/fpsCnt) : 0;
+    return { total, online, offline, groups, groupCount, multicast, unicast, resMap, codecMap, epgCovered, withLogo, udpxyMap, domainMap, avgBitrateMbps, avgFps };
+}
+function ensureDetectSummaryStyles() {
+    if (document.getElementById('detectSummaryStyle')) return;
+    const style = document.createElement('style');
+    style.id = 'detectSummaryStyle';
+    style.textContent = `
+    #detectSummaryModal .modal-content{border-radius:20px;box-shadow:0 24px 64px rgba(2,6,23,.24)}
+    #detectSummaryModal .detect-card{border:1px solid #e5e7eb;border-radius:16px;padding:16px;background:linear-gradient(180deg,#f8fafc,#ffffff)}
+    #detectSummaryModal .detect-badges .badge{border-radius:12px;padding:.5rem .75rem;font-weight:600}
+    #detectSummaryModal .detect-title{display:flex;align-items:center;gap:10px}
+    #detectSummaryModal .detect-title img{width:36px;height:36px;border-radius:10px;object-fit:cover}
+    #detectSummaryModal .detect-sub{color:#64748b;font-size:.9rem}
+    #detectSummaryModal .detect-table th,#detectSummaryModal .detect-table td{vertical-align:middle}
+    #detectSummaryModal .chip{display:inline-block;padding:.35rem .6rem;border:1px solid #e5e7eb;border-radius:999px;background:#f8fafc;margin:.15rem .25rem;font-size:.85rem}
+    #detectSummaryModal .stack{display:flex;flex-wrap:wrap;gap:.5rem}
+    #detectSummaryModal .progress-line{height:6px;border-radius:4px;background:linear-gradient(90deg,#14b8a6,#2563eb)}
+    `;
+    document.head.appendChild(style);
+}
+function showDetectionSummary(list) {
+    let modal = document.getElementById('detectSummaryModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detectSummaryModal';
+        modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(15,23,42,.28);z-index:10000;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content"><div class="modal-header border-0 pb-0 d-flex align-items-center"><div class="detect-title"><img id="detectSummaryLogo" alt="IPTV"><div><div class="fw-bold">检测结果统计</div><div class="detect-sub" id="detectSummaryTime"></div></div></div><div class="ms-auto"></div><button type="button" class="btn-close" id="detectSummaryClose"></button></div><div class="modal-body pt-2" id="detectSummaryBody"></div><div class="modal-footer border-0 pt-0"><button class="btn btn-primary px-4" id="detectSummaryOk">确定</button></div></div></div></div>';
+        document.body.appendChild(modal);
+    }
+    ensureDetectSummaryStyles();
+    const s = buildDetectionStats(list);
+    const topGroups = s.groups.slice(0, 10).map(([g,c]) => {
+        const w = s.total ? Math.max(6, Math.round((c/s.total)*100)) : 6;
+        return `<tr><td>${g}</td><td class="text-end" style="width:110px">${c}</td><td style="width:40%"><div class="progress-line" style="width:${w}%"></div></td></tr>`;
+    }).join('');
+    const moreGroups = s.groups.length > 10 ? `<div class="text-muted small">其余 ${s.groups.length - 10} 个分组略</div>` : '';
+    const codecRows = Object.entries(s.codecMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<span class="badge bg-light text-dark border me-2 mb-2">${k}: ${v}</span>`).join('');
+    const udpxyRows = Object.entries(s.udpxyMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="d-flex justify-content-between"><span class="text-truncate" title="${k}">${k}</span><span>${v}</span></div>`).join('') || '<div class="text-muted">暂无</div>';
+    const domainRows = Object.entries(s.domainMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="d-flex justify-content-between"><span class="text-truncate" title="${k}">${k}</span><span>${v}</span></div>`).join('') || '<div class="text-muted">暂无</div>';
+    const body = document.getElementById('detectSummaryBody');
+    if (body) {
+        body.innerHTML = `
+        <div class="row g-3">
+          <div class="col-lg-7">
+            <div class="detect-card">
+              <div class="d-flex flex-wrap gap-2 detect-badges">
+                <span class="badge text-bg-secondary">总数 ${s.total}</span>
+                <span class="badge text-bg-success">在线 ${s.online}</span>
+                <span class="badge text-bg-danger">离线 ${s.offline}</span>
+                <span class="badge text-bg-info">分组 ${s.groupCount}</span>
+                <span class="badge text-bg-warning">组播 ${s.multicast}</span>
+                <span class="badge bg-light text-dark border">单播 ${s.unicast}</span>
+                <span class="badge text-bg-primary">有EPG ${s.epgCovered}</span>
+                <span class="badge bg-light text-dark border">有Logo ${s.withLogo}</span>
+              </div>
+              <div class="mt-3 d-flex flex-wrap gap-2">
+                <span class="badge bg-light text-dark border">4K ${s.resMap['3840x2160']}</span>
+                <span class="badge bg-light text-dark border">1080P ${s.resMap['1920x1080']}</span>
+                <span class="badge bg-light text-dark border">720P ${s.resMap['1280x720']}</span>
+                <span class="badge bg-light text-dark border">其他 ${s.resMap['其他']}</span>
+                <span class="badge bg-light text-dark border">平均码率 ${s.avgBitrateMbps.toFixed(2)} Mbps</span>
+                <span class="badge bg-light text-dark border">平均帧率 ${s.avgFps.toFixed(1)} fps</span>
+              </div>
+              <div class="mt-3">${codecRows}</div>
+            </div>
+            <div class="detect-card mt-3">
+              <div class="d-flex justify-content-between align-items-center mb-2"><span class="fw-bold">分组统计（前10）</span><span class="text-muted small">按频道数降序</span></div>
+              <div class="table-responsive"><table class="table table-sm align-middle mb-0 detect-table"><thead><tr><th style="min-width:140px">分组</th><th class="text-end" style="width:110px">频道数</th><th style="width:40%"></th></tr></thead><tbody>${topGroups || '<tr><td>无</td><td class="text-end">0</td><td></td></tr>'}</tbody></table></div>
+              ${moreGroups}
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="detect-card h-100">
+              <div class="row g-3">
+                <div class="col-12">
+                  <div class="border rounded-3 p-3">
+                    <div class="fw-bold mb-2">UDPXY 服务器（前6）</div>
+                    ${udpxyRows}
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="border rounded-3 p-3">
+                    <div class="fw-bold mb-2">单播域名（前6）</div>
+                    ${domainRows}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+    modal.style.display = 'block';
+    modal.querySelector('.modal').classList.add('show');
+    const closeBtn = document.getElementById('detectSummaryClose');
+    const okBtn = document.getElementById('detectSummaryOk');
+    const close = function(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); restoreTitleNotify(); };
+    if (closeBtn) closeBtn.onclick = close;
+    if (okBtn) okBtn.onclick = close;
+    const logo = document.getElementById('detectSummaryLogo');
+    if (logo) {
+        logo.onerror = function() {
+            const svg = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect rx="12" ry="12" width="64" height="64" fill="#2563eb"/><rect x="10" y="16" width="44" height="28" rx="4" fill="#ffffff"/><rect x="14" y="20" width="36" height="20" rx="2" fill="#e2e8f0"/><rect x="22" y="48" width="20" height="6" rx="3" fill="#1e293b"/></svg>');
+            logo.src = svg;
+        };
+        logo.src = '/iptv.png';
+    }
+    const t = document.getElementById('detectSummaryTime');
+    if (t) t.textContent = new Date().toLocaleString();
+}
+let __titleBackup = document.title;
+let __titleTimer = null;
+let __favBackupHref = '';
+function setFaviconBadge() {
+    try {
+        const link = document.querySelector('link[rel="icon"]');
+        if (!link) return;
+        __favBackupHref = link.href;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+            const c = document.createElement('canvas');
+            c.width = 64; c.height = 64;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0, 64, 64);
+            ctx.fillStyle = '#ff3b3b';
+            ctx.beginPath(); ctx.arc(52,12,10,0,Math.PI*2); ctx.fill();
+            const url = c.toDataURL('image/png');
+            link.href = url;
+        };
+        img.src = __favBackupHref;
+    } catch(e) {}
+}
+function restoreTitleNotify() {
+    try { if (__titleTimer) { clearInterval(__titleTimer); __titleTimer = null; } } catch(e){}
+    try { document.title = __titleBackup; } catch(e){}
+    try {
+        const link = document.querySelector('link[rel="icon"]');
+        if (link && __favBackupHref) link.href = __favBackupHref;
+    } catch(e){}
+}
+function notifyDetectionDone(online, offline, total) {
+    const msg = `检测完成 总${total} 在线${online} 离线${offline}`;
+    if (document.hidden) {
+        __titleBackup = document.title;
+        let on = true;
+        __titleTimer = setInterval(function(){ document.title = on ? `【完成】${msg}` : __titleBackup; on = !on; }, 1200);
+        setFaviconBadge();
+        try {
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') new Notification('检测完成', { body: msg });
+                else if (Notification.permission !== 'denied') Notification.requestPermission().then(p => { if (p==='granted') new Notification('检测完成', { body: msg }); });
+            }
+        } catch(e){}
+        window.addEventListener('visibilitychange', function(){ if (!document.hidden) restoreTitleNotify(); }, { once: true });
+    }
+}
 // 统计输入框数据总数并显示到顶部统计卡片
 function updateInputCount() {
     let rangeStart = (document.getElementById('rangeStart').value || '').trim();
@@ -1926,6 +2257,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
                     showCenterConfirm('未解析到有效地址', null, true);
                     return;
                 }
+                try { await persistImportedMeta(items); } catch(e) {}
                 const lines = items.map(it => `${it.name || ''},${it.url}`);
                 ta.value = lines.join('\n');
                 updateInputCount();
@@ -1951,6 +2283,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
                     showCenterConfirm('未解析到有效地址', null, true);
                     return;
                 }
+                try { await persistImportedMeta(itemsFixed); } catch(e) {}
                 const lines = itemsFixed.map(it => `${it.name || ''},${it.url}`);
                 const ta = document.getElementById('batchInput');
                 ta.value = lines.join('\n');
@@ -2184,7 +2517,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.2</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.3</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
             </span>
             <a href="/docs/" target="_blank" class="small text-decoration-none ms-3" style="color:#6c757d; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'">
                 <i class="bi bi-book me-1"></i>使用指南

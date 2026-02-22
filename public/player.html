@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title> 播放器 - IPTV Checker</title>
   <link rel="icon" type="image/png" href="/iptv.png">
+  <link rel="preload" href="/vendor/bootstrap-icons/1.11.3/font/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6" as="font" type="font/woff2" crossorigin>
   <link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
   <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <script>
@@ -62,6 +63,7 @@
       display:flex;
       flex-direction:column;
       border-left:1px solid #e5e7eb;
+      content-visibility:auto;
     }
     #channelLayer.collapsed{
       width:0;
@@ -489,7 +491,7 @@
     <div id="app"></div>
     <div class="player-info-overlay">
        <div class="info-content text-center">
-         <img id="logoImg" class="info-logo mb-2 d-none" alt="logo">
+         <img id="logoImg" class="info-logo mb-2 d-none" alt="logo" decoding="async" fetchpriority="high" height="48">
          <div id="titleEl" class="info-title fw-bold text-white mb-1">IPTV 播放</div>
          <div class="d-flex align-items-center justify-content-center gap-2">
             <span id="channelNumBadge" class="badge bg-light text-dark bg-opacity-75 rounded-1 px-1 py-0 small d-none"></span>
@@ -538,8 +540,6 @@
       <div id="epgHint" class="p-3 small text-white-50 text-center"></div>
     </div>
   </div>
-  <script src="/vendor/hls.js/hls.min.js"></script>
-  <script src="/vendor/mpegts.js/mpegts.js"></script>
   <script src="/vendor/qier-player/index.min.js"></script>
   <script>
     function qs(k){return new URLSearchParams(location.search).get(k)||''}
@@ -613,7 +613,30 @@
 
     if(titleEl) titleEl.textContent=title;
     if(subEl) subEl.textContent=tvgName||'';
-    if(logo && logoImg){logoImg.src=logo; logoImg.classList.remove('d-none')}
+    function logoUrlForSized(name,opts){
+      var u=logoUrlFor(name);
+      if(!u) return u;
+      var arr=[];
+      if(opts&&opts.w) arr.push('w='+encodeURIComponent(opts.w));
+      if(opts&&opts.h) arr.push('h='+encodeURIComponent(opts.h));
+      if(opts&&opts.fit) arr.push('fit='+encodeURIComponent(opts.fit));
+      if(opts&&opts.fmt) arr.push('fmt='+encodeURIComponent(opts.fmt));
+      if(arr.length===0) return u;
+      return u+(u.indexOf('?')===-1?'?':'&')+arr.join('&');
+    }
+    (function initLogoOnLoad(){
+      var useExternal=false;
+      try{ useExternal=(localStorage.getItem('useExternal')==='true'); }catch(e){ useExternal=false; }
+      var externalHost=isExternalHost();
+      if((useExternal||externalHost) && logoImg){
+        var nm=tvgName||title||'';
+        var src=logoUrlForSized(nm,{h:48,fit:'contain',fmt:'webp'});
+        if(src){ logoImg.src=src; logoImg.classList.remove('d-none'); }
+      }else if(logo && logoImg){
+        logoImg.src=logo; 
+        logoImg.classList.remove('d-none');
+      }
+    })();
     if(liveFlag && liveBadge) liveBadge.classList.remove('d-none');
     if(uiCompact){
       if(channelLayer) channelLayer.classList.add('collapsed');
@@ -683,6 +706,35 @@
       }
       updateLiveDotBlink();
       if(liveLabelEl) liveLabelEl.textContent='';
+    }
+
+    var __libLoaders={};
+    function loadScriptOnce(url){
+      if(__libLoaders[url]) return __libLoaders[url];
+      __libLoaders[url]=new Promise(function(resolve,reject){
+        try{
+          var s=document.createElement('script');
+          s.src=url;
+          s.async=true;
+          s.onload=function(){resolve(true)};
+          s.onerror=function(){reject(new Error('load fail: '+url))};
+          document.head.appendChild(s);
+        }catch(e){reject(e)}
+      });
+      return __libLoaders[url];
+    }
+    var __loadingHls=false, __loadingMpegts=false;
+    function ensureHls(){
+      if(window.Hls) return Promise.resolve(true);
+      if(__loadingHls) return (__libLoaders['/vendor/hls.js/hls.min.js']||Promise.resolve(true));
+      __loadingHls=true;
+      return loadScriptOnce('/vendor/hls.js/hls.min.js').catch(function(){});
+    }
+    function ensureMpegts(){
+      if(window.mpegts) return Promise.resolve(true);
+      if(__loadingMpegts) return (__libLoaders['/vendor/mpegts.js/mpegts.js']||Promise.resolve(true));
+      __loadingMpegts=true;
+      return loadScriptOnce('/vendor/mpegts.js/mpegts.js').catch(function(){});
     }
 
     function ensureProgressProgramUi(){
@@ -831,6 +883,7 @@
     }
 
     function ensureSourceUi(){
+      if(rawUrl) return;
       if(sourceBtn && sourcePanel) return;
       var root=qierPlayer&&qierPlayer.el;
       if(!root) return;
@@ -1087,6 +1140,10 @@
       logStatus('准备播放: '+playUrl);
       var isM3u8=/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1;
       if(isM3u8){
+        if(!window.Hls){
+          ensureHls().then(function(){ start(playUrl); });
+          return;
+        }
         if(window.Hls&&Hls.isSupported()){
           var h=new Hls({
             lowLatencyMode:false,
@@ -1170,6 +1227,10 @@
           }
         }
         logStatus('使用原生 HLS 播放');
+        return;
+      }
+      if(!window.mpegts){
+        ensureMpegts().then(function(){ start(playUrl); });
         return;
       }
       if(!window.mpegts||!mpegts.isSupported()||!mpegts.getFeatureList().mseLivePlayback){
@@ -1359,7 +1420,7 @@
       if(titleEl) titleEl.textContent=s.name||s.tvgName||'IPTV 播放';
       if(subEl) subEl.textContent=s.tvgName||s.name||'';
       var logoC=s.logo;
-      var alt=logoUrlFor(s.tvgName||s.name||'');
+      var alt=logoUrlForSized(s.tvgName||s.name||'',{h:48,fit:'contain',fmt:'webp'});
       if(alt) logoC=alt;
       if(logoC && logoImg){logoImg.src=logoC;logoImg.classList.remove('d-none');}
       if(liveBadge) liveBadge.classList.remove('d-none');
@@ -1640,6 +1701,82 @@
       });
     }
 
+    var channelNowObserver=null;
+    var nonCriticalInited=false;
+    function ensureNowObserver(){
+      if(channelNowObserver) return channelNowObserver;
+      var root=document.getElementById('channelScroll')||null;
+      try{
+        if('IntersectionObserver' in window){
+          channelNowObserver=new IntersectionObserver(function(entries){
+            entries.forEach(function(en){
+              var t=en.target;
+              if(!en.isIntersecting) return;
+              if(t && t._nowFetchPayload && !t._nowFetched){
+                t._nowFetched=true;
+                var p=t._nowFetchPayload;
+                enqueueNowFetch(p.entry,p.el,p.group);
+              }
+              if(channelNowObserver) channelNowObserver.unobserve(t);
+            });
+          },{root:root,threshold:0.05});
+        }
+      }catch(e){}
+      return channelNowObserver;
+    }
+    function enqueueNowFetch(entryRef,elRef,groupText){
+      var key=entryRef.key;
+      if(!key) return;
+      var s0=(entryRef.items && entryRef.items[0])?entryRef.items[0]:null;
+      if(!s0) return;
+      var chId=s0.tvgId||s0.tvgName||s0.name||'';
+      var chName=s0.tvgName||s0.name||'';
+      if(!chId && !chName) return;
+      nowFetchQueue.push(function(done){
+        var d=new Date();
+        var y=d.getFullYear();
+        var m=String(d.getMonth()+1).padStart(2,'0');
+        var dd=String(d.getDate()).padStart(2,'0');
+        var params=new URLSearchParams();
+        params.set('scope',getScope());
+        params.set('channelId',chId);
+        params.set('channelName',chName);
+        params.set('date',y+'-'+m+'-'+dd);
+        if(epgId||(epgSel&&epgSel.value)) params.set('epgId',(epgSel&&epgSel.value)||epgId);
+        fetch('/api/epg/programs?'+params.toString()).then(function(r){return r.json()}).then(function(j){
+          var list=Array.isArray(j&&j.programs)?j.programs:[];
+          var now=Date.now();
+          var cur=null;
+          for(var i=0;i<list.length;i++){
+            var p=list[i];
+            if(p && p.startMs<=now && p.endMs>now){cur=p;break;}
+          }
+          if(!cur && list.length>0){
+            for(var j2=list.length-1;j2>=0;j2--){
+              var pp=list[j2];
+              if(pp && pp.startMs<=now){cur=pp;break;}
+            }
+            if(!cur) cur=list[0];
+          }
+          if(cur && cur.title){
+            channelNowTitleByKey[key]=cur.title;
+            if(elRef){
+              var base=groupText||'';
+              elRef.textContent=base ? (base+' · '+cur.title) : cur.title;
+            }
+          }
+        }).catch(function(){}).finally(function(){done()});
+      });
+      runNowFetchQueue();
+    }
+    function nonCriticalInit(){
+      if(nonCriticalInited) return;
+      nonCriticalInited=true;
+      buildDateTabs();
+      loadEpgSources();
+      loadStreams();
+    }
+
     function renderChannels(){
       if(!channelList) return;
       var q=searchInput?searchInput.value||'':'';
@@ -1726,52 +1863,13 @@
         if(nowTitle){
           subDiv.textContent=baseText ? (baseText+' · '+nowTitle) : nowTitle;
         }else{
-          (function(entryRef,elRef,groupText){
-            var key=entryRef.key;
-            if(!key) return;
-            var s0=(entryRef.items && entryRef.items[0])?entryRef.items[0]:null;
-            if(!s0) return;
-            var chId=s0.tvgId||s0.tvgName||s0.name||'';
-            var chName=s0.tvgName||s0.name||'';
-            if(!chId && !chName) return;
-            // 入队，限制并发
-            nowFetchQueue.push(function(done){
-              var d=new Date();
-              var y=d.getFullYear();
-              var m=String(d.getMonth()+1).padStart(2,'0');
-              var dd=String(d.getDate()).padStart(2,'0');
-              var params=new URLSearchParams();
-              params.set('scope',getScope());
-              params.set('channelId',chId);
-              params.set('channelName',chName);
-              params.set('date',y+'-'+m+'-'+dd);
-              if(epgId||(epgSel&&epgSel.value)) params.set('epgId',(epgSel&&epgSel.value)||epgId);
-              fetch('/api/epg/programs?'+params.toString()).then(function(r){return r.json()}).then(function(j){
-                var list=Array.isArray(j&&j.programs)?j.programs:[];
-                var now=Date.now();
-                var cur=null;
-                for(var i=0;i<list.length;i++){
-                  var p=list[i];
-                  if(p && p.startMs<=now && p.endMs>now){cur=p;break;}
-                }
-                if(!cur && list.length>0){
-                  for(var j2=list.length-1;j2>=0;j2--){
-                    var pp=list[j2];
-                    if(pp && pp.startMs<=now){cur=pp;break;}
-                  }
-                  if(!cur) cur=list[0];
-                }
-                if(cur && cur.title){
-                  channelNowTitleByKey[key]=cur.title;
-                  if(elRef){
-                    var base=groupText||'';
-                    elRef.textContent=base ? (base+' · '+cur.title) : cur.title;
-                  }
-                }
-              }).catch(function(){}).finally(function(){done()});
-            });
-            runNowFetchQueue();
-          })(entry,subDiv,groupTitle);
+          var obs=ensureNowObserver();
+          if(obs){
+            item._nowFetchPayload={entry:entry,el:subDiv,group:groupTitle};
+            obs.observe(item);
+          }else{
+            setTimeout(function(){enqueueNowFetch(entry,subDiv,groupTitle)},0);
+          }
         }
         textWrap.appendChild(subDiv);
         head.appendChild(textWrap);
@@ -1783,8 +1881,12 @@
         count.textContent=String(sourcesForEntry.length)+'源';
         rightWrap.appendChild(count);
         var im=document.createElement('img');
-        im.src=logoUrlFor(entry.name||entry.key||'');
+        im.src=logoUrlForSized(entry.name||entry.key||'',{w:72,h:40,fit:'contain',fmt:'webp'});
         im.className='logo-img channel-logo-right';
+        try{im.loading='lazy';}catch(e){}
+        try{im.decoding='async';}catch(e){}
+        try{im.fetchPriority='low';}catch(e){}
+        im.width=72; im.height=40;
         rightWrap.appendChild(im);
         head.appendChild(rightWrap);
 
@@ -1885,7 +1987,7 @@
                 name:it.name||it.tvgName||'',
                 tvgName:it.tvgName||it.name||'',
                 tvgId:it.tvgId||'',
-                logo:it.logo||logoUrlFor(it.tvgName||it.name||''),
+                logo:logoUrlFor(it.tvgName||it.name||''),
                 groupTitle:it.groupTitle||'',
                 resolution:it.resolution||'',
                 frameRate:it.frameRate||'',
@@ -1900,7 +2002,7 @@
             buildCatTabs();
             renderChannels();
             var pre=tvgName||title;
-            if(pre){
+            if(pre && !rawUrl && !current){
               var p=mapped.filter(function(x){return (x.tvgName||x.name||'')===pre;});
               if(p.length>0) startLiveFor(p[0]); else defaultStart(mapped);
             }else{
@@ -1915,7 +2017,7 @@
           buildCatTabs();
           renderChannels();
           var pre=tvgName||title;
-          if(pre){
+          if(pre && !rawUrl && !current){
             var p=list.filter(function(x){return (x.tvgName||x.name||'')===pre;});
             if(p.length>0) startLiveFor(p[0]); else defaultStart(list);
           }else{
@@ -1965,17 +2067,67 @@
       searchInput.oninput=debounce(renderChannels,200);
     }
 
-    mountQier();
-    if(uiCompact){
-      if(rawUrl){
-        var playUrlInit=resolve(rawUrl);
-        start(playUrlInit);
-      }
-    }else{
-      buildDateTabs();
-      loadEpgSources();
-      loadStreams();
+    function applyDirectLiveContext(){
+      if(!rawUrl) return;
+      if(applyDirectLiveContext._done) return;
+      applyDirectLiveContext._done=true;
+      isLive=true;
+      if(liveBadge) liveBadge.classList.remove('d-none');
+      updateLiveBadge();
+      if(titleEl) titleEl.textContent = title || tvgName || 'IPTV 播放';
+      if(subEl) subEl.textContent = tvgName || title || '';
+      showInfo();
+      try{
+        var nm = tvgName || title || '';
+        var sObj = {
+          name: nm,
+          tvgName: nm,
+          tvgId: tvgId || '',
+          logo: (function(){
+            var alt = logoUrlForSized(nm,{h:48,fit:'contain',fmt:'webp'});
+            return logo || alt || '';
+          })()
+        };
+        loadEpgForStream(sObj);
+      }catch(e){}
     }
+
+    mountQier();
+    (function(){
+      var scheduled=false;
+      function schedule(){
+        if(scheduled) return;
+        scheduled=true;
+        if('requestIdleCallback' in window){
+          requestIdleCallback(function(){nonCriticalInit()},{timeout:1200});
+        }else{
+          setTimeout(function(){nonCriticalInit()},300);
+        }
+      }
+      if(v && !v._initDeferHooked2){
+        v._initDeferHooked2=true;
+        v.addEventListener('playing',function(){nonCriticalInit()},{once:true,passive:true});
+      }
+      if(uiCompact){
+        if(rawUrl){
+          var playUrlInit=resolve(rawUrl);
+          start(playUrlInit);
+          applyDirectLiveContext();
+          schedule();
+        }else{
+          schedule();
+        }
+      }else{
+        if(rawUrl){
+          try{
+            var playUrlInit2=resolve(rawUrl);
+            start(playUrlInit2);
+            applyDirectLiveContext();
+          }catch(e){}
+        }
+        schedule();
+      }
+    })();
   </script>
 </body>
 </html>

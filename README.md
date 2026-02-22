@@ -379,6 +379,21 @@ sudo systemctl status iptv-checker --no-pager
 ---
 
 ## 版本历史
+### v1.3.3 (2026-02-22)
+- 播放入口与直达播放
+  - 首页“组播单播预览列表”、检测结果页面列表、编辑频道信息三处的“播放”按钮改为直达当前频道地址，后端加载与频道一致；非 mini 场景携带 url 也自动播放。
+  - 直达播放不再展示“选择线路”按钮，且不会在频道列表加载后被自动匹配频道覆盖，确保始终播放传入地址。
+  - 直达播放补齐 LIVE 徽标与节目进度，基于 tvgName/title 自动拉取 EPG 并展示当前节目信息。
+- 性能与首屏优化
+  - hls.js 与 mpegts.js 改为按需动态加载，移除页面静态引入，减少首屏无关脚本下载。
+  - 频道列表台标懒加载、异步解码、低优先级；使用可见触发仅在列表项进入视口时请求“当前节目”。
+  - 列表容器启用 content-visibility 优化首屏布局；预加载 Bootstrap Icons woff2 字体。
+- 台标与缓存
+  - /api/logo 支持 w/h/fit/fmt 参数；检测到系统安装 sharp 时进行尺寸限制、去 EXIF 与转码压缩（webp/avif/png/jpeg），未安装则安全回退直出原图。
+  - /api/logo 增加 ETag 与 7 天强缓存（含 stale-while-revalidate），提升复用；/vendor 资源 30 天 immutable；/public 资源 7 天缓存且 HTML 强制 no-cache。
+  - 条件启用文本资源压缩（compression 可用时自动启用）。
+- 兼容性
+  - 保持既有功能与接口不变；旧链接与模板参数继续可用。
 ### v1.3.2 (2026-02-21)
 - 安全与认证
   - 将 player.html 纳入登录保护；未登录重定向至登录页并支持 redirect 回跳

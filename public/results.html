@@ -2009,11 +2009,12 @@ function playStreamByIndexR(index){
     var title = String(s.name||s.tvgName||'').trim();
     var tvgName = String(s.tvgName||s.name||'').trim();
     var logo = String(s.logo||'').trim();
+  var useExternal = (localStorage.getItem('useExternal')==='true') || !!appSettings.useExternal;
     var qs = new URLSearchParams();
     qs.set('url', base);
     if(title) qs.set('title', title);
     if(tvgName) qs.set('tvgName', tvgName);
-    if(logo) qs.set('logo', logo);
+  if(!useExternal && logo) qs.set('logo', logo);
     qs.set('live','1');
   qs.set('ui','mini');
   var w = window.open('/player.html?'+qs.toString(), 'player_live', 'width=1200,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
@@ -2991,11 +2992,12 @@ function openEditModal(index) {
       var title = String(document.getElementById('editNameR').value||s.tvgName||s.name||'').trim();
       var tvgName = String(s.tvgName||s.name||'').trim();
       var logo = String(document.getElementById('editLogoR').value||s.logo||'').trim();
+      var useExternal = (localStorage.getItem('useExternal')==='true') || !!appSettings.useExternal;
       var qs = new URLSearchParams();
       qs.set('url', base);
       if(title) qs.set('title', title);
       if(tvgName) qs.set('tvgName', tvgName);
-      if(logo) qs.set('logo', logo);
+      if(!useExternal && logo) qs.set('logo', logo);
       qs.set('live','1');
       qs.set('ui','mini');
       var w = window.open('/player.html?'+qs.toString(), 'player_live', 'width=1200,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
@@ -3785,7 +3787,7 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.2</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
+                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.3</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
             </span>
             <a href="/docs/" target="_blank" class="small text-decoration-none ms-3" style="color:#6c757d; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'">
                 <i class="bi bi-book me-1"></i>使用指南
