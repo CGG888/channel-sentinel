@@ -356,6 +356,15 @@
       overflow:hidden;
       text-overflow:ellipsis;
     }
+    .program-progress-meta{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      margin-left:8px;
+    }
+    .program-progress-end{
+      margin-left:6px;
+    }
     ::-webkit-scrollbar{width:6px;height:6px}
     ::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
@@ -402,7 +411,7 @@
       align-items:center;
       justify-content:center;
       opacity:.9;
-      margin-right:28px;
+      margin-right:8px;
     }
     #liveBtn span{
       font-size:12px;
@@ -438,15 +447,12 @@
       cursor:pointer;
       pointer-events:auto;
       opacity:.9;
-      margin-right:28px;
+      margin-right:8px;
     }
     #sourceBtn:hover{
       color:#fff;
     }
-    #sourceBtn span{
-      font-size:12px;
-      white-space:nowrap;
-    }
+    #sourceBtn i{ font-size:18px; line-height:1; }
     #sourcePanel{
       position:absolute;
       bottom:100%;
@@ -546,6 +552,7 @@
     var rawUrl=qs('url');
     var qierPlayer=null;
     var v=null;
+    var hevcHlsSwitchOnce=false;
     var currentPlayer=null;
     var _reco={n:0,t:null,stall:null};
     var sources=[];
@@ -610,6 +617,7 @@
     var progressInfoStart=null;
     var progressInfoTitle=null;
     var progressInfoEnd=null;
+    var progressInfoMeta=null;
 
     if(titleEl) titleEl.textContent=title;
     if(subEl) subEl.textContent=tvgName||'';
@@ -631,9 +639,12 @@
       if((useExternal||externalHost) && logoImg){
         var nm=tvgName||title||'';
         var src=logoUrlForSized(nm,{h:48,fit:'contain',fmt:'webp'});
-        if(src){ logoImg.src=src; logoImg.classList.remove('d-none'); }
+        logoImg.onerror=function(){ this.onerror=null; this.src='/iptv.png'; this.classList.remove('d-none'); };
+        logoImg.src = src || '/iptv.png';
+        logoImg.classList.remove('d-none');
       }else if(logo && logoImg){
-        logoImg.src=logo; 
+        logoImg.onerror=function(){ this.onerror=null; this.src='/iptv.png'; this.classList.remove('d-none'); };
+        logoImg.src=logo || '/iptv.png'; 
         logoImg.classList.remove('d-none');
       }
     })();
@@ -752,13 +763,16 @@
       var startSpan=document.createElement('span');
       var titleSpan=document.createElement('span');
       var endSpan=document.createElement('span');
+      var metaWrap=document.createElement('div');
       modeSpan.className='program-progress-mode';
       startSpan.className='program-progress-start';
       titleSpan.className='program-progress-title';
       endSpan.className='program-progress-end';
+      metaWrap.className='program-progress-meta d-flex align-items-center gap-1';
       wrap.appendChild(modeSpan);
       wrap.appendChild(startSpan);
       wrap.appendChild(titleSpan);
+      wrap.appendChild(metaWrap);
       wrap.appendChild(endSpan);
       prog.appendChild(wrap);
       progressInfoWrap=wrap;
@@ -766,6 +780,7 @@
       progressInfoStart=startSpan;
       progressInfoTitle=titleSpan;
       progressInfoEnd=endSpan;
+      progressInfoMeta=metaWrap;
       updateProgramProgressLabel();
     }
 
@@ -795,6 +810,7 @@
         progressInfoEnd.textContent='';
         progressInfoMode.textContent='';
         progressInfoMode.classList.remove('program-progress-mode-live','program-progress-mode-replay');
+        if(progressInfoMeta) progressInfoMeta.innerHTML='';
         return;
       }
       var startStr=formatHm(prog.startMs);
@@ -814,6 +830,31 @@
       }else{
         progressInfoMode.textContent='';
         progressInfoMode.classList.remove('program-progress-mode-live','program-progress-mode-replay');
+      }
+      if(progressInfoMeta){
+        var castLbl='';
+        var qualityLbl='';
+        var fpsLbl='';
+        var audioLbl=''; // 后端暂未提供声道信息，保留为空
+        var codecLbl='';
+        if(current){
+          if(mode==='replay'){
+            castLbl='单播';
+          }else{
+            castLbl=isMulticastStream(current)?'组播':'单播';
+          }
+          qualityLbl=resTag(current.resolution||'')||'';
+          fpsLbl=current.frameRate?formatFps(current.frameRate):'';
+          codecLbl=formatCodec(current.codec||'');
+        }
+        var badgeCls = mode==='live' ? 'badge-live' : (mode==='replay' ? 'badge-replay' : 'bg-secondary');
+        var parts=[];
+        if(castLbl) parts.push('<span class="badge '+badgeCls+' rounded-pill px-2 py-1 small">'+castLbl+'</span>');
+        if(codecLbl) parts.push('<span class="badge '+badgeCls+' rounded-pill px-2 py-1 small">'+codecLbl+'</span>');
+        if(qualityLbl) parts.push('<span class="badge '+badgeCls+' rounded-pill px-2 py-1 small">'+qualityLbl+'</span>');
+        if(fpsLbl) parts.push('<span class="badge '+badgeCls+' rounded-pill px-2 py-1 small">'+fpsLbl+'</span>');
+        if(audioLbl) parts.push('<span class="badge '+badgeCls+' rounded-pill px-2 py-1 small">'+audioLbl+'</span>');
+        progressInfoMeta.innerHTML = parts.join('');
       }
       if(!startStr && !endStr && !title && !progressInfoMode.textContent){
         progressInfoWrap.classList.add('d-none');
@@ -922,8 +963,12 @@
 
       sourceBtn=document.createElement('button');
       sourceBtn.id='sourceBtn';
-      sourceLabelEl=document.createElement('span');
-      sourceLabelEl.textContent='选择线路';
+      var srcIcon=document.createElement('i');
+      srcIcon.className='bi bi-diagram-3';
+      sourceBtn.appendChild(srcIcon);
+      sourceBtn.title='选择线路';
+      sourceLabelEl=document.createElement('span'); // hidden label holder (for title updates)
+      sourceLabelEl.style.display='none';
       sourceBtn.appendChild(sourceLabelEl);
       sourceBtn.addEventListener('mouseenter',function(e){
         e.stopPropagation();
@@ -1019,6 +1064,16 @@
       if(isNaN(w)||isNaN(h)) return 0;
       return w*h;
     }
+    function bitRateValue(v){
+      if(typeof v==='number' && !isNaN(v)) return v;
+      var s=String(v||'').trim().toLowerCase();
+      if(!s) return 0;
+      var n=parseFloat(s);
+      if(/mbps/.test(s)) return isNaN(n)?0:n*1000000;
+      if(/kbps/.test(s)) return isNaN(n)?0:n*1000;
+      if(/bps/.test(s)) return isNaN(n)?0:n;
+      return isNaN(n)?0:n;
+    }
     function cctvNumberFrom(str){
       var m=String(str||'').toUpperCase().match(/CCTV[ -]?(\d{1,2})/);
       if(!m) return null;
@@ -1040,6 +1095,17 @@
       var r=Math.round(v2);
       if(Math.abs(v2-r)<0.01) return String(r)+'fps';
       return String(parseFloat(v2.toFixed(2)))+'fps';
+    }
+    function formatCodec(c){
+      var v=String(c||'').trim().toLowerCase();
+      if(!v) return '';
+      if(v==='hevc'||v==='h265'||v==='h.265') return 'HEVC';
+      if(v==='h264'||v==='h.264'||v==='avc') return 'AVC';
+      if(v.indexOf('mpeg2')!==-1||v==='mpeg-2') return 'MPEG-2';
+      if(v.indexOf('mpeg4')!==-1||v==='mpeg-4') return 'MPEG-4';
+      if(v==='vp9') return 'VP9';
+      if(v==='av1') return 'AV1';
+      return v.toUpperCase();
     }
     function channelKeyFromStream(s){ return normalizeName(s.tvgName||s.name||''); }
     function describeSource(it){
@@ -1159,6 +1225,23 @@
       resetReco();
       logStatus('准备播放: '+playUrl);
       var isM3u8=/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1;
+      if(isM3u8){
+        try{
+          var c=(current&&String(current.codec||'').toLowerCase())||'';
+          if(c==='hevc' && !hevcHlsSwitchOnce){
+            var alts=sourcesForStream(current).filter(function(x){
+              var u=String(x.multicastUrl||'').trim();
+              return u && !/\.m3u8(\?|$)/i.test(u);
+            });
+            if(alts.length>0){
+              hevcHlsSwitchOnce=true;
+              logStatus('检测到HEVC HLS，优先切换非HLS源');
+              startLiveFor(alts[0]);
+              return;
+            }
+          }
+        }catch(e){}
+      }
       if(isM3u8){
         if(!window.Hls){
           ensureHls().then(function(){ start(playUrl); });
@@ -1312,9 +1395,24 @@
       if(idx<0||idx>=sources.length) return;
       currentSourceIndex=idx;
       var s=sources[idx];
-      if(sourceLabelEl){
-        sourceLabelEl.textContent=s.label;
+      if(sourceBtn){
+        sourceBtn.title=s.label;
       }
+      // 将当前源的元信息应用到当前上下文，保证“单播/组播、UHD/HD/SD、帧率”随切换更新
+      if(s && s.meta){
+        current = s.meta;
+        updateProgramProgressLabel();
+      }
+      try{
+        var nm = String((current&&current.tvgName)|| (current&&current.name) || '');
+        var ss = {
+          name: nm,
+          multicastUrl: String((current&&current.multicastUrl)||''),
+          resolution: String((current&&current.resolution)||''),
+          frameRate: String((current&&current.frameRate)||'')
+        };
+        if(nm){ localStorage.setItem('lastSource', JSON.stringify(ss)); }
+      }catch(e){}
       renderSourceList();
       if(play){
         rawUrl=s.url;
@@ -1393,7 +1491,7 @@
     }
 
     function channelKey(s){
-      return String((s&&s.tvgName)||s&&s.name||'').trim().replace(/\s+/g,'').replace(/4K$/i,'');
+      return String((s&&s.tvgName)||s&&s.name||'').trim().replace(/\s+/g,'');
     }
 
     function playable(u){
@@ -1409,6 +1507,8 @@
       list.sort(function(a,b){
         var aM=isMulticastStream(a)?1:0,bM=isMulticastStream(b)?1:0;
         if(aM!==bM) return bM-aM;
+        var ab=bitRateValue(a.bitRate),bb=bitRateValue(b.bitRate);
+        if(ab!==bb) return bb-ab;
         var ar=areaOf(a.resolution),br=areaOf(b.resolution);
         if(ar!==br) return br-ar;
         var af=parseFloat(a.frameRate)||0,bf=parseFloat(b.frameRate)||0;
@@ -1420,7 +1520,7 @@
     function renderSourcePanelFor(s){
       var list=sourcesForStream(s);
       sources=list.map(function(it){
-        return {url:liveRawUrl(it),label:describeSource(it)};
+        return {url:liveRawUrl(it),label:describeSource(it),meta:it};
       });
       var activeIdx=list.findIndex(function(it){
         return it.multicastUrl===s.multicastUrl && it.resolution===s.resolution && it.frameRate===s.frameRate;
@@ -1428,8 +1528,9 @@
       if(activeIdx<0 && list.length>0) activeIdx=0;
       currentSourceIndex=activeIdx;
       renderSourceList();
-      if(sourceLabelEl && currentSourceIndex>=0 && sources[currentSourceIndex]){
-        sourceLabelEl.textContent=sources[currentSourceIndex].label;
+      if(currentSourceIndex>=0 && sources[currentSourceIndex]){
+        if(sourceBtn) sourceBtn.title = sources[currentSourceIndex].label;
+        if(sourceLabelEl) sourceLabelEl.textContent = sources[currentSourceIndex].label;
       }
     }
 
@@ -1442,7 +1543,11 @@
       var logoC=s.logo;
       var alt=logoUrlForSized(s.tvgName||s.name||'',{h:48,fit:'contain',fmt:'webp'});
       if(alt) logoC=alt;
-      if(logoC && logoImg){logoImg.src=logoC;logoImg.classList.remove('d-none');}
+      if(logoImg){
+        logoImg.onerror=function(){ this.onerror=null; this.src='/iptv.png'; this.classList.remove('d-none'); };
+        logoImg.src = logoC || '/iptv.png';
+        logoImg.classList.remove('d-none');
+      }
       if(liveBadge) liveBadge.classList.remove('d-none');
       if(replayBadge) replayBadge.classList.add('d-none');
       tvgId=s.tvgId||'';
@@ -1452,6 +1557,17 @@
       updateProgramProgressLabel();
       showInfo();
       renderSourcePanelFor(s);
+      try{
+        var rememberName = s.tvgName || s.name || '';
+        if(rememberName){ localStorage.setItem('lastChannelName', rememberName); }
+        var ss = {
+          name: rememberName,
+          multicastUrl: String(s.multicastUrl||''),
+          resolution: String(s.resolution||''),
+          frameRate: String(s.frameRate||'')
+        };
+        if(rememberName){ localStorage.setItem('lastSource', JSON.stringify(ss)); }
+      }catch(e){}
       if(sources.length>0){
         var idx=(currentSourceIndex>=0)?currentSourceIndex:0;
         selectSource(idx,true);
@@ -1591,8 +1707,21 @@
       if(!epgList||!epgHint) return;
       epgList.innerHTML='';
       if(!Array.isArray(list)||list.length===0){
-        epgHint.textContent='暂无节目单';
-        return;
+        try{
+          var d = new Date(selectedDate||Date.now());
+          d.setHours(0,0,0,0);
+          var ph=[];
+          for(var h=0;h<24;h++){
+            var st=new Date(d); st.setHours(h,0,0,0);
+            var et=new Date(d); et.setHours(h+1,0,0,0);
+            ph.push({ title:'精彩节目', startMs: st.getTime(), endMs: et.getTime() });
+          }
+          list = ph;
+          epgHint.textContent='';
+        }catch(e){
+          epgHint.textContent='暂无节目单';
+          return;
+        }
       }
       epgHint.textContent='';
       var now=Date.now();
@@ -1842,7 +1971,10 @@
       var filtered=streams.filter(function(s){
         if(!matchSearch(s,q)) return false;
         if(selectedCat==='all') return true;
-        if(/^group:/.test(selectedCat)) return String(s.groupTitle||'')===selectedCat.slice(6);
+        if(/^group:/.test(selectedCat)){
+          var g=selectedCat.slice(6);
+          return String(s.groupTitle||'')===g;
+        }
         return true;
       });
       var grouped=groupByName(filtered);
@@ -1940,7 +2072,11 @@
         count.textContent=String(sourcesForEntry.length)+'源';
         rightWrap.appendChild(count);
         var im=document.createElement('img');
-        im.src=logoUrlForSized(entry.name||entry.key||'',{w:72,h:40,fit:'contain',fmt:'webp'});
+        (function(){
+          var src=logoUrlForSized(entry.name||entry.key||'',{w:72,h:40,fit:'contain',fmt:'webp'});
+          im.onerror=function(){ this.onerror=null; this.src='/iptv.png'; };
+          im.src=src||'/iptv.png';
+        })();
         im.className='logo-img channel-logo-right';
         try{im.loading='lazy';}catch(e){}
         try{im.decoding='async';}catch(e){}
@@ -2003,30 +2139,37 @@
     function loadStreams(){
       function defaultStart(list){
         if(current||rawUrl) return;
-        var cands=list.filter(function(s){
-          var u=String(s.multicastUrl||'').trim();
-          return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
-        });
-        var cctv1List=cands.filter(function(x){
-          var n=String(x.tvgName||x.name||'');
-          return /^CCTV\s*1(\b|[^0-9])/i.test(n)||/^CCTV1\b/i.test(n);
-        });
-        var best=null;
-        if(cctv1List.length>0){
-          cctv1List.sort(function(a,b){
-            var isMcA=isMulticastStream(a)?1:0;
-            var isMcB=isMulticastStream(b)?1:0;
-            if(isMcA!==isMcB) return isMcB-isMcA;
-            var rA=areaOf(a.resolution),rB=areaOf(b.resolution);
-            if(rA!==rB) return rB-rA;
-            var fpsA=parseFloat(a.frameRate)||0,fpsB=parseFloat(b.frameRate)||0;
-            return fpsB-fpsA;
-          });
-          best=cctv1List[0];
-        }else if(cands.length>0){
-          best=cands[0];
-        }
-        if(best) startLiveFor(best);
+        try{
+          var savedName = '';
+          var savedSourceRaw = '';
+          try{ savedName = localStorage.getItem('lastChannelName') || ''; }catch(e){}
+          try{ savedSourceRaw = localStorage.getItem('lastSource') || ''; }catch(e){}
+          if(savedName){
+            var sameNameList = list.filter(function(x){
+              var nm = String(x.tvgName||x.name||'');
+              return nm === savedName;
+            });
+            if(sameNameList.length>0){
+              var pick = sameNameList[0];
+              if(savedSourceRaw){
+                try{
+                  var ss = JSON.parse(savedSourceRaw);
+                  if(ss && ss.name === savedName){
+                    var matched = sameNameList.find(function(x){
+                      return String(x.multicastUrl||'')===String(ss.multicastUrl||'') &&
+                             String(x.resolution||'')===String(ss.resolution||'') &&
+                             String(x.frameRate||'')===String(ss.frameRate||'');
+                    });
+                    if(matched) pick = matched;
+                  }
+                }catch(e){}
+              }
+              startLiveFor(pick);
+              return;
+            }
+          }
+        }catch(e){}
+        return;
       }
       var useExt=(localStorage.getItem('useExternal')==='true');
       if(useExt){
@@ -2050,6 +2193,7 @@
                 groupTitle:it.groupTitle||'',
                 resolution:it.resolution||'',
                 frameRate:it.frameRate||'',
+                codec:it.codec||'',
                 multicastUrl:httpUrl,
                 udpxyUrl:'',
                 catchupBase:it.catchupBase||'',
@@ -2138,13 +2282,13 @@
       showInfo();
       try{
         var nm = tvgName || title || '';
-        var sObj = {
+          var sObj = {
           name: nm,
           tvgName: nm,
           tvgId: tvgId || '',
           logo: (function(){
             var alt = logoUrlForSized(nm,{h:48,fit:'contain',fmt:'webp'});
-            return logo || alt || '';
+            return logo || alt || '/iptv.png';
           })()
         };
         loadEpgForStream(sObj);

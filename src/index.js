@@ -331,6 +331,20 @@ app.post('/api/auth/update', (req, res) => {
 app.use(['/', '/index.html', '/results', '/results.html', '/player.html', '/logs.html', '/api/*'], requireAuth);
 app.use('/vendor', express.static(path.join(__dirname, '../public/vendor'), { maxAge: '30d', immutable: true }));
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
+
+// 统一提供站点 favicon：/favicon.ico -> /public/iptv.png
+app.get('/favicon.ico', async (req, res) => {
+    try {
+        const iconPath = path.join(__dirname, '../public/iptv.png');
+        await fs.promises.access(iconPath);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+        res.sendFile(iconPath);
+    } catch (e) {
+        res.status(404).end();
+    }
+});
+
 app.use(express.static('public', {
     maxAge: '7d',
     setHeaders: (res, p) => {
@@ -1546,13 +1560,14 @@ app.get('/api/logo', async (req, res) => {
             res.type(contentType);
             return res.send(buf);
         }
+        const upstreamContentType = (resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type'])) || 'image/png';
         if (sharpLib) {
             try {
                 let img = sharpLib(srcBuf, { failOnError: false });
                 if (w || h) {
                     img = img.resize({ width: w, height: h, fit, withoutEnlargement: true });
                 }
-                let outType = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
+                let outType = upstreamContentType;
                 if (wantFmt === 'webp') {
                     img = img.webp({ quality: 70, effort: 4 });
                     outType = 'image/webp';
@@ -1570,13 +1585,11 @@ app.get('/api/logo', async (req, res) => {
                 return await sendWithCache(outBuf, outType);
             } catch(e) {
                 // 失败回退到原图
-                const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
-                return await sendWithCache(srcBuf, ct);
+                return await sendWithCache(srcBuf, upstreamContentType);
             }
         } else {
             // 无图像处理库，直接透传但提供长缓存
-            const ct = resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type']) || 'image/png';
-            return await sendWithCache(srcBuf, ct);
+            return await sendWithCache(srcBuf, upstreamContentType);
         }
     } catch(e) {
         res.status(404).send('not found');

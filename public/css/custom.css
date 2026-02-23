@@ -185,6 +185,13 @@ h1, h2, h3, h4, h5, h6 {
 .table thead th {
     background-color: #f8f9fa;
     border-bottom: 2px solid #dee2e6;
+
+/* EPG meta badges on the right of program list */
+.epg-meta-badges .badge{
+    font-size: 0.7rem;
+    letter-spacing: .2px;
+}
+    border-bottom: 2px solid #dee2e6;
     color: #495057;
     font-weight: 600;
     white-space: nowrap;

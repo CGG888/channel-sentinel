@@ -2581,12 +2581,18 @@ function openEpgForIndex(index){
       }
 
       const el=document.getElementById('epgListR'); if(!el) return; el.innerHTML='';
-      const countEl = document.getElementById('epgCountBadge'); if(countEl) countEl.innerText = list.length;
-      
-      if(list.length===0) {
-        el.innerHTML='<div class="text-center text-muted py-5"><i class="bi bi-calendar-x display-4 mb-2"></i><p>暂无节目单数据</p></div>';
-        return;
+      // 若无节目单，生成“精彩节目”占位（按小时 24 段）
+      if(!Array.isArray(list) || list.length===0){
+        const base = new Date(dateCurr); base.setHours(0,0,0,0);
+        const ph = [];
+        for(let h=0; h<24; h++){
+          const st = new Date(base); st.setHours(h,0,0,0);
+          const et = new Date(base); et.setHours(h+1,0,0,0);
+          ph.push({ title: '精彩节目', startMs: st.getTime(), endMs: et.getTime() });
+        }
+        list = ph;
       }
+      const countEl = document.getElementById('epgCountBadge'); if(countEl) countEl.innerText = list.length;
       list.forEach((p,i)=>{
         const it=document.createElement('button');
         const now = Date.now();
@@ -2625,10 +2631,12 @@ function openEpgForIndex(index){
         const titleColor = isCurrent ? 'text-primary' : (isFuture ? 'text-muted' : 'text-dark');
         const badgeClass = isCurrent ? 'bg-primary bg-opacity-25 text-primary border-primary' : (isFuture ? 'bg-light text-muted border' : 'bg-white text-secondary border');
 
+        // 去除右侧“组播/单播”“UHD/HD/SD”“帧率”标记
+        const badgeHtml = '';
         it.innerHTML=`<div class="d-flex align-items-center text-truncate" style="max-width:85%;">
             <span class="badge ${badgeClass} me-3 font-monospace" style="min-width:100px;">${timeStr}</span>
             <span class="fw-bold ${titleColor} text-truncate" title="${p.title||''}">${p.title||'无标题'}</span>
-        </div><div class="epg-status-icon">${iconHtml}</div>`;
+        </div><div class="d-flex align-items-center">${badgeHtml}<div class="epg-status-icon ms-3">${iconHtml}</div></div>`;
         it.dataset.originalIcon = iconHtml;
         
         if (isCurrent) {
@@ -2661,8 +2669,13 @@ function openEpgForIndex(index){
                if (iconEl) {
                    iconEl.innerHTML = '<div class="d-flex align-items-center text-success"><span class="badge bg-success me-2">正在回看</span><i class="bi bi-play-circle-fill fs-5"></i></div>';
                }
+               // 回看态：右侧标识改为 success
+               const meta = it.querySelectorAll('.epg-meta-badges .badge');
+               meta.forEach(function(b){ b.classList.remove('bg-primary','bg-secondary','bg-light','text-muted','border','text-white'); b.classList.add('bg-success','text-white'); });
            } else {
                // LIVE 保持原 LIVE 图标
+               const meta = it.querySelectorAll('.epg-meta-badges .badge');
+               meta.forEach(function(b){ b.classList.remove('bg-secondary','bg-light','text-muted','border'); b.classList.add('bg-primary','text-white'); });
            }
 
            const cpEl = document.getElementById('epgCurrentProgramR');
