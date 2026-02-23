@@ -88,6 +88,7 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
         })();
     </script>
 <style>
+  :root{ --brand-size: 1.05rem; }
   .ver-dot{display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 0 rgba(255,59,59,0.7);animation:ver-blink 1.2s infinite}
   @keyframes ver-blink{
     0%{transform:scale(0.9);opacity:.85;box-shadow:0 0 0 0 rgba(255,59,59,.7)}
@@ -101,12 +102,13 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
   @media (max-width: 575.98px){ .wiki-nav .brand-text{display:none;} }
   .title-center-wrap{position:relative;}
   .title-center{position:absolute;left:50%;transform:translateX(-50%);}
-  .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;}
+  .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;font-size:var(--brand-size);}
+  .brand-text{font-size:var(--brand-size);}
 </style>
 </head>
 <body>
 <nav class="navbar wiki-nav py-2">
-  <div class="container d-flex align-items-center gap-2 px-4" style="max-width:1400px;">
+  <div class="container d-flex align-items-center gap-2" style="max-width:1200px;">
     <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/" title="IPTV Checker">
       <img src="/iptv.png" alt="" style="height:18px;width:auto;">
       <span class="ms-2 fw-bold brand-text" style="color:#6f42c1;">IPTV Checker</span>
@@ -119,10 +121,10 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
         <i class="bi bi-collection-play me-1"></i>频道
       </a>
       <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器">
-        <i class="bi bi-play-circle me-1"></i>播放器
+        <i class="bi bi-play-circle me-1"></i>播放
       </a>
       <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank">
-        <i class="bi bi-book me-1"></i>使用指南
+        <i class="bi bi-book me-1"></i>指南
       </a>
       <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
         <i class="bi bi-github me-1"></i>GitHub
@@ -140,7 +142,7 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
     </div>
   </div>
  </nav>
-<div class="container-fluid px-4 py-4" style="max-width: 1400px;">
+<div class="container mt-4" style="max-width:1200px;">
     <div class="d-flex justify-content-between align-items-center mb-4 title-center-wrap">
         <h1 class="mb-0 d-flex align-items-center gap-2 title-center page-title">
             <span>组播单播检测结果</span>
@@ -181,14 +183,12 @@ thead th { position: sticky; top: 0; z-index: 10; background: #f8f9fa; box-shado
                      <button class="btn btn-outline-primary btn-icon" id="loadBtn" title="加载"><i class="bi bi-folder2-open"></i></button>
                      <button class="btn btn-outline-danger btn-icon" id="deletePersistBtn" title="删除"><i class="bi bi-trash-fill"></i></button>
                      <button class="btn btn-outline-secondary btn-icon" id="refreshVersionsBtn" title="刷新"><i class="bi bi-arrow-repeat"></i></button>
+                     <button class="btn btn-outline-warning btn-icon" id="webdavBtn" title="WebDAV 备份/恢复"><i class="bi bi-cloud-upload"></i></button>
+                     <a class="btn btn-outline-secondary btn-icon" href="/logs.html" target="_blank" title="日志"><i class="bi bi-clipboard-data"></i></a>
                  </div>
             </div>
 
             <div class="d-flex align-items-center gap-3">
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" id="netScopeSwitchR">
-                    <label class="form-check-label" for="netScopeSwitchR" id="netScopeLabelR">外网模式</label>
-                </div>
                 <select class="form-select form-select-sm" id="versionsSelect" style="max-width: 320px; min-width: 260px;"></select>
             </div>
         </div>
@@ -438,7 +438,7 @@ function showCenterLinks(title, links) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'centerModalLinksR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark" id="centerModalLinksTitleR"></h5><button type="button" class="btn-close" id="centerModalLinksCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>生成播放器直连的接口链接，用户自行选择对应的相关配置后后可复制或打开链接；外网建议打开token验证，使用更加安全！</span></div><div class="d-flex flex-wrap align-items-center gap-3"><div class="d-flex align-items-center"><label for="centerLinksStatusSelect" class="text-muted small me-2 fw-bold">状态:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksStatusSelect" style="min-width:140px;"><option value="all">全部频道</option><option value="online" selected>在线频道</option><option value="offline">离线频道</option></select></div><div class="d-flex align-items-center"><label for="centerLinksScopeSelect" class="text-muted small me-2 fw-bold">范围:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksScopeSelect" style="min-width:120px;"><option value="internal" selected>内网</option><option value="external">外网</option></select></div><div class="d-flex align-items-center gap-2"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="centerLinksTokenSwitch"><label class="form-check-label small text-muted fw-bold" for="centerLinksTokenSwitch">Token验证</label></div><div class="input-group input-group-sm shadow-sm" style="width:auto;"><input type="text" class="form-control border-0" id="centerLinksToken" placeholder="安全令牌" style="max-width: 120px;" title="仅外网链接生效"><button class="btn btn-outline-secondary bg-white" type="button" id="centerLinksTokenRand" title="生成随机Token"><i class="bi bi-shuffle"></i></button></div></div></div></div><div id="centerModalLinksBodyR" class="api-links-grid"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark" id="centerModalLinksTitleR"><i class="bi bi-link-45deg me-2"></i><span id="centerModalLinksTxtR"></span></h5><button type="button" class="btn-close" id="centerModalLinksCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>生成播放器直连的接口链接，用户自行选择对应的相关配置后后可复制或打开链接；外网建议打开token验证，使用更加安全！</span></div><div class="d-flex flex-wrap align-items-center gap-3"><div class="d-flex align-items-center"><label for="centerLinksStatusSelect" class="text-muted small me-2 fw-bold">状态:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksStatusSelect" style="min-width:140px;"><option value="all">全部频道</option><option value="online" selected>在线频道</option><option value="offline">离线频道</option></select></div><div class="d-flex align-items-center"><label for="centerLinksScopeSelect" class="text-muted small me-2 fw-bold">范围:</label><select class="form-select form-select-sm border-0 shadow-sm" id="centerLinksScopeSelect" style="min-width:120px;"><option value="internal" selected>内网</option><option value="external">外网</option></select></div><div class="d-flex align-items-center gap-2"><div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="centerLinksTokenSwitch"><label class="form-check-label small text-muted fw-bold" for="centerLinksTokenSwitch">Token验证</label></div><div class="input-group input-group-sm shadow-sm" style="width:auto;"><input type="text" class="form-control border-0" id="centerLinksToken" placeholder="安全令牌" style="max-width: 120px;" title="仅外网链接生效"><button class="btn btn-outline-secondary bg-white" type="button" id="centerLinksTokenRand" title="生成随机Token"><i class="bi bi-shuffle"></i></button></div></div></div></div><div id="centerModalLinksBodyR" class="api-links-grid"></div></div></div></div></div>';
     document.body.appendChild(modal);
     document.getElementById('centerModalLinksCloseR').onclick = function(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); };
     var ctrlRow = modal.querySelector('.modal-body .d-flex.flex-wrap.align-items-center.gap-3');
@@ -491,7 +491,7 @@ function showCenterLinks(title, links) {
       if (fmtBlock) insertAfter(fmtBlock, protoBlock || scopeGroup || statusGroup || breakEl);
     })();
   }
-  var titleEl = document.getElementById('centerModalLinksTitleR');
+  var titleEl = document.getElementById('centerModalLinksTxtR');
   var bodyEl = document.getElementById('centerModalLinksBodyR');
   var statusSel = document.getElementById('centerLinksStatusSelect');
   var scopeSel = document.getElementById('centerLinksScopeSelect');
@@ -663,7 +663,7 @@ function openApiPlayer(streamsList) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'apiPlayerModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.35);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content" style="border-radius:14px;"><div class="modal-header"><h5 class="modal-title">播放测试</h5><button type="button" class="btn-close" id="apiPlayerCloseR"></button></div><div class="modal-body"><div class="row"><div class="col-7"><video id="apiPlayerVideoR" controls autoplay style="width:100%;height:360px;background:#000;border-radius:8px;"></video></div><div class="col-5"><div class="table-responsive" style="max-height:360px;overflow:auto;"><table class="table table-sm"><thead><tr><th>名称</th><th style="width:90px;">操作</th></tr></thead><tbody id="apiPlayerTbodyR"></tbody></table></div></div></div></div><div class="modal-footer justify-content-center"><button type="button" class="btn btn-open px-4" id="apiPlayerCancelR">关闭</button></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.35);z-index:10001;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content" style="border-radius:14px;"><div class="modal-header"><h5 class="modal-title"><i class="bi bi-play-circle me-2"></i>播放测试</h5><button type="button" class="btn-close" id="apiPlayerCloseR"></button></div><div class="modal-body"><div class="row"><div class="col-7"><video id="apiPlayerVideoR" controls autoplay style="width:100%;height:360px;background:#000;border-radius:8px;"></video></div><div class="col-5"><div class="table-responsive" style="max-height:360px;overflow:auto;"><table class="table table-sm"><thead><tr><th>名称</th><th style="width:90px;">操作</th></tr></thead><tbody id="apiPlayerTbodyR"></tbody></table></div></div></div></div><div class="modal-footer justify-content-center"><button type="button" class="btn btn-open px-4" id="apiPlayerCancelR">关闭</button></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -680,7 +680,7 @@ function openApiPlayer(streamsList) {
     tr.innerHTML = '<td>'+name+'</td><td><button class="btn btn-outline-primary btn-sm" id="apiPlayBtn-'+i+'">播放</button></td>';
     tbody.appendChild(tr);
     const btn = document.getElementById('apiPlayBtn-'+i);
-    if (btn) btn.onclick = function(){ if (video && url) { video.src = url; video.play().catch(()=>{}); } };
+    if (btn) btn.onclick = function(){ if (video && url) { try{ fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ name:name, mode:'直播', cast:(/^https?:\/\//i.test(url)?'单播':'组播'), programTitle:'', url:url, scope:(localStorage.getItem('useExternal')==='true')?'external':'internal' })}); }catch(e){} video.src = url; video.play().catch(()=>{}); } };
     if (i === 0 && video && url) { video.src = url; }
   });
   modal.style.display = 'block';
@@ -691,7 +691,7 @@ async function openEpgModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'epgModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">EPG源管理</h5><button type="button" class="btn-close" id="epgCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>支持xmltv格式，支持自建EPG或者使用第三方EPG，推荐使用<a href="https://github.com/taksssss/iptv-tool" target="_blank">iptv-tool</a></span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="epgAddBtn"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="epgSaveBtn"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="epgListWrapR"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class="bi bi-calendar-week me-2"></i>EPG源管理</h5><button type="button" class="btn-close" id="epgCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>支持xmltv格式，支持自建EPG或者使用第三方EPG，推荐使用<a href="https://github.com/taksssss/iptv-tool" target="_blank">iptv-tool</a></span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="epgAddBtn"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="epgSaveBtn"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="epgListWrapR"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close() { modal.style.display = 'none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -762,7 +762,7 @@ function openFccModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'fccModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">FCC服务器管理</h5><button type="button" class="btn-close" id="fccCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>支持 ip:port 或 fcc=ip:port，保存后将同步到服务端</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="fccAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="fccSaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="fccListWrapR"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class="bi bi-lightning-charge me-2"></i>FCC服务器管理</h5><button type="button" class="btn-close" id="fccCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>支持 ip:port 或 fcc=ip:port，保存后将同步到服务端</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="fccAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="fccSaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="fccListWrapR"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -809,7 +809,7 @@ async function openGroupModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'groupModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">分组管理</h5><button type="button" class="btn-close" id="groupCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>分组用于统一导出与编辑中的 group-title</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="groupAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="groupSaveBtnR"><i class="bi bi-save me-1"></i>保存</button><button class="btn btn-info btn-sm text-white" id="groupApplyMatchBtnR"><i class="bi bi-magic me-1"></i>应用匹配</button></div></div><div id="groupListWrapR"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class="bi bi-collection me-2"></i>分组管理</h5><button type="button" class="btn-close" id="groupCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>分组用于统一导出与编辑中的 group-title</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="groupAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="groupSaveBtnR"><i class="bi bi-save me-1"></i>保存</button><button class="btn btn-info btn-sm text-white" id="groupApplyMatchBtnR"><i class="bi bi-magic me-1"></i>应用匹配</button></div></div><div id="groupListWrapR"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -949,7 +949,7 @@ function openGroupRuleModal(groupName) {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'groupRuleModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.3);z-index:10000;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:14px;"><div class="modal-header"><h5 class="modal-title">匹配规则</h5><button type="button" class="btn-close" id="groupRuleCloseR"></button></div><div class="modal-body"><div id="groupRuleListWrapR"></div><div class="d-flex justify-content-between mt-2"><button class="btn btn-outline-primary btn-sm" id="groupRuleAddBtnR">添加规则</button><button class="btn btn-outline-success btn-sm" id="groupRuleSaveBtnR">保存</button></div></div><div class="modal-footer justify-content-center"><button class="btn btn-outline-secondary" id="groupRuleCancelR">关闭</button></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.3);z-index:10000;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content" style="border-radius:14px;"><div class="modal-header"><h5 class="modal-title"><i class="bi bi-sliders me-2"></i>匹配规则</h5><button type="button" class="btn-close" id="groupRuleCloseR"></button></div><div class="modal-body"><div id="groupRuleListWrapR"></div><div class="d-flex justify-content-between mt-2"><button class="btn btn-outline-primary btn-sm" id="groupRuleAddBtnR">添加规则</button><button class="btn btn-outline-success btn-sm" id="groupRuleSaveBtnR">保存</button></div></div><div class="modal-footer justify-content-center"><button class="btn btn-outline-secondary" id="groupRuleCancelR">关闭</button></div></div></div></div>';
     document.body.appendChild(modal);
   }
   const listWrap = document.getElementById('groupRuleListWrapR');
@@ -1017,7 +1017,7 @@ function openLogoTplModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'logoTplModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">台标模板管理</h5><button type="button" class="btn-close" id="logoTplCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>用于批量匹配台标，{name} 将替换为频道名，格式：http(s)://xxx.com/{name}.png</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="logoTplAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="logoTplSaveBtnR"><i class="bi bi-save me-1"></i>保存</button><button class="btn btn-info btn-sm text-white" id="syncLogoTplBtn"><i class="bi bi-arrow-repeat me-1"></i>同步台标</button></div></div><div id="logoTplListWrapR"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class="bi bi-card-image me-2"></i>台标模板管理</h5><button type="button" class="btn-close" id="logoTplCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>用于批量匹配台标，{name} 将替换为频道名，格式：http(s)://xxx.com/{name}.png</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="logoTplAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="logoTplSaveBtnR"><i class="bi bi-save me-1"></i>保存</button><button class="btn btn-info btn-sm text-white" id="syncLogoTplBtn"><i class="bi bi-arrow-repeat me-1"></i>同步台标</button></div></div><div id="logoTplListWrapR"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -1064,7 +1064,7 @@ function openProxyModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'proxyModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">代理设置</h5><button type="button" class="btn-close" id="proxyCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>类型说明：代理设置主要用于组播单播能够在外网使用，组播代理和单播代理各设置一个地址即可，组播代理用于访问组播地址（rtp/udp）（一般使用端口映射或者lucky等工具实现）；单播代理用于访问单播地址（http/https）或者组播地址。组播单播代理推荐：<a href="https://github.com/qist/tvgate" target="_blank">TVGate</a></span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="proxyAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="proxySaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="proxyListWrapR"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class="bi bi-diagram-3 me-2"></i>代理设置</h5><button type="button" class="btn-close" id="proxyCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>类型说明：代理设置主要用于组播单播能够在外网使用，组播代理和单播代理各设置一个地址即可，组播代理用于访问组播地址（rtp/udp）（一般使用端口映射或者lucky等工具实现）；单播代理用于访问单播地址（http/https）或者组播地址。组播单播代理推荐：<a href="https://github.com/qist/tvgate" target="_blank">TVGate</a></span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary btn-sm" id="proxyAddBtnR"><i class="bi bi-plus-lg me-1"></i>添加</button><button class="btn btn-success btn-sm" id="proxySaveBtnR"><i class="bi bi-save me-1"></i>保存</button></div></div><div id="proxyListWrapR"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -1103,7 +1103,7 @@ function openAppSettingsModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'appSettingsModalR';
-    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark">使用设置</h5><button type="button" class="btn-close" id="appSettingsCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>内外网主要用于接口地址生成时候访问和内外网开关切换联动，内网用于在同局域网内访问；外网用于互联网访问（需端口映射）。</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-success btn-sm" id="appSettingsSaveR"><i class="bi bi-save me-1"></i>保存</button></div></div><div class="mb-3"><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="useInternalR"><label class="form-check-label" for="useInternalR">启用内网使用</label></div><input class="form-control mt-2" id="internalUrlR" placeholder="内网地址+端口，例如：http://192.168.x.x:port"></div><div class="mb-3"><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="useExternalR"><label class="form-check-label" for="useExternalR">启用外网使用</label></div><input class="form-control mt-2" id="externalUrlR" placeholder="外网地址+端口，例如：http://域名或IP:port"></div></div></div></div></div>';
+    modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg" style="border-radius:12px;"><div class="modal-header border-bottom-0 pb-0"><h5 class="modal-title fw-bold text-dark"><i class="bi bi-gear me-2"></i>设置</h5><button type="button" class="btn-close" id="appSettingsCloseR"></button></div><div class="modal-body pt-2 pb-4 px-4"><div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-3"><div class="text-secondary small d-flex align-items-center"><i class="bi bi-info-circle me-2 fs-5 text-primary"></i><span>内外网主要用于接口地址生成时候访问和内外网开关切换联动，内网用于在同局域网内访问；外网用于互联网访问（需端口映射）。</span></div><div class="d-flex flex-wrap align-items-center gap-2"><button class="btn btn-success btn-sm" id="appSettingsSaveR"><i class="bi bi-save me-1"></i>保存</button></div></div><div class="mb-3"><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="useInternalR"><label class="form-check-label" for="useInternalR">启用内网使用</label></div><input class="form-control mt-2" id="internalUrlR" placeholder="内网地址+端口，例如：http://192.168.x.x:port"></div><div class="mb-3"><div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="useExternalR"><label class="form-check-label" for="useExternalR">启用外网使用</label></div><input class="form-control mt-2" id="externalUrlR" placeholder="外网地址+端口，例如：http://域名或IP:port"></div></div></div></div></div>';
     document.body.appendChild(modal);
   }
   function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
@@ -3570,6 +3570,112 @@ requestAnimationFrame(() => { try { __initResults(); } catch(e) {} });
 window.addEventListener('DOMContentLoaded', () => { __initResults(); });
 setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
 </script>
+<script>
+// WebDAV 备份/恢复弹窗
+function openWebDavModal(){
+  let modal = document.getElementById('webdavModalR');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'webdavModalR';
+    modal.innerHTML =
+      '<style>#webdavModalR .modal-content{border-radius:14px}#webdavModalR .wd-section{border:1px solid #e9ecef;border-radius:10px;padding:12px;background:#fafbfc}#webdavModalR .wd-title{display:flex;align-items:center;gap:8px;margin-bottom:8px;color:#6c757d;font-size:13px}#webdavModalR .form-label{margin-bottom:6px;color:#6c757d}#webdavModalR .input-group-text{background:#f8f9fa}</style>'
+      +'<div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.5);z-index:9999;">'
+      +'<div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg">'
+      +'<div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2"><i class="bi bi-cloud"></i><span>WebDAV 备份/恢复</span></h5><button type="button" class="btn-close" id="webdavCloseR"></button></div>'
+      +'<div class="modal-body pt-2 pb-4 px-4">'
+      +'<div class="row g-3 mb-3">'
+      +'<div class="col-md-6"><label class="form-label small">WebDAV 地址</label><div class="input-group"><span class="input-group-text"><i class="bi bi-link-45deg"></i></span><input class="form-control" id="wdUrl" placeholder="例如：https://dav.example.com/dav/"></div></div>'
+      +'<div class="col-md-3"><label class="form-label small">用户名</label><div class="input-group"><span class="input-group-text"><i class="bi bi-person"></i></span><input class="form-control" id="wdUser" placeholder="可选"></div></div>'
+      +'<div class="col-md-3"><label class="form-label small">密码</label><div class="input-group"><span class="input-group-text"><i class="bi bi-shield-lock"></i></span><input class="form-control" id="wdPass" type="password" placeholder="可选"></div></div>'
+      +'<div class="col-md-9"><label class="form-label small">根目录</label><div class="input-group"><span class="input-group-text"><i class="bi bi-folder2-open"></i></span><input class="form-control" id="wdRoot" placeholder="/iptv-checker"></div></div>'
+      +'<div class="col-md-3 d-flex align-items-end"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="wdInsecure"><label class="form-check-label small" for="wdInsecure">忽略证书校验</label></div></div>'
+      +'</div>'
+      +'<div class="d-flex flex-wrap gap-2 mb-3"><button class="btn btn-primary btn-sm" id="wdSaveCfg"><i class="bi bi-save me-1"></i>保存配置</button><button class="btn btn-secondary btn-sm" id="wdTest"><i class="bi bi-plug me-1"></i>测试连接</button><button class="btn btn-success btn-sm" id="wdBackup"><i class="bi bi-cloud-upload me-1"></i>备份到 WebDAV</button></div>'
+      +'<div class="wd-section">'
+      +'<div class="wd-title"><i class="bi bi-archive"></i><span>选择备份目录恢复</span><div class="ms-auto"><button class="btn btn-outline-secondary btn-sm" id="wdRefresh" title="刷新目录"><i class="bi bi-arrow-repeat"></i></button></div></div>'
+      +'<select class="form-select form-select-sm" id="wdDirList" size="8"></select>'
+      +'<div class="d-grid mt-2"><button class="btn btn-danger btn-sm" id="wdRestore"><i class="bi bi-cloud-download me-1"></i>从所选目录恢复</button></div>'
+      +'</div>'
+      +'</div></div></div></div>';
+    document.body.appendChild(modal);
+  }
+  function close(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); }
+  document.getElementById('webdavCloseR').onclick = close;
+  // 初始化值
+  fetch('/api/settings').then(r=>r.json()).then(j=>{
+    if(j && j.settings){
+      const s=j.settings;
+      const g=(id,val)=>{ const el=document.getElementById(id); if(el) el.value=val||''; };
+      g('wdUrl', s.webdavUrl||'');
+      g('wdUser', s.webdavUser||'');
+      g('wdPass', s.webdavPass||'');
+      g('wdRoot', s.webdavRoot||'/');
+      const chk=document.getElementById('wdInsecure'); if(chk) chk.checked=!!s.webdavInsecure;
+    }
+  }).catch(()=>{});
+  // 事件
+  const saveBtn=document.getElementById('wdSaveCfg');
+  if(saveBtn) saveBtn.onclick=async function(){
+    const payload={
+      webdavUrl: (document.getElementById('wdUrl').value||'').trim(),
+      webdavUser: (document.getElementById('wdUser').value||'').trim(),
+      webdavPass: (document.getElementById('wdPass').value||''),
+      webdavRoot: (document.getElementById('wdRoot').value||'/').trim()||'/',
+      webdavInsecure: !!document.getElementById('wdInsecure').checked
+    };
+    await fetch('/api/settings/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    alert('已保存 WebDAV 配置');
+  };
+  const testBtn=document.getElementById('wdTest');
+  if(testBtn) testBtn.onclick=async function(){
+    const r=await fetch('/api/webdav/test',{method:'POST'}); const j=await r.json(); alert(j.success?'连接正常':'连接失败');
+  };
+  const dirSel=document.getElementById('wdDirList');
+  async function refreshDirs(){
+    dirSel.innerHTML='';
+    const r=await fetch('/api/webdav/list',{method:'POST'}); const j=await r.json();
+    if(j.success && Array.isArray(j.dirs)){
+      j.dirs.forEach(p=>{
+        const opt=document.createElement('option');
+        opt.value=p;
+        let label=p;
+        try{
+          const parts=p.split('/').filter(Boolean);
+          let i=-1;
+          for(let k=0;k<parts.length-2;k++){
+            if(/^\d{4}$/.test(parts[k]) && /^\d{8}$/.test(parts[k+1]) && /^\d{6}$/.test(parts[k+2])){ i=k; break; }
+          }
+          if(i!==-1){
+            const ymd=parts[i+1];
+            const hms=parts[i+2];
+            const y2=ymd.slice(0,4), m2=ymd.slice(4,6), d2=ymd.slice(6,8);
+            const h=hms.slice(0,2), m=hms.slice(2,4), s=hms.slice(4,6);
+            label=`${y2}-${m2}-${d2} ${h}:${m}:${s}`;
+          }
+        }catch(e){}
+        opt.textContent=label;
+        dirSel.appendChild(opt);
+      });
+    }
+  }
+  const refreshBtn=document.getElementById('wdRefresh'); if(refreshBtn) refreshBtn.onclick=refreshDirs;
+  const backupBtn=document.getElementById('wdBackup');
+  if(backupBtn) backupBtn.onclick=async function(){
+    const r=await fetch('/api/webdav/backup',{method:'POST'}); const j=await r.json(); if(j.success){ alert('备份完成：'+j.folder); await refreshDirs(); } else { alert('备份失败'); }
+  };
+  const restoreBtn=document.getElementById('wdRestore');
+  if(restoreBtn) restoreBtn.onclick=async function(){
+    const folder=(dirSel && dirSel.value)||''; if(!folder){ alert('请选择要恢复的目录'); return; }
+    const r=await fetch('/api/webdav/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({folder})});
+    const j=await r.json(); if(j.success){ alert('恢复完成'); location.reload(); } else { alert('恢复失败：'+(j.message||'')+' '+(j.details?JSON.stringify(j.details).slice(0,500):'')); }
+  };
+  modal.style.display='block'; modal.querySelector('.modal').classList.add('show');
+  refreshDirs().catch(()=>{});
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const btn=document.getElementById('webdavBtn'); if(btn) btn.onclick=openWebDavModal;
+});
+</script>
     <!-- 修改密码弹窗 -->
     <div class="modal fade" id="changePwdModal" tabindex="-1">
         <div class="modal-dialog">
@@ -3787,10 +3893,10 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.3</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
+                <i class="bi bi-tag-fill me-1"></i>版本: <span id="footerVersion">v1.3.3</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
             </span>
             <a href="/docs/" target="_blank" class="small text-decoration-none ms-3" style="color:#6c757d; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'">
-                <i class="bi bi-book me-1"></i>使用指南
+                <i class="bi bi-book me-1"></i>指南
             </a>
         </div>
     </footer>
@@ -3856,7 +3962,7 @@ setTimeout(() => { if (!window.__resultsInitDone) { __initResults(); } }, 800);
                 <!-- 底部按钮 -->
                 <div class="modal-footer border-0 p-3 bg-white justify-content-center">
                     <a href="/docs/" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
-                        <i class="bi bi-book me-1"></i> 使用指南
+                        <i class="bi bi-book me-1"></i> 指南
                     </a>
                     <a href="https://github.com/CGG888/Iptv-Checker/releases" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
                         <i class="bi bi-github me-1"></i> 发布页

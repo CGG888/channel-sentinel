@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title> 日志中心 - IPTV Checker</title>
+<link rel="icon" type="image/png" href="/iptv.png">
+<link rel="shortcut icon" type="image/png" href="/iptv.png">
+<link rel="apple-touch-icon" href="/iptv.png">
+<link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+:root{--bg:#0b1221;--fg:#cbd5e1;--muted:#64748b;--accent:#2563eb; --brand-size:1.05rem;}
+body{background:#f6f7f9}
+/* 与主页一致的导航样式 */
+.wiki-nav{position:sticky;top:0;z-index:1030;background:rgba(255,255,255,.85);backdrop-filter: blur(8px); border-bottom:1px solid #e9ecef;}
+.wiki-nav .actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;}
+@media (max-width: 575.98px){ .wiki-nav .brand-text{display:none;} }
+.title-center-wrap{position:relative;}
+.title-center{position:absolute;left:50%;transform:translateX(-50%);}
+.page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;font-size:var(--brand-size);}
+.brand-text{font-size:var(--brand-size);}
+/* 页面控件与日志区域 */
+.toolbar{display:flex;align-items:center;gap:.35rem;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
+.toolbar .input-group{min-width:110px;flex-wrap:nowrap}
+.toolbar .form-select{min-width:unset}
+#logBox{background:var(--bg);color:var(--fg);border-radius:12px;padding:12px;height:calc(100vh - 210px);overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;font-size:12px;line-height:1.45;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.lvl-DEBUG{color:#94a3b8}
+.lvl-INFO{color:#38bdf8}
+.lvl-WARN{color:#f59e0b}
+.lvl-ERROR{color:#ef4444}
+.lvl-FATAL{background:#ef4444;color:#fff;border-radius:4px;padding:2px 4px;display:inline-block}
+.dim{opacity:.7}
+.stat{color:#475569}
+</style>
+<script>
+(async function() {
+  try {
+    const r = await fetch('/api/auth/check');
+    const j = await r.json();
+    if (!j.success) {
+      window.location.href = '/login.html';
+    }
+  } catch(e) {
+    window.location.href = '/login.html';
+  }
+})();
+</script>
+</head>
+<body>
+  <nav class="navbar wiki-nav py-2">
+    <div class="container d-flex align-items-center gap-2" style="max-width:1200px;">
+      <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/" title="IPTV Checker">
+        <img src="/iptv.png" alt="" style="height:18px;width:auto;">
+        <span class="ms-2 fw-bold brand-text" style="color:#6f42c1;">IPTV Checker</span>
+      </a>
+      <div class="actions">
+        <a class="btn btn-sm btn-outline-secondary" href="/" title="主页"><i class="bi bi-house me-1"></i>主页</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/results" title="频道/检测结果"><i class="bi bi-collection-play me-1"></i>频道</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器"><i class="bi bi-play-circle me-1"></i>播放</a>
+        <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank"><i class="bi bi-book me-1"></i>指南</a>
+        <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank"><i class="bi bi-github me-1"></i>GitHub</a>
+      </div>
+    </div>
+  </nav>
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 title-center-wrap">
+    <h1 class="mb-0 d-flex align-items-center gap-2 title-center page-title">
+      <img src="/iptv.png" alt="" style="height:18px;width:auto;">
+      日志中心
+    </h1>
+  </div>
+  <div class="toolbar mb-3">
+    <div class="input-group input-group-sm" style="width:130px;flex-wrap:nowrap">
+      <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+      <select class="form-select form-select-sm" id="lvSel" style="width:110px">
+        <option value="fatal">Fatal</option>
+        <option value="error">Error</option>
+        <option value="warn">Warn</option>
+        <option value="info" selected>Info</option>
+        <option value="debug">Debug</option>
+      </select>
+    </div>
+    <div class="input-group input-group-sm" style="width:140px;flex-wrap:nowrap">
+      <span class="input-group-text"><i class="bi bi-diagram-3"></i></span>
+      <select class="form-select form-select-sm" id="modSel" style="width:120px">
+        <option value="all" selected>全部模块</option>
+        <option value="HTTP">HTTP</option>
+        <option value="Auth">Auth</option>
+        <option value="WebDAV">WebDAV</option>
+        <option value="Persist">Persist</option>
+        <option value="EPG">EPG</option>
+        <option value="App">App</option>
+      </select>
+    </div>
+    <div class="input-group input-group-sm" style="width:160px">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input class="form-control form-control-sm" id="kw" placeholder="关键字">
+    </div>
+    <div class="form-check form-switch ms-2 me-1">
+      <input class="form-check-input" type="checkbox" id="autoScroll" checked>
+      <label class="form-check-label small" for="autoScroll">自动滚动</label>
+    </div>
+    <div class="btn-group me-2" role="group" aria-label="ops">
+      <button class="btn btn-outline-secondary btn-sm" id="pauseBtn"><i class="bi bi-pause"></i> 暂停</button>
+      <button class="btn btn-outline-secondary btn-sm" id="clearBtn"><i class="bi bi-x-circle"></i> 清屏</button>
+    </div>
+    <select class="form-select form-select-sm" id="fileSel" style="width:200px"></select>
+    <a class="btn btn-outline-primary btn-sm ms-1" id="downBtn" target="_blank"><i class="bi bi-download"></i> 下载</a>
+  </div>
+  <div id="logBox" class="shadow-sm"></div>
+  <div class="d-flex justify-content-between align-items-center mt-2 small stat">
+    <div id="stat">就绪</div>
+    <div id="cnt">0 行</div>
+  </div>
+</div>
+<script src="/vendor/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+let es=null, paused=false, lines=0;
+const box=document.getElementById('logBox');
+const stat=document.getElementById('stat');
+const cnt=document.getElementById('cnt');
+function lineHtml(o){
+  const lvl=o.level||'INFO';
+  const mod=o.module||'App';
+  const t=o.time||'';
+  const rid=o.reqId?(' '+o.reqId):'';
+  const msg=o.message||'';
+  const data=o.data?(' '+JSON.stringify(o.data)):'';
+  return '<div class="lvl-'+lvl+'"><span class="dim">'+t+'</span> <b>'+lvl+'</b> <span class="dim">'+mod+'</span>'+rid+' '+msg+data+'</div>';
+}
+function scrollBottom(){ if(document.getElementById('autoScroll').checked) box.scrollTop=box.scrollHeight; }
+function append(o){ if(paused) return; box.insertAdjacentHTML('beforeend', lineHtml(o)); lines++; cnt.textContent=lines+' 行'; scrollBottom(); }
+function connect(){
+  if(es){ es.close(); es=null; }
+  const lv=document.getElementById('lvSel').value;
+  const mod=document.getElementById('modSel').value;
+  const kw=encodeURIComponent(document.getElementById('kw').value.trim());
+  const url='/api/logs/stream?tail=200&level='+lv+'&module='+mod+'&keyword='+kw;
+  es=new EventSource(url);
+  es.onopen=()=>{ stat.textContent='已连接'; };
+  es.onerror=()=>{ stat.textContent='连接中断，重试…'; };
+  es.onmessage=(e)=>{ try{ const o=JSON.parse(e.data); append(o);}catch(_){} };
+}
+function loadFiles(){
+  fetch('/api/logs/files').then(r=>r.json()).then(j=>{
+    const sel=document.getElementById('fileSel'); sel.innerHTML='';
+    if(j&&j.success&&Array.isArray(j.files)){ j.files.forEach(f=>{ const opt=document.createElement('option'); opt.value=f.file; opt.textContent=f.file+' ('+f.size+'B)'; sel.appendChild(opt); }); }
+    const f=sel.value||''; document.getElementById('downBtn').href=f?('/api/logs/download?file='+encodeURIComponent(f)):'#';
+  });
+}
+document.getElementById('lvSel').onchange=connect;
+document.getElementById('modSel').onchange=connect;
+document.getElementById('kw').onchange=connect;
+document.getElementById('autoScroll').onchange=scrollBottom;
+document.getElementById('pauseBtn').onclick=function(){ paused=!paused; this.innerHTML=paused?'<i class="bi bi-play"></i> 继续':'<i class="bi bi-pause"></i> 暂停'; };
+document.getElementById('clearBtn').onclick=function(){ box.innerHTML=''; lines=0; cnt.textContent='0 行'; };
+document.getElementById('fileSel').onchange=function(){ document.getElementById('downBtn').href='/api/logs/download?file='+encodeURIComponent(this.value); };
+loadFiles(); connect(); setInterval(loadFiles, 15000);
+</script>
+</body>
+</html>

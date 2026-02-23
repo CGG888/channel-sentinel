@@ -15,9 +15,10 @@
 - 8. 版本与数据持久化
 - 9. 版本更新与“红点”提示
 - 10. 安全与鉴权
-- 11. 常见问题（FAQ）
-- 12. 故障排查指南
-- 13. 附录（接口速查、术语说明、许可）
+- 11. 日志中心
+- 12. 常见问题（FAQ）
+- 13. 故障排查指南
+- 14. 附录（接口速查、术语说明、许可）
 
 ---
 
@@ -140,6 +141,37 @@ UDPXY 快速部署（示例，非本项目组件）：
 - unix_s：`?start=1771646400&end=1771650000`  
 - unix_ms：`?start=1771646400000&end=1771650000000`
 
+### Windows 4K 播放说明（硬件加速）
+
+在 Windows 上，4K 能否稳定播放取决于浏览器是否启用硬件加速、系统是否具备对应解码器（H.264/HEVC）以及播放链路是否通过 MSE（mpegts.js/hls.js）。按以下顺序配置与验证：
+
+- 浏览器设置
+  - 打开 `edge://settings/system`（或 Chrome 对应路径）
+  - 启用“可用时使用硬件加速”
+  - 点击“重新启动”使设置生效
+- Windows 图形设置
+  - 设置 → 系统 → 显示 → 图形设置
+  - 打开“硬件加速 GPU 调度”（若设备支持）
+  - 在“为应用设置图形性能首选项”里添加 Microsoft Edge/Chrome，选择“高性能”
+- 显卡与编解码
+  - 更新 GPU 驱动至厂商最新版本（NVIDIA/AMD/Intel 官方驱动）
+  - 如需播放 HEVC/H.265：从 Microsoft Store 安装“HEVC 视频扩展”（或设备厂商版本）
+- 避免被黑名单屏蔽（谨慎启用）
+  - 打开 `edge://flags` / `chrome://flags`
+  - 将“Override software rendering list（忽略软件渲染列表）”设为 Enabled
+  - 将“Hardware-accelerated video decode（硬件加速视频解码）”设为 Enabled
+  - “Choose ANGLE graphics backend”优先 D3D11（不稳定时可尝试 D3D11on12）
+  - 重启浏览器
+- 验证
+  - 在地址栏输入 `edge://gpu`（或 `chrome://gpu`），关键项应显示“Hardware accelerated”（如 Video Decode、Rasterization、WebGL 等）
+  - 播放 4K 时在 `edge://media-internals`/`chrome://media-internals` 检查是否走硬解（如 D3D11VideoDecoder）
+
+提示：
+- H.264/AVC 4K 在桌面浏览器上最通用；HEVC 需系统与硬件支持。  
+- Chrome/Edge 对 AC3/E-AC3 音频支持有限，可能出现“有画无声”，建议优先 AAC 音轨。  
+- 远程桌面（RDP）或虚拟机环境可能禁用 GPU，建议在本机直连下验证。  
+- 本项目播放链路为 mpegts.js/hls.js → MSE → 硬件解码；仅当硬件加速开启且编解码匹配时，4K 才能稳定播放。
+
 ---
 
 ## 6. 配置与管理（代理、UDPXY、EPG、模板、分组）
@@ -240,6 +272,22 @@ http://proxy.example/rtp/239.1.1.1:1234?fcc=10.0.0.1:9999
   - 备份：归档整个 `./data` 目录；  
   - 恢复：停止服务 → 覆盖 `./data` → 启动服务。
 
+### WebDAV 远程备份/恢复
+
+- 开启条件：在“应用设置”中配置 WebDAV（地址、用户名、密码、根目录、证书校验）。  
+- 备份接口：`POST /api/webdav/backup`  
+  - 行为：自动创建按年月日/时分的层级目录（MKCOL 容错 405 视为已存在），上传配置与 streams 快照。  
+  - 严格校验：若未成功上传任何文件，将返回失败并在“WebDAV”模块日志记录原因。  
+  - 响应：`{ success, folder, uploaded }`。  
+- 列表接口：`POST /api/webdav/list`  
+  - 行为：枚举根目录下的备份文件（使用 PROPFIND 扫描），用于恢复面板选择。  
+- 恢复接口：`POST /api/webdav/restore`（参数：`folder`）  
+  - 行为：从选定目录下载各配置文件写回 `/data`，逐文件记录成功/失败与异常。  
+  - 失败与兜底：网络或权限异常时会清晰记录，必要时保留旧文件不覆盖。  
+- 使用建议：  
+  - 优先在闲时执行备份；网络抖动时可重试。  
+  - 对外 WebDAV 建议启用 HTTPS 与专用账户；根目录保留只读/只写分区更安全。
+
 ---
 
 ## 9. 版本更新与“红点”提示
@@ -281,7 +329,23 @@ location / {
 
 ---
 
-## 11. 常见问题（FAQ）
+## 11. 日志中心
+
+- 入口：导航“日志中心”或直接访问 `/logs.html`。  
+- 功能：  
+  - 实时日志流（SSE）：基于服务器端推送实时展示；支持按“级别（fatal/error/warn/info/debug）”“模块（HTTP/Auth/WebDAV/Persist/EPG/App）”“关键字”筛选。  
+  - 历史下载：列出本地日志文件，支持在线筛选与下载。  
+  - 控制：暂停/继续输出、清屏、自动滚动。  
+- 接口速览：  
+  - 实时流：`GET /api/logs/stream?tail=200&level=info&module=all&keyword=xxx`（SSE）  
+  - 获取文件列表：`GET /api/logs/files`  
+  - 下载指定文件：`GET /api/logs/download?file=app-YYYYMMDD.log`  
+  - 获取/设置日志级别：`GET/POST /api/logs/level`（支持保留天数）  
+- 反向代理提示：使用 SSE 时需关闭代理缓冲（如 Nginx `proxy_buffering off;`），并允许长连接。
+
+---
+
+## 12. 常见问题（FAQ）
 
 1) “ffprobe 未找到”  
 - Windows：安装官方 ffmpeg 并将 `ffprobe.exe` 所在目录加入 PATH。  
@@ -310,15 +374,25 @@ location / {
 7) “导出 TVBox 无法播放”  
 - 确认外网/内网范围设置与代理基址是否正确；在浏览器直接打开链接测试可达性。
 
+8) “WebDAV 备份/恢复不生效”  
+- 查看“日志中心”中模块为 WebDAV 的日志：关注 MKCOL/PUT 状态码与上传计数；未上传任何文件会明确报错。  
+- 确认 WebDAV 地址与根目录末尾斜杠、账号权限；必要时开启“忽略证书”用于内网自签证书。  
+- 若 PROPFIND 受限，请在 WebDAV 端开启目录列表或降低 Depth 限制。
+
+9) “日志中心没有输出/连接断开”  
+- 确认反向代理已关闭缓冲并支持 SSE 长连接；浏览器网络面板查看 `/api/logs/stream` 事件流。  
+- 适当降低日志级别（info）或关键字筛选，避免海量日志导致 UI 卡顿。
+
 ---
 
-## 12. 故障排查指南
+## 13. 故障排查指南
 
 - 网络连通：  
   - `curl`/浏览器直连测试 UDPXY、代理与上游 HLS 资源；  
   - 若外网访问失败，检查防火墙、反代与证书配置。  
 - 日志查看：  
   - 浏览器控制台（HLS/MPEGTS 错误、CORS 情况）；  
+  - 日志中心 `/logs.html`（实时 SSE 流 + 历史文件）；  
   - 服务端日志（终端输出/容器日志）。  
 - 数据校验：  
   - 在“接口弹窗”中预览导出链接，并抽样进行 HEAD/GET 校验。  
@@ -331,7 +405,7 @@ location / {
 
 ---
 
-## 13. 附录
+## 14. 附录
 
 1) 常用接口（仅列举核心）  
 - 系统信息：`GET /api/system/info`  

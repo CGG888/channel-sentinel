@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap-icons/1.7.2/font/bootstrap-icons.css">
     <link href="css/custom.css" rel="stylesheet">
     <style>
+      :root{ --brand-size: 1.05rem; }
       .ver-dot{display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 0 rgba(255,59,59,0.7);animation:ver-blink 1.2s infinite}
       @keyframes ver-blink{
         0%{transform:scale(0.9);opacity:.85;box-shadow:0 0 0 0 rgba(255,59,59,.7)}
@@ -22,7 +23,8 @@
       @media (max-width: 575.98px){ .wiki-nav .brand-text{display:none;} }
       .title-center-wrap{position:relative;}
       .title-center{position:absolute;left:50%;transform:translateX(-50%);}
-      .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;}
+      .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;font-size:var(--brand-size);}
+      .brand-text{font-size:var(--brand-size);}
     </style>
     <script>
         // 登录检查
@@ -67,10 +69,10 @@
             <i class="bi bi-collection-play me-1"></i>频道
           </a>
           <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器">
-            <i class="bi bi-play-circle me-1"></i>播放器
+            <i class="bi bi-play-circle me-1"></i>播放
           </a>
           <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank">
-            <i class="bi bi-book me-1"></i>使用指南
+            <i class="bi bi-book me-1"></i>指南
           </a>
           <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
             <i class="bi bi-github me-1"></i>GitHub
@@ -2517,10 +2519,10 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
     <footer class="footer mt-auto py-3 bg-white border-top shadow-sm">
         <div class="container text-center">
             <span class="text-secondary small fw-bold" style="cursor:pointer; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'" onclick="showVersionModal()">
-                <i class="bi bi-tag-fill me-1"></i>当前版本: <span id="footerVersion">v1.3.3</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
+                <i class="bi bi-tag-fill me-1"></i>版本: <span id="footerVersion">v1.3.4</span><span id="versionDot" class="ver-dot hide" title="发现新版本"></span>
             </span>
             <a href="/docs/" target="_blank" class="small text-decoration-none ms-3" style="color:#6c757d; transition: color 0.3s;" onmouseover="this.style.color='#0d6efd'" onmouseout="this.style.color='#6c757d'">
-                <i class="bi bi-book me-1"></i>使用指南
+                <i class="bi bi-book me-1"></i>指南
             </a>
         </div>
     </footer>
@@ -2586,7 +2588,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
                 <!-- 底部按钮 -->
                 <div class="modal-footer border-0 p-3 bg-white justify-content-center">
                     <a href="/docs/" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
-                        <i class="bi bi-book me-1"></i> 使用指南
+                        <i class="bi bi-book me-1"></i> 指南
                     </a>
                     <a href="https://github.com/CGG888/Iptv-Checker/releases" target="_blank" class="btn btn-light border shadow-sm rounded-pill px-4 fw-medium hover-shadow transition-all">
                         <i class="bi bi-github me-1"></i> 发布页

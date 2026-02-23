@@ -824,7 +824,27 @@
 
     function resolve(url){
       var m=/\.m3u8(\?|$)/i.test(url)||url.indexOf('m3u8')>-1;
-      return m?('/api/proxy/hls?url='+encodeURIComponent(url)):('/api/proxy/stream?url='+encodeURIComponent(url));
+      var base=m?('/api/proxy/hls?url='):('/api/proxy/stream?url=');
+      var qs=[];
+      var nm=(current&&((current.tvgName||current.name)||''))||(tvgName||title||'');
+      if(nm) qs.push('title='+encodeURIComponent(nm));
+      var md=isLive?'直播':'回放';
+      var cast='单播';
+      try{
+        var raw=String(url||'').trim();
+        var isMc=/^(rtp|udp):\/\//i.test(raw)||/\/rtp\//i.test(raw);
+        cast=isMc?'组播':'单播';
+      }catch(e){}
+      qs.push('mode='+encodeURIComponent(md));
+      qs.push('cast='+encodeURIComponent(cast));
+      var prog='';
+      if(isLive && currentLiveProgram && currentLiveProgram.title){ prog=currentLiveProgram.title; }
+      if(!isLive && currentReplayProgram && currentReplayProgram.title){ prog=currentReplayProgram.title; }
+      if(prog) qs.push('programTitle='+encodeURIComponent(prog));
+      var sc='internal';
+      try{ sc=(localStorage.getItem('useExternal')==='true')?'external':'internal'; }catch(e){}
+      qs.push('scope='+encodeURIComponent(sc));
+      return base+encodeURIComponent(url)+(qs.length?('&'+qs.join('&')):'');
     }
 
     function resetReco(){
@@ -1442,6 +1462,18 @@
       selectCategoryForStream(s);
       var k=normalizeName(s.tvgName||s.name||'');
       expandAndFocusChannel(k);
+      try{
+        var cast=isMulticastStream(s)?'组播':'单播';
+        var sc=getScope()==='external'?'external':'internal';
+        fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          name:s.name||s.tvgName||'',
+          tvgName:s.tvgName||'',
+          mode:'直播',
+          cast:cast,
+          scope:sc,
+          programTitle:(channelNowTitleByKey[k]||'')
+        })}).catch(function(){});
+      }catch(e){}
     }
 
     function fetchAndRenderEpg(stream,opts){
@@ -1533,6 +1565,18 @@
             isLive=false;
             updateLiveBadge();
             showInfo();
+            try{
+              var sc3=getScope()==='external'?'external':'internal';
+              fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                name:s.name||s.tvgName||'',
+                tvgName:s.tvgName||'',
+                mode:'回放',
+                cast:'单播',
+                scope:sc3,
+                programTitle:p.title||'',
+                url:raw
+              })}).catch(function(){});
+            }catch(e){}
             start(playUrl);
           });
         }else{
@@ -1611,6 +1655,21 @@
           var act=epgList.querySelector('.active-epg');
           if(act) act.scrollIntoView({behavior:'smooth',block:'center'});
         },100);
+        try{
+          if(current && currentLiveProgram && currentLiveProgram.title){
+            var k2=channelKeyFromStream(current);
+            var cast2=isMulticastStream(current)?'组播':'单播';
+            var sc2=getScope()==='external'?'external':'internal';
+            fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+              name:current.name||current.tvgName||'',
+              tvgName:current.tvgName||'',
+              mode:'直播',
+              cast:cast2,
+              scope:sc2,
+              programTitle:currentLiveProgram.title||''
+            })}).catch(function(){});
+          }
+        }catch(e){}
       }
     }
 

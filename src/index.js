@@ -10,34 +10,64 @@ const cookieParser = require('cookie-parser');
 const svgCaptcha = require('svg-captcha');
 const { XMLParser } = require('fast-xml-parser');
 const zlib = require('zlib');
+const crypto = require('crypto');
 const packageJson = require('../package.json');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// 日志工具
+const LEVELS = ['fatal','error','warn','info','debug'];
+const LOG_DIR = path.join(__dirname, '../data/logs');
+let LOG_LEVEL = 'info';
+let LOG_KEEP_DAYS = 7;
+let LOG_BUFFER_MAX = 2000;
+let LOG_DAY = '';
+const LOG_BUFFER = [];
+const SSE_CLIENTS = [];
+function ensureLogDir() { try { if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true }); } catch(e){} }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function ts(){ const d=new Date(); const tz=-d.getTimezoneOffset(); const sign=tz>=0?'+':'-'; const ah=Math.floor(Math.abs(tz)/60); const am=Math.abs(tz)%60; return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3,'0')}${sign}${pad2(ah)}:${pad2(am)}`; }
+function today(){ const d=new Date(); return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`; }
+function levelIdx(l){ const i=LEVELS.indexOf(String(l||'info').toLowerCase()); return i===-1?3:i; }
+function withinLevel(l){ return levelIdx(l) <= levelIdx(LOG_LEVEL); }
+function pruneLogs(){ try{ const files=fs.readdirSync(LOG_DIR).filter(f=>/^app-\d{8}\.log$/.test(f)); const map=files.map(f=>({f,t:+f.slice(4,12)})).sort((a,b)=>b.t-a.t); for(let i=LOG_KEEP_DAYS;i<map.length;i++){ try{ fs.unlinkSync(path.join(LOG_DIR,map[i].f)); }catch(e){} } }catch(e){} }
+function appendFile(line){ ensureLogDir(); const day=today(); if (LOG_DAY!==day){ LOG_DAY=day; pruneLogs(); } const file=path.join(LOG_DIR,`app-${day}.log`); try{ fs.appendFileSync(file, line+'\n','utf-8'); }catch(e){} }
+function pushBuffer(obj){ LOG_BUFFER.push(obj); if (LOG_BUFFER.length>LOG_BUFFER_MAX) LOG_BUFFER.shift(); }
+function broadcast(obj){ const data=JSON.stringify(obj); const line=`data: ${data}\n\n`; SSE_CLIENTS.forEach(c=>{ try{ const passes = levelIdx(obj.level)<=levelIdx(c.level) && (!c.module || c.module==='all' || String(obj.module||'').toLowerCase()===c.module) && (!c.keyword || JSON.stringify(obj).toLowerCase().includes(c.keyword)); if(passes) c.res.write(line);}catch(e){} }); }
 const logger = {
-    info: (msg) => console.log(`[${new Date().toLocaleString()}] [INFO] ${msg}`),
-    error: (msg) => console.error(`[${new Date().toLocaleString()}] [ERROR] ${msg}`),
-    warn: (msg) => console.warn(`[${new Date().toLocaleString()}] [WARN] ${msg}`)
+    setLevel: (l)=>{ if(LEVELS.includes(String(l).toLowerCase())) LOG_LEVEL=String(l).toLowerCase(); },
+    fatal: (m, module='App', data=null, reqId='')=> logWrite('fatal', module, m, data, reqId),
+    error: (m, module='App', data=null, reqId='')=> logWrite('error', module, m, data, reqId),
+    warn: (m, module='App', data=null, reqId='')=> logWrite('warn', module, m, data, reqId),
+    info: (m, module='App', data=null, reqId='')=> logWrite('info', module, m, data, reqId),
+    debug: (m, module='App', data=null, reqId='')=> logWrite('debug', module, m, data, reqId)
 };
+function logWrite(level,module,msg,data,reqId){
+    const lv=String(level).toLowerCase(); const md=String(module||'App'); const t=ts();
+    const obj={ time:t, level:lv.toUpperCase(), module:md, message:String(msg||''), reqId:reqId||'', data: data===undefined?null:data };
+    pushBuffer(obj);
+    const line = `${t} ${lv.toUpperCase()} ${md} ${reqId?`reqId=${reqId} `:''}${obj.message}${obj.data?` data=${JSON.stringify(obj.data)}`:''}`;
+    if (withinLevel(lv)) {
+        if (lv==='error' || lv==='fatal') console.error(line); else if (lv==='warn') console.warn(line); else console.log(line);
+    }
+    appendFile(line);
+    broadcast(obj);
+}
 
 // 请求日志中间件
 app.use((req, res, next) => {
     const start = Date.now();
     const { method, originalUrl, ip } = req;
     
-    // 拦截 res.end 来捕获状态码
     const originalEnd = res.end;
     res.end = function(...args) {
         const duration = Date.now() - start;
         const status = res.statusCode;
-        // 排除静态资源日志以减少刷屏，仅记录 API 和页面访问
-        if (!originalUrl.startsWith('/static') && !originalUrl.startsWith('/css') && !originalUrl.startsWith('/js') && !originalUrl.startsWith('/img') && !originalUrl.includes('.js') && !originalUrl.includes('.css')) {
-             // 状态码颜色区分
-            let logMsg = `${method} ${originalUrl} ${status} - ${duration}ms - ${ip}`;
-            if (status >= 500) logger.error(logMsg);
-            else if (status >= 400) logger.warn(logMsg);
-            else logger.info(logMsg);
+        const skip = originalUrl.includes('.js') || originalUrl.includes('.css') || originalUrl.startsWith('/img') || originalUrl.startsWith('/vendor');
+        if (!skip) {
+            const mod = 'HTTP';
+            if (status >= 500) logger.error(`${method} ${originalUrl} ${status} ${duration}ms ${ip}`, mod);
+            else if (status >= 400) logger.warn(`${method} ${originalUrl} ${status} ${duration}ms ${ip}`, mod);
+            else logger.info(`${method} ${originalUrl} ${status} ${duration}ms ${ip}`, mod);
         }
         originalEnd.apply(res, args);
     };
@@ -48,6 +78,64 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(bodyParser.json());
 app.use(cookieParser());
+
+// 机密加解密与口令哈希（提前初始化，避免重启后无法解密）
+const SECRET_FILE_ABS = path.join(__dirname, '../data/.secret_key');
+function ensureSecretKeyInit() {
+    try {
+        const dataDir = path.join(__dirname, '../data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        if (fs.existsSync(SECRET_FILE_ABS)) {
+            const raw = fs.readFileSync(SECRET_FILE_ABS, 'utf-8').trim();
+            if (raw) return Buffer.from(raw, 'base64');
+        }
+    } catch(e) {}
+    const key = crypto.randomBytes(32);
+    try { fs.writeFileSync(SECRET_FILE_ABS, key.toString('base64')); } catch(e) {}
+    return key;
+}
+const SECRET_KEY = ensureSecretKeyInit();
+function encryptSecret(plain) {
+    if (!plain) return '';
+    try {
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv('aes-256-gcm', SECRET_KEY, iv);
+        const enc = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
+        const tag = cipher.getAuthTag();
+        return `enc:v1:${iv.toString('base64')}:${enc.toString('base64')}:${tag.toString('base64')}`;
+    } catch(e) { return String(plain); }
+}
+function decryptSecret(v) {
+    if (!v) return '';
+    if (!String(v).startsWith('enc:v1:')) return String(v);
+    try {
+        const [, , ivB64, cB64, tagB64] = String(v).split(':');
+        const iv = Buffer.from(ivB64, 'base64');
+        const data = Buffer.from(cB64, 'base64');
+        const tag = Buffer.from(tagB64, 'base64');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', SECRET_KEY, iv);
+        decipher.setAuthTag(tag);
+        const out = Buffer.concat([decipher.update(data), decipher.final()]);
+        return out.toString('utf8');
+    } catch(e) { return ''; }
+}
+function hashPassword(plain) {
+    const salt = crypto.randomBytes(16);
+    const key = crypto.scryptSync(String(plain), salt, 32);
+    return `s2:${salt.toString('base64')}:${key.toString('base64')}`;
+}
+function verifyPassword(plain, stored) {
+    if (!stored) return false;
+    if (String(stored).startsWith('s2:')) {
+        try {
+            const [, saltB64, hashB64] = String(stored).split(':');
+            const salt = Buffer.from(saltB64, 'base64');
+            const key = crypto.scryptSync(String(plain), salt, 32);
+            return crypto.timingSafeEqual(key, Buffer.from(hashB64, 'base64'));
+        } catch(e) { return false; }
+    }
+    return String(plain) === String(stored);
+}
 try{
     const compression = require('compression');
     if (typeof compression === 'function') {
@@ -69,14 +157,19 @@ const SESSION_TTL = 3650 * 24 * 60 * 60 * 1000;
 const CAPTCHA_STORE = new Map(); // id -> { text, expires }
 
 function loadUsers() {
-    return readJson(USERS_FILE, { username: 'admin', password: 'admin' });
+    const u = readJson(USERS_FILE, { username: 'admin', password: 'admin' });
+    return u;
 }
 function saveUsers(u) {
-    writeJson(USERS_FILE, u);
+    // 仅持久化 username 与 passwordHash，避免明文
+    const toSave = { username: u.username };
+    if (u.passwordHash) toSave.passwordHash = u.passwordHash;
+    writeJson(USERS_FILE, toSave);
 }
 // 初始化用户文件
 if (!fs.existsSync(USERS_FILE)) {
-    saveUsers({ username: 'admin', password: 'admin' });
+    const def = { username: 'admin', passwordHash: hashPassword('admin') };
+    saveUsers(def);
 }
 
 // 检查是否登录
@@ -158,7 +251,18 @@ app.post('/api/login', (req, res) => {
     }
 
     const user = loadUsers();
-    if (username === user.username && password === user.password) {
+    let ok = false;
+    if (user.passwordHash) {
+        ok = (username === user.username) && verifyPassword(password, user.passwordHash);
+    } else {
+        ok = (username === user.username) && (password === user.password);
+        if (ok) { // 迁移为哈希
+            user.passwordHash = hashPassword(password);
+            delete user.password;
+            saveUsers(user);
+        }
+    }
+    if (ok) {
         logger.info(`用户 ${username} 登录成功`);
         const token = 'sess-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
         SESSIONS.set(token, { username, expires: Date.now() + SESSION_TTL });
@@ -199,14 +303,17 @@ app.post('/api/auth/update', (req, res) => {
     const { username, password, oldPassword } = req.body;
     const user = loadUsers();
     
-    // 验证旧密码（如果需要更严格的安全，可以加这个字段，这里简化处理直接允许修改，因为已经登录了）
-    // 但为了安全，通常需要验证旧密码
-    if (user.password !== oldPassword) {
+    // 验证旧密码
+    const oldOk = user.passwordHash ? verifyPassword(oldPassword, user.passwordHash) : (user.password === oldPassword);
+    if (!oldOk) {
          return res.json({ success: false, message: '旧密码错误' });
     }
     
     if (username) user.username = username;
-    if (password) user.password = password;
+    if (password) {
+        user.passwordHash = hashPassword(password);
+        delete user.password;
+    }
     saveUsers(user);
     
     // 更新 session
@@ -221,7 +328,7 @@ app.post('/api/auth/update', (req, res) => {
 // 由于 express.static 会直接返回文件，所以必须放在 static 之前
 // 但放在 static 之前会拦截 login.html css js 等资源
 // 方案：只拦截特定路径
-app.use(['/', '/index.html', '/results', '/results.html', '/player.html', '/api/*'], requireAuth);
+app.use(['/', '/index.html', '/results', '/results.html', '/player.html', '/logs.html', '/api/*'], requireAuth);
 app.use('/vendor', express.static(path.join(__dirname, '../public/vendor'), { maxAge: '30d', immutable: true }));
 app.use('/docs', express.static(path.join(__dirname, '../docs')));
 app.use(express.static('public', {
@@ -258,7 +365,12 @@ let settings = {
     useExternal: false,
     securityToken: '',
     enableToken: false,
-    proxyList: []
+    proxyList: [],
+    webdavUrl: '',
+    webdavUser: '',
+    webdavPass: '',
+    webdavRoot: '/',
+    webdavInsecure: false
 };
 
 function normalizeProxyType(t) {
@@ -370,7 +482,14 @@ const appSetCfg = readJson(CFG_APPSET, {
     internalUrl: settings.internalUrl,
     externalUrl: settings.externalUrl,
     securityToken: settings.securityToken,
-    enableToken: settings.enableToken
+    enableToken: settings.enableToken,
+    webdavUrl: settings.webdavUrl,
+    webdavUser: settings.webdavUser,
+    webdavPass: settings.webdavPass,
+    webdavRoot: settings.webdavRoot,
+    webdavInsecure: settings.webdavInsecure,
+    logLevel: 'info',
+    logKeepDays: 7
 });
 settings.logoTemplate = logoConfig.current || settings.logoTemplate;
 settings.fccServers = Array.isArray(fccConfig.servers) ? fccConfig.servers : settings.fccServers;
@@ -382,8 +501,15 @@ settings.useInternal = !!appSetCfg.useInternal;
 settings.useExternal = !!appSetCfg.useExternal;
 settings.internalUrl = appSetCfg.internalUrl || settings.internalUrl;
 settings.externalUrl = appSetCfg.externalUrl || settings.externalUrl;
-settings.securityToken = appSetCfg.securityToken || settings.securityToken;
+settings.securityToken = decryptSecret(appSetCfg.securityToken || settings.securityToken);
 settings.enableToken = !!appSetCfg.enableToken;
+settings.webdavUrl = appSetCfg.webdavUrl || settings.webdavUrl;
+settings.webdavUser = appSetCfg.webdavUser || settings.webdavUser;
+settings.webdavPass = decryptSecret(appSetCfg.webdavPass || settings.webdavPass);
+settings.webdavRoot = typeof appSetCfg.webdavRoot === 'string' ? appSetCfg.webdavRoot : settings.webdavRoot;
+settings.webdavInsecure = !!appSetCfg.webdavInsecure;
+LOG_LEVEL = String(appSetCfg.logLevel || 'info').toLowerCase();
+LOG_KEEP_DAYS = typeof appSetCfg.logKeepDays === 'number' ? appSetCfg.logKeepDays : 7;
 if ((!Array.isArray(settings.proxyList) || settings.proxyList.length === 0) && settings.externalUrl) {
     const url = String(settings.externalUrl || '').trim();
     if (url) {
@@ -1727,10 +1853,21 @@ app.post('/api/config/group-rules', (req, res) => {
     res.json({ success: true });
 });
 app.get('/api/settings', (req, res) => {
-    res.json({ success: true, settings });
+    // 返回内存中的设置，并确保从磁盘读取的加密字段被解密后回填
+    const disk = readJson(CFG_APPSET, {});
+    const s = { ...settings };
+    if (disk && typeof disk.webdavPass === 'string') {
+        s.webdavPass = decryptSecret(disk.webdavPass);
+    }
+    if (disk && typeof disk.securityToken === 'string') {
+        s.securityToken = decryptSecret(disk.securityToken);
+    }
+    if (disk && typeof disk.logLevel !== 'undefined') s.logLevel = disk.logLevel;
+    if (disk && typeof disk.logKeepDays !== 'undefined') s.logKeepDays = disk.logKeepDays;
+    res.json({ success: true, settings: s });
 });
 app.post('/api/settings/update', (req, res) => {
-    const { fccServers, logoTemplate, groupTitles, globalFcc: gf, externalUrl, internalUrl, useInternal, useExternal, securityToken, enableToken, proxyList } = req.body || {};
+    const { fccServers, logoTemplate, groupTitles, globalFcc: gf, externalUrl, internalUrl, useInternal, useExternal, securityToken, enableToken, proxyList, webdavUrl, webdavUser, webdavPass, webdavRoot, webdavInsecure } = req.body || {};
     if (Array.isArray(fccServers)) settings.fccServers = fccServers;
     if (typeof logoTemplate === 'string') settings.logoTemplate = logoTemplate;
     if (Array.isArray(groupTitles)) settings.groupTitles = groupTitles;
@@ -1740,14 +1877,24 @@ app.post('/api/settings/update', (req, res) => {
     if (typeof useExternal === 'boolean') settings.useExternal = useExternal;
     if (typeof securityToken === 'string') settings.securityToken = securityToken;
     if (typeof enableToken === 'boolean') settings.enableToken = enableToken;
-    if (typeof externalUrl === 'string' || typeof internalUrl === 'string' || typeof useInternal === 'boolean' || typeof useExternal === 'boolean' || typeof securityToken === 'string' || typeof enableToken === 'boolean') {
+    if (typeof webdavUrl === 'string') settings.webdavUrl = webdavUrl;
+    if (typeof webdavUser === 'string') settings.webdavUser = webdavUser;
+    if (typeof webdavPass === 'string') settings.webdavPass = webdavPass;
+    if (typeof webdavRoot === 'string') settings.webdavRoot = webdavRoot;
+    if (typeof webdavInsecure === 'boolean') settings.webdavInsecure = webdavInsecure;
+    if (typeof externalUrl === 'string' || typeof internalUrl === 'string' || typeof useInternal === 'boolean' || typeof useExternal === 'boolean' || typeof securityToken === 'string' || typeof enableToken === 'boolean' || typeof webdavUrl === 'string' || typeof webdavUser === 'string' || typeof webdavPass === 'string' || typeof webdavRoot === 'string' || typeof webdavInsecure === 'boolean') {
         writeJson(CFG_APPSET, {
             useInternal: settings.useInternal,
             useExternal: settings.useExternal,
             internalUrl: settings.internalUrl,
             externalUrl: settings.externalUrl,
-            securityToken: settings.securityToken,
-            enableToken: settings.enableToken
+            securityToken: encryptSecret(settings.securityToken),
+            enableToken: settings.enableToken,
+            webdavUrl: settings.webdavUrl,
+            webdavUser: settings.webdavUser,
+            webdavPass: encryptSecret(settings.webdavPass),
+            webdavRoot: settings.webdavRoot,
+            webdavInsecure: settings.webdavInsecure
         });
     }
     if (Array.isArray(proxyList)) {
@@ -1764,6 +1911,449 @@ app.post('/api/settings/update', (req, res) => {
         multicastList = multicastList.map(s => ({ ...s, httpParam: val }));
     }
     res.json({ success: true, settings });
+});
+
+function makeAxiosForWebDav() {
+    const https = require('https');
+    const agent = new https.Agent({ rejectUnauthorized: !settings.webdavInsecure });
+    const inst = axios.create({
+        baseURL: settings.webdavUrl,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        httpsAgent: agent,
+        validateStatus: () => true,
+        auth: settings.webdavUser ? { username: settings.webdavUser, password: settings.webdavPass || '' } : undefined
+    });
+    return inst;
+}
+function joinWebDavPath(...parts) {
+    return parts.join('/').replace(/\/+/g, '/');
+}
+function nowFolderParts() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const y = d.getFullYear();
+    const ymd = `${y}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+    const hms = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    return [String(y), ymd, hms];
+}
+function buildCurrentStreamsPayload() {
+    const payload = { streams: multicastList, settings: { ...settings, globalFcc } };
+    try { return Buffer.from(JSON.stringify(payload, null, 2)); } catch(e) { return Buffer.from('{}'); }
+}
+function reloadSettingsAfterRestore() {
+    // Reload app settings and streams
+    persistLoad();
+    const appSetCfg2 = readJson(CFG_APPSET, {});
+    settings.useInternal = !!appSetCfg2.useInternal;
+    settings.useExternal = !!appSetCfg2.useExternal;
+    settings.internalUrl = appSetCfg2.internalUrl || settings.internalUrl;
+    settings.externalUrl = appSetCfg2.externalUrl || settings.externalUrl;
+    settings.securityToken = decryptSecret(appSetCfg2.securityToken || settings.securityToken);
+    settings.enableToken = !!appSetCfg2.enableToken;
+    settings.webdavUrl = appSetCfg2.webdavUrl || settings.webdavUrl;
+    settings.webdavUser = appSetCfg2.webdavUser || settings.webdavUser;
+    settings.webdavPass = decryptSecret(appSetCfg2.webdavPass || settings.webdavPass);
+    settings.webdavRoot = typeof appSetCfg2.webdavRoot === 'string' ? appSetCfg2.webdavRoot : settings.webdavRoot;
+    settings.webdavInsecure = !!appSetCfg2.webdavInsecure;
+}
+
+app.post('/api/webdav/test', async (req, res) => {
+    const inst = makeAxiosForWebDav();
+    if (!settings.webdavUrl) return res.status(400).json({ success: false, message: '未配置 webdavUrl' });
+    try {
+        let root = joinWebDavPath(settings.webdavRoot || '/');
+        if (!root.endsWith('/')) root += '/';
+        const r = await inst.request({ method: 'PROPFIND', url: root, headers: { Depth: '0' } });
+        if (r.status >= 200 && r.status < 300) return res.json({ success: true, status: r.status });
+        return res.status(502).json({ success: false, status: r.status, message: 'WebDAV 不可用' });
+    } catch(e) {
+        return res.status(500).json({ success: false, message: '连接失败' });
+    }
+});
+app.get('/api/logs/files', (req, res) => {
+    ensureLogDir();
+    try{
+        const list = fs.readdirSync(LOG_DIR).filter(f=>/^app-\d{8}\.log$/.test(f)).map(f=>{
+            const p=path.join(LOG_DIR,f); let s=0; try{ s=fs.statSync(p).size;}catch(e){}
+            return { file:f, size:s };
+        }).sort((a,b)=>b.file.localeCompare(a.file));
+        res.json({ success:true, files:list });
+    }catch(e){ res.json({ success:false, files:[] }); }
+});
+app.get('/api/logs/download', (req, res) => {
+    ensureLogDir();
+    const f = String(req.query.file||'');
+    if (!/^app-\d{8}\.log$/.test(f)) return res.status(400).end();
+    const p = path.join(LOG_DIR,f);
+    if (!fs.existsSync(p)) return res.status(404).end();
+    res.setHeader('Content-Type','text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition',`attachment; filename="${f}"`);
+    fs.createReadStream(p).pipe(res);
+});
+app.get('/api/logs/tail', (req, res) => {
+    const lines = Math.min(parseInt(req.query.lines||'200',10)||200, 2000);
+    const level = String(req.query.level||LOG_LEVEL).toLowerCase();
+    const module = String(req.query.module||'all').toLowerCase();
+    const keyword = String(req.query.keyword||'').trim().toLowerCase();
+    const arr = [];
+    for (let i=Math.max(0,LOG_BUFFER.length-lines); i<LOG_BUFFER.length; i++){
+        const o = LOG_BUFFER[i];
+        const pass = levelIdx(o.level.toLowerCase())<=levelIdx(level) && (module==='all' || String(o.module||'').toLowerCase()===module) && (!keyword || JSON.stringify(o).toLowerCase().includes(keyword));
+        if (pass) arr.push(o);
+    }
+    res.json({ success:true, list:arr });
+});
+app.get('/api/logs/level', (req,res)=>{ res.json({ success:true, level:LOG_LEVEL, keepDays:LOG_KEEP_DAYS }); });
+app.post('/api/logs/level', (req,res)=>{ const { level, keepDays } = req.body||{}; if (LEVELS.includes(String(level||'').toLowerCase())) LOG_LEVEL=String(level).toLowerCase(); if (typeof keepDays==='number' && keepDays>=1 && keepDays<=90) LOG_KEEP_DAYS=keepDays; writeJson(CFG_APPSET, { ...readJson(CFG_APPSET, {}), logLevel: LOG_LEVEL, logKeepDays: LOG_KEEP_DAYS }); res.json({ success:true, level:LOG_LEVEL, keepDays:LOG_KEEP_DAYS }); });
+app.get('/api/logs/stream', (req, res) => {
+    res.setHeader('Content-Type','text/event-stream');
+    res.setHeader('Cache-Control','no-cache');
+    res.setHeader('Connection','keep-alive');
+    const level = String(req.query.level||LOG_LEVEL).toLowerCase();
+    const module = String(req.query.module||'all').toLowerCase();
+    const keyword = String(req.query.keyword||'').trim().toLowerCase();
+    const tail = Math.min(parseInt(req.query.tail||'200',10)||200, 2000);
+    const client = { res, level, module, keyword };
+    SSE_CLIENTS.push(client);
+    const arr = [];
+    for (let i=Math.max(0,LOG_BUFFER.length-tail); i<LOG_BUFFER.length; i++){
+        const o = LOG_BUFFER[i];
+        const pass = levelIdx(o.level.toLowerCase())<=levelIdx(level) && (module==='all' || String(o.module||'').toLowerCase()===module) && (!keyword || JSON.stringify(o).toLowerCase().includes(keyword));
+        if (pass) arr.push(o);
+    }
+    arr.forEach(o=>res.write(`data: ${JSON.stringify(o)}\n\n`));
+    req.on('close', ()=>{ const idx=SSE_CLIENTS.indexOf(client); if (idx!==-1) SSE_CLIENTS.splice(idx,1); });
+});
+app.post('/api/webdav/backup', async (req, res) => {
+    if (!settings.webdavUrl) return res.status(400).json({ success: false, message: '未配置 WebDAV' });
+    const inst = makeAxiosForWebDav();
+    let base = joinWebDavPath(settings.webdavRoot || '/');
+    if (!base.endsWith('/')) base += '/';
+    const parts = nowFolderParts();
+    const folder = joinWebDavPath(base, ...parts);
+    try {
+        // create nested folders
+        logger.info(`WebDAV 备份开始，目标目录: ${folder}`, 'WebDAV');
+        let cur = base;
+        for (const p of parts) {
+            cur = joinWebDavPath(cur, p);
+            const mkUrl = cur.endsWith('/') ? cur : (cur + '/');
+            const mk = await inst.request({ method: 'MKCOL', url: mkUrl });
+            const ok = (mk.status >= 200 && mk.status < 300) || mk.status === 201 || mk.status === 204 || mk.status === 405;
+            if (!ok) {
+                logger.error(`MKCOL 失败: ${mk.status} ${mkUrl}`, 'WebDAV');
+                throw new Error(`MKCOL 失败: ${mk.status}`);
+            } else {
+                logger.debug(`MKCOL 成功/已存在: ${mk.status} ${mkUrl}`, 'WebDAV');
+            }
+        }
+        const files = [
+            { path: CFG_LOGO, name: 'logo_templates.json' },
+            { path: CFG_FCC, name: 'fcc_servers.json' },
+            { path: CFG_UDPXY, name: 'udpxy_servers.json' },
+            { path: CFG_GROUPS, name: 'group_titles.json' },
+            { path: CFG_GROUP_RULES, name: 'group_rules.json' },
+            { path: CFG_EPG, name: 'epg_sources.json' },
+            { path: CFG_PROXY, name: 'proxy_servers.json' },
+            { path: CFG_APPSET, name: 'app_settings.json' }
+        ];
+        let uploaded = 0;
+        for (const f of files) {
+            if (fs.existsSync(f.path)) {
+                const buf = fs.readFileSync(f.path);
+                const url = joinWebDavPath(folder, f.name);
+                const put = await inst.put(url, buf, { headers: { 'Content-Type': 'application/json' } });
+                const ok = (put.status >= 200 && put.status < 300) || put.status === 201 || put.status === 204;
+                if (ok) {
+                    uploaded++;
+                    logger.debug(`PUT 成功: ${url} status=${put.status}`, 'WebDAV');
+                } else {
+                    logger.warn(`PUT 失败: ${url} status=${put.status}`, 'WebDAV');
+                }
+            }
+        }
+        // streams: 使用当前加载的数据，保存 streams.json 与带时间戳副本
+        const sBuf = buildCurrentStreamsPayload();
+        const sUrl = joinWebDavPath(folder, 'streams.json');
+        const putS = await inst.put(sUrl, sBuf, { headers: { 'Content-Type': 'application/json' } });
+        if ((putS.status >= 200 && putS.status < 300) || putS.status === 201 || putS.status === 204) {
+            uploaded++;
+            logger.debug(`PUT 成功: ${sUrl} status=${putS.status}`, 'WebDAV');
+        } else {
+            logger.warn(`PUT 失败: ${sUrl} status=${putS.status}`, 'WebDAV');
+        }
+        const stamp = `${parts[1]}-${parts[2]}`;
+        const s2Url = joinWebDavPath(folder, `streams-${stamp}.json`);
+        const putS2 = await inst.put(s2Url, sBuf, { headers: { 'Content-Type': 'application/json' } });
+        if ((putS2.status >= 200 && putS2.status < 300) || putS2.status === 201 || putS2.status === 204) {
+            uploaded++;
+            logger.debug(`PUT 成功: ${s2Url} status=${putS2.status}`, 'WebDAV');
+        } else {
+            logger.warn(`PUT 失败: ${s2Url} status=${putS2.status}`, 'WebDAV');
+        }
+        if (uploaded === 0) {
+            logger.error(`备份失败：未成功上传任何文件，目标目录 ${folder}`, 'WebDAV');
+            return res.status(502).json({ success: false, message: '备份失败：未上传任何文件' });
+        }
+        logger.info(`WebDAV 备份完成：上传文件数 ${uploaded}，目录 ${folder}`, 'WebDAV');
+        return res.json({ success: true, folder: parts.join('/'), uploaded });
+    } catch(e) {
+        logger.error(`WebDAV 备份异常: ${e && e.message ? e.message : String(e)}`, 'WebDAV');
+        return res.status(500).json({ success: false, message: '备份失败' });
+    }
+});
+app.post('/api/webdav/list', async (req, res) => {
+    if (!settings.webdavUrl) return res.status(400).json({ success: false, message: '未配置 WebDAV' });
+    const inst = makeAxiosForWebDav();
+    let base = joinWebDavPath(settings.webdavRoot || '/');
+    if (!base.endsWith('/')) base += '/';
+    const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+    async function listDir(url) {
+        let u = url;
+        if (!u.endsWith('/')) u += '/';
+        const r = await inst.request({ method: 'PROPFIND', url: u, headers: { Depth: '1' } });
+        if (r.status < 200 || r.status >= 300) return [];
+        let xml = r.data;
+        try {
+            const txt = Buffer.isBuffer(xml) ? xml.toString('utf-8') : String(xml || '');
+            const j = parser.parse(txt);
+            const resp = j && (j.multistatus && j.multistatus.response);
+            const arr = Array.isArray(resp) ? resp : (resp ? [resp] : []);
+            return arr.map(x => {
+                const href = (x.href || '').trim();
+                const propstat = x.propstat || x['d:propstat'] || {};
+                const prop = propstat.prop || propstat['d:prop'] || {};
+                const rtype = prop.resourcetype || (prop['d:resourcetype'] || {});
+                const isDir = rtype && (rtype.collection !== undefined);
+                return { href, isDir };
+            }).filter(e => e.isDir)
+              .map(e => decodeURI(e.href));
+        } catch(e) { return []; }
+    }
+    async function listEntries(url) {
+        let u = url;
+        if (!u.endsWith('/')) u += '/';
+        const r = await inst.request({ method: 'PROPFIND', url: u, headers: { Depth: '1' } });
+        if (r.status < 200 || r.status >= 300) return [];
+        let xml = r.data;
+        try {
+            const txt = Buffer.isBuffer(xml) ? xml.toString('utf-8') : String(xml || '');
+            const j = parser.parse(txt);
+            const resp = j && (j.multistatus && j.multistatus.response);
+            const arr = Array.isArray(resp) ? resp : (resp ? [resp] : []);
+            return arr.map(x => {
+                const href = (x.href || '').trim();
+                const propstat = x.propstat || x['d:propstat'] || {};
+                const prop = propstat.prop || propstat['d:prop'] || {};
+                const rtype = prop.resourcetype || (prop['d:resourcetype'] || {});
+                const isDir = !!(rtype && rtype.collection !== undefined);
+                return { href: decodeURI(href), isDir };
+            });
+        } catch(e) { return []; }
+    }
+    try {
+        const years = await listDir(base);
+        let result = [];
+        for (const y of years) {
+            if (y.replace(/\/+$/,'') === base.replace(/\/+$/,'')) continue;
+            const ys = await listDir(y);
+            for (const d of ys) {
+                const ts = await listDir(d);
+                for (const t of ts) {
+                    const entries = await listEntries(t);
+                    const hasStreams = entries.some(e => !e.isDir && /\/streams(\-\d{8}\-\d{6})?\.json$/i.test(e.href));
+                    if (!hasStreams) continue;
+                    let rel = t;
+                    rel = rel.replace(/^https?:\/\/[^/]+/i, '');
+                    rel = rel.replace(/^\/+/, '');
+                    const rootPrefix = (settings.webdavRoot || '/').replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&').replace(/^\/?/, '').replace(/\/?$/, '');
+                    const re = new RegExp('^' + rootPrefix + '\/?', 'i');
+                    const pathRel = rel.replace(re, '').replace(/^\/+/, '').replace(/\/+$/, '');
+                    if (pathRel) result.push(pathRel);
+                }
+            }
+        }
+        result = result.sort().reverse();
+        return res.json({ success: true, dirs: result });
+    } catch(e) {
+        return res.status(500).json({ success: false, message: '列目录失败' });
+    }
+});
+app.post('/api/webdav/restore', async (req, res) => {
+    const { folder } = req.body || {};
+    if (!settings.webdavUrl) return res.status(400).json({ success: false, message: '未配置 WebDAV' });
+    if (!folder) return res.status(400).json({ success: false, message: '缺少 folder' });
+    const inst = makeAxiosForWebDav();
+    const toAbs = (p) => {
+        const base = String(settings.webdavUrl || '').replace(/\/+$/,'');
+        return /^https?:\/\//i.test(p) ? p : base + (p.startsWith('/') ? '' : '/') + p;
+    };
+    let base = joinWebDavPath(settings.webdavRoot || '/');
+    if (!base.endsWith('/')) base += '/';
+    const fParts = String(folder || '').split('/').filter(Boolean);
+    let norm = '';
+    for (let i = 0; i <= fParts.length - 3; i++) {
+        if (/^\d{4}$/.test(fParts[i]) && /^\d{8}$/.test(fParts[i+1]) && /^\d{6}$/.test(fParts[i+2])) {
+            norm = `${fParts[i]}/${fParts[i+1]}/${fParts[i+2]}`;
+            break;
+        }
+    }
+    if (!norm) {
+        const rootPrefix = (settings.webdavRoot || '/').replace(/^\/+|\/+$/g,'');
+        let tmp = fParts.join('/');
+        tmp = tmp.replace(new RegExp('^' + rootPrefix.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&') + '/?', 'i'), '');
+        norm = tmp;
+    }
+    const dir = joinWebDavPath(base, norm);
+    let restored = 0;
+    let details = [];
+    try {
+        logger.info(`WebDAV 恢复开始，目录: ${dir}`, 'WebDAV');
+        ensureDataDir();
+        const parser = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true });
+        async function listEntries(u) {
+            let url = u; if (!url.endsWith('/')) url += '/';
+            const r = await inst.request({ method: 'PROPFIND', url, headers: { Depth: '1' } });
+            if (r.status < 200 || r.status >= 300) return [];
+            const txt = Buffer.isBuffer(r.data) ? r.data.toString('utf-8') : String(r.data || '');
+            try {
+                const j = parser.parse(txt);
+                const resp = j && j.multistatus && j.multistatus.response;
+                const arr = Array.isArray(resp) ? resp : (resp ? [resp] : []);
+                return arr.map(x => {
+                    const href = decodeURI((x.href || '').trim());
+                    const ps = Array.isArray(x.propstat) ? (x.propstat[0] || {}) : (x.propstat || {});
+                    const prop = ps.prop || {};
+                    const rtype = prop.resourcetype || {};
+                    const isDir = !!(rtype && rtype.collection !== undefined) || /\/$/.test(href);
+                    return { href, isDir };
+                }).filter(e => e.href && e.href !== url);
+            } catch(e) { return []; }
+        }
+        const entries = await listEntries(dir);
+        logger.info(`WebDAV 恢复扫描完成，条目数: ${Array.isArray(entries)?entries.length:0}`, 'WebDAV');
+        const fileEntries = entries.filter(e => /\.json(\?|$)/i.test(e.href));
+        logger.info(`WebDAV 恢复候选文件数: ${fileEntries.length}`, 'WebDAV');
+        const toDownload = fileEntries.map(e => {
+            const href = e.href;
+            const pathOnly = href.replace(/^https?:\/\/[^/]+/i, '');
+            const last = (pathOnly.split('/').filter(Boolean).pop() || '').trim();
+            const urlFull = /^https?:\/\//i.test(href) ? href : joinWebDavPath(dir, last);
+            return { url: toAbs(urlFull), name: last, raw: href };
+        });
+        const knownMap = {
+            'logo_templates.json': CFG_LOGO,
+            'fcc_servers.json': CFG_FCC,
+            'udpxy_servers.json': CFG_UDPXY,
+            'group_titles.json': CFG_GROUPS,
+            'group_rules.json': CFG_GROUP_RULES,
+            'epg_sources.json': CFG_EPG,
+            'proxy_servers.json': CFG_PROXY,
+            'app_settings.json': CFG_APPSET,
+            'streams.json': DATA_FILE
+        };
+        let stamp = '';
+        try {
+            const parts = String(folder || '').split('/').filter(Boolean);
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (/^\d{8}$/.test(parts[i]) && /^\d{6}$/.test(parts[i + 1])) {
+                    stamp = `${parts[i]}-${parts[i + 1]}`;
+                }
+            }
+        } catch(e) {}
+        for (const f of toDownload) {
+            try {
+                const dlUrl = joinWebDavPath(base, norm, f.name);
+                const r = await inst.get(dlUrl, { responseType: 'arraybuffer' });
+                const status = r && r.status ? r.status : 200;
+                const name = f.name;
+                const buf = Buffer.from(r.data);
+                if (/^streams-\d{8}-\d{6}\.json$/i.test(name)) {
+                    fs.writeFileSync(DATA_FILE, buf);
+                    try {
+                        const verPath = path.join(DATA_DIR, name);
+                        fs.writeFileSync(verPath, buf);
+                    } catch(e) {}
+                    restored++;
+                    details.push({ file: name, savedAs: 'streams.json', status, url: dlUrl });
+                    logger.debug(`WebDAV 恢复文件成功: ${name} -> streams.json status=${status}`, 'WebDAV');
+                } else if (knownMap[name]) {
+                    fs.writeFileSync(knownMap[name], buf);
+                    restored++;
+                    details.push({ file: name, path: knownMap[name], status, url: dlUrl });
+                    logger.debug(`WebDAV 恢复文件成功: ${name} -> ${knownMap[name]} status=${status}`, 'WebDAV');
+                } else {
+                    const out = path.join(DATA_DIR, name);
+                    fs.writeFileSync(out, buf);
+                    restored++;
+                    details.push({ file: name, path: out, status, url: dlUrl });
+                    logger.debug(`WebDAV 恢复文件成功: ${name} -> ${out} status=${status}`, 'WebDAV');
+                }
+            } catch(err) {
+                const status = err && err.response ? err.response.status : undefined;
+                details.push({ file: f.name, error: String(err && err.message || err), status, url: joinWebDavPath(base, folder, f.name) });
+                logger.warn(`WebDAV 恢复文件失败: ${f.name} status=${status}`, 'WebDAV');
+            }
+        }
+        if (restored === 0) {
+            const knownMap = {
+                'logo_templates.json': CFG_LOGO,
+                'fcc_servers.json': CFG_FCC,
+                'udpxy_servers.json': CFG_UDPXY,
+                'group_titles.json': CFG_GROUPS,
+                'group_rules.json': CFG_GROUP_RULES,
+                'epg_sources.json': CFG_EPG,
+                'proxy_servers.json': CFG_PROXY,
+                'app_settings.json': CFG_APPSET,
+                'streams.json': DATA_FILE
+            };
+            const fallback = Object.keys(knownMap).concat(stamp ? [`streams-${stamp}.json`] : []);
+            for (const nm of fallback) {
+                try {
+                    const urlA = joinWebDavPath(base, norm, nm);
+                    const r = await inst.get(urlA, { responseType: 'arraybuffer' });
+                    const status = r && r.status ? r.status : 200;
+                    if (status >= 200 && status < 300) {
+                        const buf = Buffer.from(r.data);
+                        if (/^streams-\d{8}-\d{6}\.json$/i.test(nm)) {
+                            fs.writeFileSync(DATA_FILE, buf);
+                            try { fs.writeFileSync(path.join(DATA_DIR, nm), buf); } catch(e) {}
+                            restored++; details.push({ file: nm, savedAs: 'streams.json', status, url: urlA });
+                            logger.debug(`WebDAV 兜底恢复成功: ${nm} -> streams.json status=${status}`, 'WebDAV');
+                        } else if (knownMap[nm]) {
+                            fs.writeFileSync(knownMap[nm], buf);
+                            restored++; details.push({ file: nm, path: knownMap[nm], status, url: urlA });
+                            logger.debug(`WebDAV 兜底恢复成功: ${nm} -> ${knownMap[nm]} status=${status}`, 'WebDAV');
+                        } else {
+                            const out = path.join(DATA_DIR, nm);
+                            fs.writeFileSync(out, buf);
+                            restored++; details.push({ file: nm, path: out, status, url: urlA });
+                            logger.debug(`WebDAV 兜底恢复成功: ${nm} -> ${out} status=${status}`, 'WebDAV');
+                        }
+                    } else {
+                        details.push({ file: nm, status, url: urlA });
+                        logger.warn(`WebDAV 兜底恢复失败: ${nm} status=${status}`, 'WebDAV');
+                    }
+                } catch(err) {
+                    const status = err && err.response ? err.response.status : undefined;
+                    details.push({ file: nm, error: String(err && err.message || err), status, url: joinWebDavPath(base, folder, nm) });
+                    logger.warn(`WebDAV 兜底恢复异常: ${nm} status=${status}`, 'WebDAV');
+                }
+            }
+        }
+        reloadSettingsAfterRestore();
+        if (restored > 0) {
+            logger.info(`WebDAV 恢复完成：恢复文件数 ${restored}，目录 ${dir}`, 'WebDAV');
+            return res.json({ success: true, restored, details });
+        } else {
+            logger.error(`WebDAV 恢复失败：未恢复任何文件，目录 ${dir}`, 'WebDAV');
+            return res.status(502).json({ success: false, restored, details, message: '未找到可恢复的 JSON 文件' });
+        }
+    } catch(e) {
+        logger.error(`WebDAV 恢复异常: ${e && e.message ? e.message : String(e)}`, 'WebDAV');
+        return res.status(500).json({ success: false, message: '恢复失败', restored, details });
+    }
 });
 app.post('/api/settings/rename-group', (req, res) => {
     const { from, to } = req.body || {};
@@ -1800,7 +2390,7 @@ app.post('/api/config/proxies', (req, res) => {
 });
 
 app.get('/api/config/app-settings', (req, res) => {
-    const cfg = readJson(CFG_APPSET, {
+    const raw = readJson(CFG_APPSET, {
         useInternal: settings.useInternal,
         useExternal: settings.useExternal,
         internalUrl: settings.internalUrl,
@@ -1808,6 +2398,10 @@ app.get('/api/config/app-settings', (req, res) => {
         securityToken: settings.securityToken,
         enableToken: settings.enableToken
     });
+    const cfg = {
+        ...raw,
+        securityToken: decryptSecret(raw.securityToken || '')
+    };
     res.json({ success: true, appSettings: cfg });
 });
 app.post('/api/config/app-settings', (req, res) => {
@@ -1823,7 +2417,7 @@ app.post('/api/config/app-settings', (req, res) => {
         useExternal: settings.useExternal,
         internalUrl: settings.internalUrl,
         externalUrl: settings.externalUrl,
-        securityToken: settings.securityToken,
+        securityToken: encryptSecret(settings.securityToken),
         enableToken: settings.enableToken
     });
     res.json({ success: true });
@@ -2222,10 +2816,48 @@ app.get('/api/catchup/play', (req, res) => {
     }
     res.json({ success: true, url });
 });
+app.post('/api/player/log', (req, res) => {
+    try {
+        const b = req.body || {};
+        const name = String(b.name || b.tvgName || '').trim();
+        const tvgName = String(b.tvgName || '').trim();
+        const mode = String(b.mode || '').trim();
+        const cast = String(b.cast || '').trim();
+        const programTitle = String(b.programTitle || '').trim();
+        const url = String(b.url || '').trim();
+        const scope = String(b.scope || '').trim();
+        const info = [
+            name || tvgName ? `频道: ${name || tvgName}` : '',
+            mode && cast ? `类型: ${mode}/${cast}` : (mode ? `类型: ${mode}` : (cast ? `类型: ${cast}` : '')),
+            programTitle ? `节目: ${programTitle}` : '',
+            scope ? `范围: ${scope}` : '',
+            url ? `地址: ${url}` : ''
+        ].filter(Boolean).join(' | ');
+        if (info) logger.info(`播放日志 -> ${info}`, 'Player');
+        else logger.info('播放日志', 'Player');
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false });
+    }
+});
 // 简单流代理（用于HLS播放跨域绕过）
 app.get('/api/proxy/stream', async (req, res) => {
     try {
         const url = String(req.query.url || '').trim();
+        const metaTitle = String(req.query.title || req.query.tvgName || '').trim();
+        const mode = String(req.query.mode || '').trim();
+        const cast = String(req.query.cast || '').trim();
+        const programTitle = String(req.query.programTitle || '').trim();
+        const scope = String(req.query.scope || '').trim();
+        const metaInfo = [
+            metaTitle ? `频道: ${metaTitle}` : '',
+            mode && cast ? `类型: ${mode}/${cast}` : (mode ? `类型: ${mode}` : (cast ? `类型: ${cast}` : '')),
+            programTitle ? `节目: ${programTitle}` : '',
+            scope ? `范围: ${scope}` : '',
+            url ? `地址: ${url}` : ''
+        ].filter(Boolean).join(' | ');
+        if (metaInfo) logger.info(`播放代理(stream) -> ${metaInfo}`, 'Player');
+        else logger.info(`播放代理(stream): ${url}`, 'Player');
         if (!/^https?:\/\//i.test(url)) {
             return res.status(400).send('invalid url');
         }
@@ -2299,6 +2931,20 @@ function rewriteHlsPlaylist(content, baseUrl) {
 app.get('/api/proxy/hls', async (req, res) => {
     try {
         const url = String(req.query.url || '').trim();
+        const metaTitle = String(req.query.title || req.query.tvgName || '').trim();
+        const mode = String(req.query.mode || '').trim();
+        const cast = String(req.query.cast || '').trim();
+        const programTitle = String(req.query.programTitle || '').trim();
+        const scope = String(req.query.scope || '').trim();
+        const metaInfo = [
+            metaTitle ? `频道: ${metaTitle}` : '',
+            mode && cast ? `类型: ${mode}/${cast}` : (mode ? `类型: ${mode}` : (cast ? `类型: ${cast}` : '')),
+            programTitle ? `节目: ${programTitle}` : '',
+            scope ? `范围: ${scope}` : '',
+            url ? `地址: ${url}` : ''
+        ].filter(Boolean).join(' | ');
+        if (metaInfo) logger.info(`播放代理(hls) -> ${metaInfo}`, 'Player');
+        else logger.info(`播放代理(hls): ${url}`, 'Player');
         if (!/^https?:\/\//i.test(url)) return res.status(400).send('invalid url');
         const hdrs = {};
         // 保持最小头部集合，减少上游基于来源校验导致的失败
