@@ -1,0 +1,328 @@
+/* ============================================================
+   results.css — 检测结果页样式
+   来源：results.html L39-L256（第一段内联 <style> 块）
+   ============================================================ */
+
+html.auth-pending body {
+    visibility: hidden !important;
+    background: #0b1221 !important;
+}
+
+/* ---- 表格列宽系统 ---- */
+.col-select      { width: 50px;   text-align: center; }
+.col-status      { width: 80px;   text-align: center; }
+.col-type        { width: 80px;   text-align: center; }
+.col-name        { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.col-resolution  { width: 100px;  text-align: center; }
+.col-fps         { width: 80px;   text-align: center; }
+.col-codec       { width: 100px;  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-group       { width: 120px;  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-logo        { width: 60px;   text-align: center; }
+.col-addr        { max-width: 150px; font-family: monospace; font-size: 0.85rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-http        { max-width: 120px; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-ops         { width: 160px;  text-align: right; }
+
+.logo-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+
+/* ---- 表格 ---- */
+.table-hover tbody tr:hover {
+    background-color: rgba(111, 66, 193, 0.03);
+}
+
+.table-responsive {
+    max-height: calc(100vh - 350px);
+    overflow-y: auto;
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ---- API 链接卡片 ---- */
+.api-link-item {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 16px;
+    background: #fff;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.api-link-item:hover {
+    border-color: #6f42c1;
+    box-shadow: 0 6px 16px rgba(111, 66, 193, 0.1);
+    transform: translateY(-2px);
+}
+
+.api-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.api-link-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.api-link-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+}
+
+.api-link-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f8f9fa;
+    color: #6f42c1;
+    font-weight: 600;
+    border: 1px solid #e9ecef;
+}
+
+.api-link-url {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.85rem;
+    color: #555;
+    word-break: break-all;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    margin-bottom: 16px;
+    flex-grow: 1;
+    min-height: 80px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.api-link-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.api-link-actions .btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+/* ---- Dark 主题覆盖 ---- */
+:root[data-theme="dark"] body {
+    background: var(--background);
+    color: var(--foreground);
+}
+
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .card .card-body {
+    background: var(--card);
+    color: var(--card-foreground);
+    border-color: var(--border);
+}
+
+:root[data-theme="dark"] .bg-light {
+    background-color: color-mix(in srgb, var(--card) 78%, var(--muted)) !important;
+}
+
+:root[data-theme="dark"] .text-muted {
+    color: var(--muted-foreground) !important;
+}
+
+:root[data-theme="dark"] .table {
+    --bs-table-color: var(--foreground);
+    --bs-table-bg: #0f1116;
+    --bs-table-striped-bg: #151a23;
+    --bs-table-hover-bg: #1a2230;
+    --bs-table-border-color: #2a3242;
+}
+
+:root[data-theme="dark"] .table > :not(caption) > * > * {
+    color: var(--foreground);
+    background-color: transparent;
+}
+
+:root[data-theme="dark"] thead th {
+    background: #151a23;
+    color: #dbe7ff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.14);
+}
+
+:root[data-theme="dark"] .col-addr {
+    color: #9fb0c9;
+}
+
+:root[data-theme="dark"] .logo-img {
+    background: #0b1220;
+    border-color: #324156;
+}
+
+:root[data-theme="dark"] .badge.bg-light.text-dark {
+    background-color: #222b3a !important;
+    color: #dbe7ff !important;
+    border-color: #3c4d66 !important;
+}
+
+/* ---- EPG 回放弹窗 (#centerModalEpgR) ---- */
+#centerModalEpgR .modal-dialog {
+    max-width: min(96vw, 1440px);
+}
+
+#centerModalEpgR .epg-modal-header {
+    position: relative;
+}
+
+#centerModalEpgR .epg-header-title {
+    max-width: 34%;
+}
+
+#centerModalEpgR .epg-header-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 44%;
+    pointer-events: none;
+}
+
+#centerModalEpgR .epg-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+}
+
+#centerModalEpgR .epg-toolbar .vr {
+    height: 28px;
+}
+
+#centerModalEpgR .epg-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+#centerModalEpgR .epg-toolbar-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+}
+
+#centerModalEpgR #epgListR .list-group-item {
+    background: transparent;
+}
+
+:root[data-theme="dark"] #centerModalEpgR .modal-content {
+    background: var(--card);
+    color: var(--foreground);
+}
+
+:root[data-theme="dark"] #centerModalEpgR .epg-modal-header,
+:root[data-theme="dark"] #centerModalEpgR .epg-toolbar-wrap,
+:root[data-theme="dark"] #centerModalEpgR .epg-list-pane,
+:root[data-theme="dark"] #centerModalEpgR .epg-footer-wrap {
+    background: #0f1116 !important;
+    color: var(--foreground);
+    border-color: #283244 !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR .epg-list-header {
+    background: #151a23 !important;
+    border-color: #283244 !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR .text-secondary,
+:root[data-theme="dark"] #centerModalEpgR .text-muted {
+    color: #aebacf !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR .modal-title.text-dark {
+    color: var(--foreground) !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR .btn-close {
+    filter: invert(1) grayscale(100%);
+}
+
+:root[data-theme="dark"] #centerModalEpgR #epgPlayUrlR {
+    background: #0b1220 !important;
+    color: #dbe7ff !important;
+    border-color: #2f3b52 !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR #epgDateR,
+:root[data-theme="dark"] #centerModalEpgR #epgSourceR,
+:root[data-theme="dark"] #centerModalEpgR #epgProtoR,
+:root[data-theme="dark"] #centerModalEpgR #epgFmtR {
+    background: #0b1220 !important;
+    color: #dbe7ff !important;
+    border-color: #2f3b52 !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR #epgListR .list-group-item-light {
+    background: #141a25 !important;
+    color: #dbe7ff !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR #epgListR .bg-light {
+    background: #141a25 !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR #epgListR .bg-white {
+    background: #1a2332 !important;
+}
+
+:root[data-theme="dark"] #centerModalEpgR #epgListR .text-dark {
+    color: #dbe7ff !important;
+}
+
+/* ---- 响应式 ---- */
+@media (max-width: 1199.98px) {
+    #centerModalEpgR .epg-header-title {
+        max-width: 100%;
+    }
+
+    #centerModalEpgR .epg-header-center {
+        position: static;
+        transform: none;
+        width: 100%;
+        margin-top: 8px;
+        text-align: left;
+    }
+
+    #centerModalEpgR .epg-modal-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 8px;
+    }
+
+    #centerModalEpgR .epg-toolbar .vr {
+        display: none;
+    }
+}

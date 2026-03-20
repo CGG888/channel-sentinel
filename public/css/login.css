@@ -1,0 +1,236 @@
+/* ============================================================
+   login.css — 登录页样式
+   来源：login.html L38-L233（第二段内联 <style> 块）
+   ============================================================ */
+
+html, body {
+    background: #0f172a !important;
+    min-height: 100dvh;
+}
+
+body {
+    background: var(--login-fallback-bg, #0f172a) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 16px;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+}
+
+/* ---- Bing 背景层 ---- */
+.bg-bing {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(140deg, #6f42c1 0%, #4f46e5 45%, #0f172a 100%);
+}
+
+.bg-bing::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.bg-bing img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity .35s ease;
+}
+
+.bg-bing.ready img { opacity: 1; }
+.bg-bing.loading img { opacity: 0; }
+
+/* ---- 主题切换按钮 ---- */
+.theme-login-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    border: 1px solid rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.28) !important;
+    backdrop-filter: blur(8px);
+    color: #ffffff !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+    min-width: 92px;
+}
+
+.theme-login-toggle:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* ---- 登录卡片 ---- */
+.login-card {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 400px;
+    padding: 2.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.login-logo {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 4px 6px rgba(111, 66, 193, 0.2));
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    color: #18181b;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.login-header i {
+    font-size: 3.5rem;
+    color: #6f42c1;
+    margin-bottom: 1rem;
+    display: inline-block;
+    filter: drop-shadow(0 4px 6px rgba(111, 66, 193, 0.2));
+}
+
+/* ---- 表单元素 ---- */
+.input-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    opacity: 0.75;
+}
+
+.form-control {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+
+.form-control:focus {
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(111, 66, 193, 0.1);
+    border-color: #6f42c1;
+}
+
+/* ---- 提交按钮 ---- */
+.btn-primary {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+    padding: 0.75rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #5e37a6;
+    border-color: #5e37a6;
+    transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+    opacity: 0.7;
+}
+
+/* ---- Light 主题覆盖 ---- */
+:root[data-theme="light"] body {
+    --login-fallback-bg: #edf2ff;
+}
+
+:root[data-theme="light"] .bg-bing {
+    background: linear-gradient(145deg, #b69cf0 0%, #8ab4ff 48%, #d7e3ff 100%);
+}
+
+:root[data-theme="light"] .login-card {
+    background: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.45) !important;
+}
+
+/* ---- Dark 主题覆盖 ---- */
+:root[data-theme="dark"] body {
+    --login-fallback-bg: #020617;
+}
+
+:root[data-theme="dark"] .bg-bing {
+    background: linear-gradient(145deg, #121a3a 0%, #1c2a5c 45%, #020617 100%);
+}
+
+:root[data-theme="dark"] .bg-bing::after {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="dark"] .login-card {
+    background: rgba(12, 16, 24, 0.78) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.48);
+    backdrop-filter: blur(14px);
+}
+
+:root[data-theme="dark"] .login-header h1 {
+    color: #f4f4f5;
+}
+
+:root[data-theme="dark"] .login-header .text-muted {
+    color: #cbd5e1 !important;
+}
+
+:root[data-theme="dark"] .form-label {
+    color: #f1f5f9 !important;
+}
+
+:root[data-theme="dark"] .input-icon {
+    opacity: 0.95;
+}
+
+:root[data-theme="dark"] .theme-login-toggle {
+    border: 1px solid rgba(148, 163, 184, 0.45) !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    color: #e2e8f0 !important;
+}
+
+:root[data-theme="dark"] .theme-login-toggle:hover {
+    background: rgba(15, 23, 42, 0.62) !important;
+}
+
+/* ---- 响应式 ---- */
+@media (max-width: 576px) {
+    .theme-login-toggle {
+        top: 12px;
+        right: 12px;
+        min-width: 84px;
+    }
+
+    .login-card {
+        padding: 1.5rem;
+    }
+
+    .login-header {
+        margin-bottom: 1.4rem;
+    }
+
+    .login-header h1 {
+        font-size: 1.45rem;
+    }
+}

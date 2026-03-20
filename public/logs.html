@@ -62,6 +62,22 @@ body{background:var(--background)}
 :root[data-theme="dark"] body{background:var(--background)!important;color:var(--foreground)!important}
 :root[data-theme="dark"] .page-title{color:var(--foreground)!important}
 :root[data-theme="dark"] .toolbar .form-check-label,:root[data-theme="dark"] .stat{color:var(--muted-foreground)!important}
+
+/* OPS 仪表盘暗色覆盖 */
+:root[data-theme="dark"] .card{background:var(--card)!important;color:var(--foreground)!important;border-color:var(--border)!important}
+:root[data-theme="dark"] .card-body{background:transparent!important;color:var(--foreground)!important}
+:root[data-theme="dark"] .card h6{color:var(--foreground)!important}
+:root[data-theme="dark"] .table{color:var(--foreground)!important;border-color:var(--border)!important;background-color:transparent!important}
+:root[data-theme="dark"] .table > thead > tr > th{background:#151a23!important;color:#dbe7ff!important;border-color:var(--border)!important;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+:root[data-theme="dark"] .table > tbody > tr > td{background-color:transparent!important;color:var(--foreground)!important;border-color:var(--border)!important}
+:root[data-theme="dark"] .table > tbody > tr:hover > td{background-color:rgba(59,130,246,.14)!important}
+:root[data-theme="dark"] .text-secondary{color:var(--muted-foreground)!important}
+:root[data-theme="dark"] .badge{color:#fff!important}
+:root[data-theme="dark"] .badge.text-bg-warning{background:#f59e0b!important}
+:root[data-theme="dark"] select option{background:var(--card);color:var(--foreground)}
+:root[data-theme="dark"] .border{border-color:var(--border)!important}
+:root[data-theme="dark"] input.form-control{background:var(--background)!important;color:var(--foreground)!important;border-color:var(--border)!important}
+:root[data-theme="dark"] .input-group-text{background:var(--secondary)!important;color:var(--foreground)!important;border-color:var(--border)!important}
 </style>
 <script>
 (async function () {
@@ -119,6 +135,15 @@ body{background:var(--background)}
     <select class="form-select form-select-sm" id="fileSel" style="width:200px"></select>
     <a class="btn btn-outline-primary btn-sm ms-1" id="downBtn" target="_blank"><i class="bi bi-download"></i> 下载</a>
   </div>
+
+  <!-- 日志滚动窗口 -->
+  <div id="logBox" class="shadow-sm"></div>
+  <div class="d-flex justify-content-between align-items-center mt-2 mb-3 small stat">
+    <div id="stat">就绪</div>
+    <div id="cnt">0 行</div>
+  </div>
+
+  <!-- OPS 仪表盘 -->
   <div class="row g-3 mb-3">
     <div class="col-12 col-lg-4">
       <div class="card border-0 shadow-sm h-100">
@@ -278,11 +303,6 @@ body{background:var(--background)}
         </div>
       </div>
     </div>
-  </div>
-  <div id="logBox" class="shadow-sm"></div>
-  <div class="d-flex justify-content-between align-items-center mt-2 small stat">
-    <div id="stat">就绪</div>
-    <div id="cnt">0 行</div>
   </div>
 </div>
 <script src="/vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>

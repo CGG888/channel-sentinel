@@ -1,100 +1,16 @@
-/* Global Styles */
-body {
-    background-color: #f8f9fa;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #333;
-}
+/* ============================================================
+   custom.css — 活跃样式（已移除被 shadcn-ui.css 覆盖的死代码）
+   清理日期：2026-03-21
+   已删除 ~120 行死代码（Bootstrap 原始值覆盖，被 shadcn-ui.css 覆盖）
+   ============================================================ */
 
-h1, h2, h3, h4, h5, h6 {
-    color: #2c3e50;
-    font-weight: 600;
-}
-
-/* Card Styles */
-.main-card {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    padding: 24px;
-    margin-bottom: 24px;
-    border: none;
-}
-
-.section-card {
-    background: #fafbfc;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-
-.stat-card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s;
-    height: 100%;
-    border: 1px solid rgba(0,0,0,0.05);
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-}
-
-.stat-title {
-    font-size: 1rem;
-    color: #6c757d;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-/* Specific Stat Colors */
-.stat-card.stat-total .stat-value { color: #6f42c1; }
-.stat-card.stat-online .stat-value { color: #28a745; }
-.stat-card.stat-offline .stat-value { color: #dc3545; }
-
-/* Form Elements */
-.form-label {
-    font-weight: 500;
-    color: #495057;
-    font-size: 0.95rem;
-}
-
-.form-control, .form-select {
-    border-radius: 8px;
-    border: 1px solid #ced4da;
-    padding: 0.5rem 0.75rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.form-control:focus, .form-select:focus {
-    border-color: #86b7fe;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-}
-
+/* ---- 地址单播字体（index.html 使用） ---- */
 .addr-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.9rem;
 }
 
-/* Buttons */
-.btn {
-    border-radius: 6px;
-    font-weight: 500;
-    padding: 0.375rem 0.75rem;
-    transition: all 0.2s;
-}
-
+/* ---- 按钮辅助类（index.html 使用） ---- */
 .btn-action {
     min-width: 90px;
 }
@@ -109,24 +25,14 @@ h1, h2, h3, h4, h5, h6 {
     flex-shrink: 0;
 }
 
-.btn-primary { background-color: #0d6efd; border-color: #0d6efd; }
-.btn-success { background-color: #198754; border-color: #198754; }
-.btn-danger { background-color: #dc3545; border-color: #dc3545; }
-.btn-secondary { background-color: #6c757d; border-color: #6c757d; }
-.btn-info { background-color: #0dcaf0; border-color: #0dcaf0; color: #fff; }
-
-.btn-outline-primary:hover, .btn-outline-success:hover, .btn-outline-danger:hover, .btn-outline-secondary:hover {
-    transform: translateY(-1px);
-}
-
-/* Progress Bar */
+/* ---- 检测进度条（index.html 使用） ---- */
 #progressBarWrap {
     background: #e9ecef;
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 12px;
     height: 24px;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 #progressBar {
@@ -138,8 +44,10 @@ h1, h2, h3, h4, h5, h6 {
     transition: width 0.4s ease;
 }
 
-/* Status Messages */
-#currentCheckInfo, #lastResultInfo, #progressStatusInfo {
+/* ---- 检测状态消息（index.html 使用） ---- */
+#currentCheckInfo,
+#lastResultInfo,
+#progressStatusInfo {
     font-size: 0.95rem;
     background: #fff;
     border: 1px solid #dee2e6;
@@ -147,13 +55,18 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 4px;
     padding: 10px 15px;
     margin-bottom: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
-#lastResultInfo { border-left-color: #28a745; }
-#progressStatusInfo { border-left-color: #0dcaf0; }
+#lastResultInfo {
+    border-left-color: #28a745;
+}
 
-/* Stream List Item (Index Page) */
+#progressStatusInfo {
+    border-left-color: #0dcaf0;
+}
+
+/* ---- 频道列表项（index.html 使用） ---- */
 .stream-item {
     background: #fff;
     border: 1px solid #e9ecef;
@@ -168,50 +81,44 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .stream-item:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-color: #dee2e6;
 }
 
-.stream-item.available { border-left: 4px solid #28a745; }
-.stream-item.unavailable { border-left: 4px solid #dc3545; }
+.stream-item.available {
+    border-left: 4px solid #28a745;
+}
 
-/* Results Table (Results Page) */
-.table-compact th, .table-compact td {
+.stream-item.unavailable {
+    border-left: 4px solid #dc3545;
+}
+
+/* ---- 表格紧凑行（results.html 使用） ---- */
+.table-compact th,
+.table-compact td {
     vertical-align: middle;
     font-size: 0.9rem;
     padding: 0.5rem 0.75rem;
 }
 
-.table thead th {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
-
-/* EPG meta badges on the right of program list */
-.epg-meta-badges .badge{
-    font-size: 0.7rem;
-    letter-spacing: .2px;
-}
-    border-bottom: 2px solid #dee2e6;
-    color: #495057;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.col-select { width: 40px; text-align: center; }
-.col-status { width: 80px; text-align: center; }
-.col-name { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-.col-addr { font-family: monospace; color: #666; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Badges */
+/* ---- 徽章（results.html 使用） ---- */
 .badge {
     padding: 0.35em 0.65em;
     font-weight: 500;
     border-radius: 4px;
 }
-.badge-online { background-color: #d1e7dd; color: #0f5132; }
-.badge-offline { background-color: #f8d7da; color: #842029; }
 
-/* Toolbar (Results Page) */
+.badge-online {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.badge-offline {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+/* ---- 工具栏（index.html/results.html 使用） ---- */
 .toolbar-wrap {
     background: #f8f9fa;
     padding: 12px;
@@ -239,29 +146,182 @@ h1, h2, h3, h4, h5, h6 {
     padding-right: 0;
 }
 
-/* Modals */
-.modal-content {
-    border-radius: 12px;
-    border: none;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+/* ---- 设置抽屉（results.html 使用） ---- */
+.settings-drawer {
+    --bs-offcanvas-width: min(92vw, 420px);
+    background: var(--card) !important;
+    color: var(--card-foreground) !important;
+    border-left: 1px solid var(--border) !important;
+    box-shadow: -16px 0 36px rgba(2, 6, 23, 0.18);
 }
 
-.modal-header {
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
-    border-radius: 12px 12px 0 0;
+.settings-drawer .offcanvas-header {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    background: color-mix(in srgb, var(--card) 86%, var(--background));
 }
 
-.modal-footer {
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
-    border-radius: 0 0 12px 12px;
+.settings-drawer .offcanvas-title {
+    font-size: 1rem;
+    font-weight: 700;
 }
 
-/* Responsive Utilities */
-@media (max-width: 768px) {
-    .stat-card { margin-bottom: 12px; padding: 15px; }
-    .stat-value { font-size: 2rem; }
-    .toolbar-group { border-right: none; margin-right: 0; padding-right: 0; margin-bottom: 8px; width: 100%; flex-wrap: wrap; }
-    .btn-action { width: 100%; margin-bottom: 4px; }
+.settings-drawer-title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--accent) 82%, transparent);
+    border: 1px solid var(--border);
+    color: var(--accent-foreground);
+}
+
+.settings-drawer .offcanvas-body {
+    padding: 14px;
+    background: color-mix(in srgb, var(--background) 60%, var(--card));
+}
+
+.settings-drawer-intro {
+    padding: 12px;
+    border-radius: calc(var(--radius) - 0.1rem);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 82%, var(--accent));
+}
+
+.settings-drawer .accordion-item {
+    border-color: var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    border-radius: calc(var(--radius) - 0.05rem);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.settings-drawer .accordion-button {
+    background: var(--card);
+    color: var(--card-foreground);
+    font-weight: 600;
+    padding: 11px 12px;
+}
+
+.settings-drawer .accordion-button:not(.collapsed) {
+    background: color-mix(in srgb, var(--accent) 70%, transparent);
+    color: var(--accent-foreground);
+    box-shadow: none;
+}
+
+.settings-drawer .accordion-body {
+    padding: 12px;
+}
+
+/* ---- 设置按钮网格（results.html 使用） ---- */
+.settings-action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.settings-action-grid .btn,
+.settings-link-row .btn,
+.settings-nav-list .btn {
+    min-height: 36px;
+    justify-content: flex-start;
+    align-items: center;
+    font-weight: 500;
+}
+
+.settings-link-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.settings-feature-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.settings-feature-card {
+    border-radius: calc(var(--radius) - 0.2rem) !important;
+    min-height: 58px;
+    display: flex !important;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start !important;
+    justify-content: center;
+    padding: 9px 10px !important;
+}
+
+.settings-feature-title {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.settings-feature-sub {
+    display: block;
+    width: 100%;
+    margin-top: 2px;
+    font-size: 0.74rem;
+    line-height: 1.2;
+    color: var(--muted-foreground);
+}
+
+.settings-feature-title i {
+    width: 18px;
+    text-align: center;
+}
+
+/* ---- 统一模态框宽度（results.html 使用） ---- */
+:root {
+    --unified-modal-width: 760px;
+}
+
+.modal-dialog,
+.modal-dialog.modal-sm,
+.modal-dialog.modal-lg,
+.modal-dialog.modal-xl {
+    max-width: min(var(--unified-modal-width), calc(100vw - 1rem)) !important;
+}
+
+/* ---- 日志级别下拉框（logs.html 使用） ---- */
+.log-level-select {
+    border-width: 2px !important;
+    font-weight: 700;
+}
+
+.log-level-select.log-level-fatal {
+    color: #fff !important;
+    background: #b91c1c !important;
+    border-color: #b91c1c !important;
+}
+
+.log-level-select.log-level-error {
+    color: #fff !important;
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+}
+
+.log-level-select.log-level-warn {
+    color: #111827 !important;
+    background: #f59e0b !important;
+    border-color: #f59e0b !important;
+}
+
+.log-level-select.log-level-info {
+    color: #ecfeff !important;
+    background: #0ea5e9 !important;
+    border-color: #0ea5e9 !important;
+}
+
+.log-level-select.log-level-debug {
+    color: #e2e8f0 !important;
+    background: #334155 !important;
+    border-color: #334155 !important;
 }

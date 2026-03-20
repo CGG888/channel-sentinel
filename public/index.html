@@ -26,28 +26,7 @@
     <script src="/js/shared/version-manager.js"></script>
     <script src="/js/index/version-manager.js"></script>
     <script src="/js/top-nav-loader.js" defer></script>
-    <style>
-      html.auth-pending body{
-        visibility:hidden !important;
-        background:#0b1221 !important;
-      }
-      :root{ --brand-size: 1.05rem; }
-      .ver-dot{display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 0 rgba(255,59,59,0.7);animation:ver-blink 1.2s infinite}
-      @keyframes ver-blink{
-        0%{transform:scale(0.9);opacity:.85;box-shadow:0 0 0 0 rgba(255,59,59,.7)}
-        70%{transform:scale(1);opacity:1;box-shadow:0 0 0 6px rgba(255,59,59,0)}
-        100%{transform:scale(0.9);opacity:.85;box-shadow:0 0 0 0 rgba(255,59,59,0)}
-      }
-      .ver-dot.hide{display:none}
-      /* Wiki风格顶部导航 */
-      .wiki-nav{position:sticky;top:0;z-index:1030;background:rgba(255,255,255,.85);backdrop-filter: blur(8px); border-bottom:1px solid #e9ecef;}
-      .wiki-nav .actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;}
-      @media (max-width: 575.98px){ .wiki-nav .brand-text{display:none;} }
-      .title-center-wrap{position:relative;}
-      .title-center{position:absolute;left:50%;transform:translateX(-50%);}
-      .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;font-size:var(--brand-size);}
-      .brand-text{font-size:var(--brand-size);}
-    </style>
+    <link href="/css/common-nav.css" rel="stylesheet">
     <script>
       (async function () {
         if (window.IptvCore && window.IptvCore.auth && typeof window.IptvCore.auth.ensureAuth === 'function') {
