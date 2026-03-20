@@ -1,0 +1,29 @@
+name: Issue Notification
+
+on:
+  issues:
+    types: [opened, edited]
+
+# 核心：并发控制。同一个仓库的通知任务会排队执行，防止瞬间爆发
+concurrency: 
+  group: wechat-notify-${{ github.repository }}
+  cancel-in-progress: false 
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rate Limit Sleep
+        # 每次任务随机等待 3-5 秒，人为拉开请求间隔，确保一分钟内很难突破 20 条
+        run: sleep $((3 + RANDOM % 3))
+
+      - name: Send Message to WeChat Work
+        run: |
+          curl '${{ secrets.WECHAT_WORK_WEBHOOK }}' \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "msgtype": "markdown",
+            "markdown": {
+              "content": "### 🚨 新的 Issue 反馈\n> **项目**: ${{ github.event.repository.name }}\n> **标题**: <font color=\"info\">${{ github.event.issue.title }}</font>\n> **发起人**: ${{ github.event.issue.user.login }}\n> **状态**: ${{ github.event.issue.state }}\n\n[点击查看详情](${{ github.event.issue.html_url }})"
+            }
+          }'
