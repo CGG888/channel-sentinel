@@ -1,0 +1,259 @@
+{
+  "generatedAt": "2026-03-18T06:20:58.042Z",
+  "metrics": {
+    "detect": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "export": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "replay": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "player": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "config": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "persist": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "logs": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "auth": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "proxy": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "storage": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    },
+    "app": {
+      "requests": 0,
+      "success2xx": 0,
+      "warn4xx": 0,
+      "error5xx": 0,
+      "errorRate": 0,
+      "avgLatencyMs": 0,
+      "p95LatencyMs": 0,
+      "lastRequestAt": "",
+      "lastPath": ""
+    }
+  },
+  "incidents": {
+    "total": 0,
+    "open": 0,
+    "closed": 0,
+    "list": []
+  },
+  "sops": {
+    "detect": {
+      "domain": "detect",
+      "owner": "detect-owner",
+      "slaMinutes": 30,
+      "steps": [
+        "检查探测入口可达性",
+        "检查 ffprobe/网络时延",
+        "重放失败样本并确认恢复"
+      ]
+    },
+    "export": {
+      "domain": "export",
+      "owner": "export-owner",
+      "slaMinutes": 30,
+      "steps": [
+        "检查导出参数与路由",
+        "检查响应格式与编码",
+        "回放导出请求样本"
+      ]
+    },
+    "replay": {
+      "domain": "replay",
+      "owner": "replay-owner",
+      "slaMinutes": 30,
+      "steps": [
+        "检查规则命中与快照状态",
+        "检查回看链路与代理",
+        "回放命中样本并确认恢复"
+      ]
+    },
+    "player": {
+      "domain": "player",
+      "owner": "player-owner",
+      "slaMinutes": 20,
+      "steps": [
+        "检查播放内核状态",
+        "检查代理与流地址有效性",
+        "验证首帧与切台恢复"
+      ]
+    },
+    "config": {
+      "domain": "config",
+      "owner": "config-owner",
+      "slaMinutes": 30,
+      "steps": [
+        "检查配置读写接口",
+        "检查持久化状态一致性",
+        "验证前端设置回读"
+      ]
+    },
+    "persist": {
+      "domain": "persist",
+      "owner": "persist-owner",
+      "slaMinutes": 45,
+      "steps": [
+        "检查备份与恢复任务",
+        "检查存储模式与同步状态",
+        "执行受控修复并复验"
+      ]
+    },
+    "logs": {
+      "domain": "logs",
+      "owner": "ops-owner",
+      "slaMinutes": 20,
+      "steps": [
+        "检查日志流与文件写入",
+        "检查采集筛选参数",
+        "恢复后确认实时流稳定"
+      ]
+    },
+    "auth": {
+      "domain": "auth",
+      "owner": "auth-owner",
+      "slaMinutes": 20,
+      "steps": [
+        "检查登录与鉴权接口",
+        "检查会话状态与cookie",
+        "回放登录契约并复验"
+      ]
+    },
+    "proxy": {
+      "domain": "proxy",
+      "owner": "proxy-owner",
+      "slaMinutes": 30,
+      "steps": [
+        "检查代理健康状态",
+        "检查超时与重试策略",
+        "回放代理链路样本"
+      ]
+    },
+    "storage": {
+      "domain": "storage",
+      "owner": "storage-owner",
+      "slaMinutes": 45,
+      "steps": [
+        "检查读写模式与队列",
+        "检查同步与修复任务",
+        "核对数据一致性"
+      ]
+    },
+    "app": {
+      "domain": "app",
+      "owner": "platform-owner",
+      "slaMinutes": 60,
+      "steps": [
+        "检查全局依赖与服务状态",
+        "检查异常分布与热点",
+        "执行分域恢复与回归"
+      ]
+    }
+  },
+  "lowFrequencyGovernance": {
+    "generatedAt": "2026-03-18T06:20:58.042Z",
+    "thresholds": {
+      "lowRequestThreshold": 30,
+      "latencyThresholdMs": 3000
+    },
+    "whitelist": [],
+    "summary": {
+      "totalRiskDomains": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    },
+    "domains": []
+  }
+}

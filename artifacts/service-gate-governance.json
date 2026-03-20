@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-03-19T05:03:28.048Z",
+  "channel": "release",
+  "severity": "info",
+  "level": "P3",
+  "decision": "pass",
+  "owner": "release-manager",
+  "slaHours": 72,
+  "impactedCategories": [],
+  "categoryOwners": [],
+  "failedCount": 0,
+  "failedTasks": [],
+  "threshold": {
+    "serviceCritical": 0,
+    "smokeCritical": 0,
+    "contractHigh": 1,
+    "contractMedium": 0
+  },
+  "dynamicThreshold": {
+    "applied": true,
+    "reason": "history-ready"
+  },
+  "actions": [
+    "发布继续并观察趋势漂移",
+    "按周复盘阈值动态校准参数",
+    "持续保留历史产物用于后续校准"
+  ],
+  "closureChecklist": [
+    "重跑 service-quality-gate 并确认失败数归零",
+    "刷新 service-gate-trend 并确认阈值策略状态",
+    "刷新 service-gate-notify 并归档治理结果"
+  ]
+}

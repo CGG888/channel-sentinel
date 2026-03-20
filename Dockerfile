@@ -9,6 +9,9 @@ ENV NODE_ENV=production
 # 复制 package 文件
 COPY package*.json ./
 
+# 构建原生依赖
+RUN apk add --no-cache python3 make g++
+
 # 安装生产环境依赖
 # 使用 npm ci 确保依赖版本一致性，速度更快
 RUN npm ci --omit=dev --no-optional || npm install --omit=dev --no-optional

@@ -7,11 +7,29 @@
 <link rel="icon" type="image/png" href="/iptv.png">
 <link rel="shortcut icon" type="image/png" href="/iptv.png">
 <link rel="apple-touch-icon" href="/iptv.png">
-<link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<script>
+  document.documentElement.classList.add('auth-pending');
+</script>
+<script>
+  try {
+    const k = localStorage.getItem('iptv:theme');
+    const t = k || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+  } catch (e) {}
+</script>
+<link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="css/theme-tokens.css" rel="stylesheet">
+<link href="css/shadcn-ui.css" rel="stylesheet">
+<script src="/js/core/api-client.js"></script>
+<script src="/js/core/auth-gate.js"></script>
+<script src="/js/core/nav-bridge.js"></script>
+<script src="/js/logs/module-health.js"></script>
+<script src="/js/top-nav-loader.js" defer></script>
 <style>
-:root{--bg:#0b1221;--fg:#cbd5e1;--muted:#64748b;--accent:#2563eb; --brand-size:1.05rem;}
-body{background:#f6f7f9}
+:root{--bg:#0b1221;--fg:#cbd5e1;--muted:#64748b;--accent:#2563eb;--panel:#0f172a;--panel-border:#1f2937;--brand-size:1.05rem;}
+html.auth-pending body{visibility:hidden !important;background:#0b1221 !important}
+body{background:var(--background)}
 /* 与主页一致的导航样式 */
 .wiki-nav{position:sticky;top:0;z-index:1030;background:rgba(255,255,255,.85);backdrop-filter: blur(8px); border-bottom:1px solid #e9ecef;}
 .wiki-nav .actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;}
@@ -21,48 +39,41 @@ body{background:#f6f7f9}
 .page-title{color:#6f42c1;letter-spacing:1px;font-weight:700;font-size:var(--brand-size);}
 .brand-text{font-size:var(--brand-size);}
 /* 页面控件与日志区域 */
-.toolbar{display:flex;align-items:center;gap:.35rem;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
+.toolbar{display:flex;align-items:center;gap:.35rem;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;background:var(--card);padding:8px;border:1px solid var(--border);border-radius:12px}
 .toolbar .input-group{min-width:110px;flex-wrap:nowrap}
 .toolbar .form-select{min-width:unset}
-#logBox{background:var(--bg);color:var(--fg);border-radius:12px;padding:12px;height:calc(100vh - 210px);overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;font-size:12px;line-height:1.45;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.lvl-DEBUG{color:#94a3b8}
-.lvl-INFO{color:#38bdf8}
-.lvl-WARN{color:#f59e0b}
-.lvl-ERROR{color:#ef4444}
-.lvl-FATAL{background:#ef4444;color:#fff;border-radius:4px;padding:2px 4px;display:inline-block}
+.toolbar .input-group-text{background:var(--secondary)!important;color:var(--foreground)!important;border-color:var(--border)!important}
+.toolbar .form-select,.toolbar .form-control{background:var(--background)!important;color:var(--foreground)!important;border-color:var(--border)!important}
+.toolbar .form-select option{background:var(--card);color:var(--foreground)}
+#logBox{background:linear-gradient(145deg,#020617 0%,#0b172f 100%);color:#dbeafe;border-radius:12px;padding:12px;height:calc(100vh - 230px);overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;font-size:12px;line-height:1.45;box-shadow:0 1px 3px rgba(0,0,0,.08);border:1px solid #1e293b}
+.log-level{display:inline-flex;align-items:center;justify-content:center;min-width:56px;padding:1px 6px;border-radius:6px;font-weight:700;font-size:11px;margin-right:6px}
+.lvl-DEBUG{color:#cbd5e1}
+.lvl-DEBUG .log-level{background:#334155;color:#e2e8f0}
+.lvl-INFO{color:#bae6fd}
+.lvl-INFO .log-level{background:#0ea5e9;color:#ecfeff}
+.lvl-WARN{color:#fde68a}
+.lvl-WARN .log-level{background:#f59e0b;color:#111827}
+.lvl-ERROR{color:#fecaca}
+.lvl-ERROR .log-level{background:#ef4444;color:#fff}
+.lvl-FATAL{color:#fda4af}
+.lvl-FATAL .log-level{background:#b91c1c;color:#fff}
 .dim{opacity:.7}
 .stat{color:#475569}
+:root[data-theme="dark"] body{background:var(--background)!important;color:var(--foreground)!important}
+:root[data-theme="dark"] .page-title{color:var(--foreground)!important}
+:root[data-theme="dark"] .toolbar .form-check-label,:root[data-theme="dark"] .stat{color:var(--muted-foreground)!important}
 </style>
 <script>
-(async function() {
-  try {
-    const r = await fetch('/api/auth/check');
-    const j = await r.json();
-    if (!j.success) {
-      window.location.href = '/login.html';
-    }
-  } catch(e) {
-    window.location.href = '/login.html';
+(async function () {
+  if (window.IptvCore && window.IptvCore.auth && typeof window.IptvCore.auth.ensureAuth === 'function') {
+    await window.IptvCore.auth.ensureAuth();
+    return;
   }
 })();
 </script>
 </head>
-<body>
-  <nav class="navbar wiki-nav py-2">
-    <div class="container d-flex align-items-center gap-2" style="max-width:1200px;">
-      <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/" title="IPTV Checker">
-        <img src="/iptv.png" alt="" style="height:18px;width:auto;">
-        <span class="ms-2 fw-bold brand-text" style="color:#6f42c1;">IPTV Checker</span>
-      </a>
-      <div class="actions">
-        <a class="btn btn-sm btn-outline-secondary" href="/" title="主页"><i class="bi bi-house me-1"></i>主页</a>
-        <a class="btn btn-sm btn-outline-secondary" href="/results" title="频道/检测结果"><i class="bi bi-collection-play me-1"></i>频道</a>
-        <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器"><i class="bi bi-play-circle me-1"></i>播放</a>
-        <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank"><i class="bi bi-book me-1"></i>指南</a>
-        <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank"><i class="bi bi-github me-1"></i>GitHub</a>
-      </div>
-    </div>
-  </nav>
+<body data-nav-page="logs" data-nav-settings="on">
+  <div id="topNavMount"></div>
 <div class="container py-3">
   <div class="d-flex justify-content-between align-items-center mb-3 title-center-wrap">
     <h1 class="mb-0 d-flex align-items-center gap-2 title-center page-title">
@@ -73,7 +84,7 @@ body{background:#f6f7f9}
   <div class="toolbar mb-3">
     <div class="input-group input-group-sm" style="width:130px;flex-wrap:nowrap">
       <span class="input-group-text"><i class="bi bi-funnel"></i></span>
-      <select class="form-select form-select-sm" id="lvSel" style="width:110px">
+      <select class="form-select form-select-sm log-level-select" id="lvSel" style="width:110px">
         <option value="fatal">Fatal</option>
         <option value="error">Error</option>
         <option value="warn">Warn</option>
@@ -108,55 +119,518 @@ body{background:#f6f7f9}
     <select class="form-select form-select-sm" id="fileSel" style="width:200px"></select>
     <a class="btn btn-outline-primary btn-sm ms-1" id="downBtn" target="_blank"><i class="bi bi-download"></i> 下载</a>
   </div>
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">域级错误率 Top</h6>
+            <small class="text-secondary" id="opsRefreshAt">--</small>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>域</th><th>错误率</th><th>请求</th></tr>
+              </thead>
+              <tbody id="errTopBody"><tr><td colspan="3" class="text-secondary">加载中</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="mb-2">域级延迟 Top</h6>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>域</th><th>P95(ms)</th><th>均值(ms)</th></tr>
+              </thead>
+              <tbody id="latencyTopBody"><tr><td colspan="3" class="text-secondary">加载中</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="mb-2">未关闭 Incident</h6>
+          <div id="openIncidentsBody" class="small text-secondary">加载中</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">低频异常治理</h6>
+            <span class="badge text-bg-secondary" id="lowfreqSummary">--</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>域</th><th>风险</th><th>动作</th><th>原因</th></tr>
+              </thead>
+              <tbody id="lowfreqBody"><tr><td colspan="4" class="text-secondary">加载中</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">模块健康度看板</h6>
+            <span id="moduleHealthGateResult"></span>
+          </div>
+          <div class="small text-secondary mb-2" id="moduleHealthSummary">加载中</div>
+          <div class="small text-secondary mb-2">门禁来源：<span id="moduleHealthGateSource">--</span></div>
+          <div class="small text-secondary mb-2" id="moduleHealthTrendSummary">趋势加载中</div>
+          <div class="small text-secondary mb-2" id="moduleHealthExceptionSummary">异常加载中</div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>模块</th><th>状态</th><th>文件</th><th>更新时间</th></tr>
+              </thead>
+              <tbody id="moduleHealthBody"><tr><td colspan="4" class="text-secondary">加载中</td></tr></tbody>
+            </table>
+          </div>
+          <div class="table-responsive mt-2">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>时间</th><th>失败率</th><th>失败</th><th>契约失败</th></tr>
+              </thead>
+              <tbody id="moduleHealthTrendBody"><tr><td colspan="4" class="text-secondary">暂无趋势数据</td></tr></tbody>
+            </table>
+          </div>
+          <div class="table-responsive mt-2">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>域</th><th>级别</th><th>ID</th><th>摘要</th></tr>
+              </thead>
+              <tbody id="moduleHealthExceptionBody"><tr><td colspan="4" class="text-secondary">无未关闭事件</td></tr></tbody>
+            </table>
+          </div>
+          <div class="table-responsive mt-2">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>错误域</th><th>错误率</th><th>5xx</th><th>请求</th></tr>
+              </thead>
+              <tbody id="moduleHealthErrorDomainBody"><tr><td colspan="4" class="text-secondary">无错误域</td></tr></tbody>
+            </table>
+          </div>
+          <div class="d-flex align-items-center gap-2 mt-2">
+            <div class="small text-secondary" id="moduleHealthThresholdHint">阈值建议加载中</div>
+            <button id="thresholdBatchSuggestBtn" class="btn btn-outline-danger btn-sm">批量建议建单</button>
+          </div>
+          <div class="table-responsive mt-1">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>阈值项</th><th>基线</th><th>建议</th><th>已应用</th><th>差值告警</th></tr>
+              </thead>
+              <tbody id="moduleHealthThresholdBody"><tr><td colspan="5" class="text-secondary">暂无阈值建议</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="mb-2">Incident 执行闭环</h6>
+          <div class="row g-2">
+            <div class="col-4">
+              <select id="incidentDomain" class="form-select form-select-sm">
+                <option value="detect">detect</option>
+                <option value="export">export</option>
+                <option value="replay">replay</option>
+                <option value="player">player</option>
+                <option value="config">config</option>
+                <option value="persist">persist</option>
+                <option value="logs" selected>logs</option>
+                <option value="auth">auth</option>
+                <option value="proxy">proxy</option>
+                <option value="storage">storage</option>
+                <option value="app">app</option>
+              </select>
+            </div>
+            <div class="col-3">
+              <select id="incidentSeverity" class="form-select form-select-sm">
+                <option value="high">high</option>
+                <option value="medium" selected>medium</option>
+                <option value="info">info</option>
+              </select>
+            </div>
+            <div class="col-5">
+              <input id="incidentSource" class="form-control form-control-sm" value="logs-dashboard" placeholder="source">
+            </div>
+            <div class="col-12">
+              <input id="incidentSummary" class="form-control form-control-sm" placeholder="请输入 incident 摘要">
+            </div>
+            <div class="col-12 d-flex gap-2">
+              <button id="createIncidentBtn" class="btn btn-sm btn-primary">创建 Incident</button>
+              <span id="incidentActionStatus" class="small text-secondary align-self-center">就绪</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="logBox" class="shadow-sm"></div>
   <div class="d-flex justify-content-between align-items-center mt-2 small stat">
     <div id="stat">就绪</div>
     <div id="cnt">0 行</div>
   </div>
 </div>
-<script src="/vendor/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script src="/js/theme-manager.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.IptvTheme) window.IptvTheme.initAll();
+});
+</script>
 <script>
 let es=null, paused=false, lines=0;
 const box=document.getElementById('logBox');
 const stat=document.getElementById('stat');
 const cnt=document.getElementById('cnt');
+const autoScrollEl=document.getElementById('autoScroll');
+let reconnectTimer = null;
+let connecting = false;
+let scrollScheduled = false;
+let lastMessageAt = 0;
+let streamWatchdog = null;
+let opsRefreshTimer = null;
+async function apiJson(url, options){
+  if(window.IptvCore && window.IptvCore.api && typeof window.IptvCore.api.request === 'function'){
+    const resp = await window.IptvCore.api.request(url, options || {});
+    return resp && resp.data ? resp.data : {};
+  }
+  const r = await fetch(url, options || {});
+  return await r.json();
+}
+function escapeHtml(v){
+  return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function normalizeLevel(v){
+  const x=String(v||'INFO').toUpperCase();
+  return ['FATAL','ERROR','WARN','INFO','DEBUG'].includes(x)?x:'INFO';
+}
+function applyLogLevelSelectTone(selectEl){
+  if(!selectEl) return;
+  const lv=String(selectEl.value||'info').toLowerCase();
+  selectEl.classList.remove('log-level-fatal','log-level-error','log-level-warn','log-level-info','log-level-debug');
+  selectEl.classList.add('log-level-select','log-level-'+(['fatal','error','warn','info','debug'].includes(lv)?lv:'info'));
+  Array.from(selectEl.options||[]).forEach(function(opt){
+    const v=String(opt.value||'').toLowerCase();
+    if(v==='fatal'){ opt.style.color='#fda4af'; opt.style.backgroundColor='#2b0b0b'; return; }
+    if(v==='error'){ opt.style.color='#fecaca'; opt.style.backgroundColor='#2a0d0d'; return; }
+    if(v==='warn'){ opt.style.color='#fde68a'; opt.style.backgroundColor='#2a210a'; return; }
+    if(v==='info'){ opt.style.color='#bae6fd'; opt.style.backgroundColor='#08233a'; return; }
+    if(v==='debug'){ opt.style.color='#cbd5e1'; opt.style.backgroundColor='#111827'; return; }
+    opt.style.color=''; opt.style.backgroundColor='';
+  });
+}
 function lineHtml(o){
-  const lvl=o.level||'INFO';
+  const lvl=normalizeLevel(o.level);
   const mod=o.module||'App';
   const t=o.time||'';
   const rid=o.reqId?(' '+o.reqId):'';
-  const msg=o.message||'';
-  const data=o.data?(' '+JSON.stringify(o.data)):'';
-  return '<div class="lvl-'+lvl+'"><span class="dim">'+t+'</span> <b>'+lvl+'</b> <span class="dim">'+mod+'</span>'+rid+' '+msg+data+'</div>';
+  const msg=escapeHtml(o.message||'');
+  const data=o.data?(' '+escapeHtml(JSON.stringify(o.data))):'';
+  return '<div class="lvl-'+lvl+'"><span class="dim">'+escapeHtml(t)+'</span> <span class="log-level">'+lvl+'</span><span class="dim">'+escapeHtml(mod)+'</span>'+escapeHtml(rid)+' '+msg+data+'</div>';
 }
-function scrollBottom(){ if(document.getElementById('autoScroll').checked) box.scrollTop=box.scrollHeight; }
+function scrollBottom(force){
+  if(!box) return;
+  if(!force && autoScrollEl && !autoScrollEl.checked) return;
+  if(scrollScheduled) return;
+  scrollScheduled=true;
+  requestAnimationFrame(function(){
+    scrollScheduled=false;
+    box.scrollTop=box.scrollHeight;
+  });
+}
 function append(o){ if(paused) return; box.insertAdjacentHTML('beforeend', lineHtml(o)); lines++; cnt.textContent=lines+' 行'; scrollBottom(); }
-function connect(){
-  if(es){ es.close(); es=null; }
+function getFilters(){
   const lv=document.getElementById('lvSel').value;
   const mod=document.getElementById('modSel').value;
-  const kw=encodeURIComponent(document.getElementById('kw').value.trim());
-  const url='/api/logs/stream?tail=200&level='+lv+'&module='+mod+'&keyword='+kw;
-  es=new EventSource(url);
-  es.onopen=()=>{ stat.textContent='已连接'; };
-  es.onerror=()=>{ stat.textContent='连接中断，重试…'; };
-  es.onmessage=(e)=>{ try{ const o=JSON.parse(e.data); append(o);}catch(_){} };
+  const kw=(document.getElementById('kw').value||'').trim();
+  const file=(document.getElementById('fileSel').value||'').trim();
+  return { lv, mod, kw, file };
+}
+function buildQuery(){
+  const f=getFilters();
+  const q=new URLSearchParams();
+  q.set('level', f.lv);
+  q.set('module', f.mod);
+  q.set('keyword', f.kw);
+  if(f.file) q.set('file', f.file);
+  return q.toString();
+}
+async function loadTail(){
+  const q=buildQuery();
+  const j=await apiJson('/api/logs/tail?lines=200&'+q);
+  const list=(j&&j.success&&Array.isArray(j.list))?j.list:[];
+  box.innerHTML='';
+  lines=0;
+  list.forEach(append);
+  scrollBottom(true);
+}
+function scheduleReconnect(){
+  if(reconnectTimer) return;
+  reconnectTimer=setTimeout(function(){
+    reconnectTimer=null;
+    connect();
+  },1800);
+}
+function formatPercent(v){
+  const n=Number(v||0);
+  return (n*100).toFixed(2)+'%';
+}
+function renderTopError(metrics){
+  const body=document.getElementById('errTopBody');
+  const arr=Object.entries(metrics||{}).map(([domain,m])=>({domain,errorRate:Number(m.errorRate||0),requests:Number(m.requests||0)}))
+    .sort((a,b)=>b.errorRate-a.errorRate||b.requests-a.requests)
+    .slice(0,5);
+  if(!arr.length){ body.innerHTML='<tr><td colspan="3" class="text-secondary">暂无数据</td></tr>'; return; }
+  body.innerHTML=arr.map(x=>'<tr><td>'+escapeHtml(x.domain)+'</td><td>'+formatPercent(x.errorRate)+'</td><td>'+x.requests+'</td></tr>').join('');
+}
+function renderTopLatency(metrics){
+  const body=document.getElementById('latencyTopBody');
+  const arr=Object.entries(metrics||{}).map(([domain,m])=>({domain,p95:Number(m.p95LatencyMs||0),avg:Number(m.avgLatencyMs||0)}))
+    .sort((a,b)=>b.p95-a.p95||b.avg-a.avg)
+    .slice(0,5);
+  if(!arr.length){ body.innerHTML='<tr><td colspan="3" class="text-secondary">暂无数据</td></tr>'; return; }
+  body.innerHTML=arr.map(x=>'<tr><td>'+escapeHtml(x.domain)+'</td><td>'+x.p95+'</td><td>'+x.avg+'</td></tr>').join('');
+}
+function renderOpenIncidents(incidents){
+  const wrap=document.getElementById('openIncidentsBody');
+  const open=(incidents&&Array.isArray(incidents.list)?incidents.list:[]).filter(x=>x.status==='open');
+  if(!open.length){ wrap.innerHTML='<span class="text-secondary">无未关闭事件</span>'; return; }
+  wrap.innerHTML=open.slice(0,8).map(function(x){
+    return '<div class="border rounded p-2 mb-2">'+
+      '<div class="d-flex justify-content-between"><strong>'+escapeHtml(x.domain||'app')+'</strong><span class="badge text-bg-warning">'+escapeHtml((x.severity||'').toUpperCase())+'</span></div>'+
+      '<div class="mt-1">'+escapeHtml(x.summary||'')+'</div>'+
+      '<div class="mt-1 text-secondary">ID: '+escapeHtml(x.id||'')+'</div>'+
+      '<button class="btn btn-outline-success btn-sm mt-2" data-incident-close="'+escapeHtml(x.id||'')+'">关闭</button>'+
+    '</div>';
+  }).join('');
+}
+function renderLowFrequency(governance){
+  const summaryEl=document.getElementById('lowfreqSummary');
+  const body=document.getElementById('lowfreqBody');
+  if(!governance||!governance.summary){
+    summaryEl.textContent='--';
+    body.innerHTML='<tr><td colspan="4" class="text-secondary">暂无数据</td></tr>';
+    return;
+  }
+  summaryEl.textContent='P1 '+governance.summary.p1+' / P2 '+governance.summary.p2+' / P3 '+governance.summary.p3;
+  const rows=Array.isArray(governance.domains)?governance.domains:[];
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="4" class="text-secondary">无低频异常</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.slice(0,8).map(function(x){
+    return '<tr><td>'+escapeHtml(x.domain)+'</td><td>'+escapeHtml(x.riskLevel)+'</td><td>'+escapeHtml(x.action)+'</td><td>'+escapeHtml(x.reason||'')+'</td></tr>';
+  }).join('');
+}
+async function refreshOpsDashboard(){
+  try{
+    const m=await apiJson('/api/logs/domain-metrics');
+    const metrics=(m&&m.success&&m.metrics)?m.metrics:{};
+    renderTopError(metrics);
+    renderTopLatency(metrics);
+    const d=await apiJson('/api/system/ops/dashboard');
+    const incidents=(d&&d.success&&d.incidents)?d.incidents:{list:[]};
+    renderOpenIncidents(incidents);
+    const g=await apiJson('/api/system/ops/low-frequency-governance');
+    const governance=(g&&g.success&&g.governance)?g.governance:null;
+    renderLowFrequency(governance);
+    const mh=await apiJson('/api/logs/module-health');
+    if(window.IptvCore&&window.IptvCore.logs&&typeof window.IptvCore.logs.renderModuleHealth==='function'){
+      window.IptvCore.logs.renderModuleHealth((mh&&mh.success)?mh:null);
+    }
+    document.getElementById('opsRefreshAt').textContent=new Date().toLocaleTimeString();
+  }catch(e){
+    document.getElementById('opsRefreshAt').textContent='刷新失败';
+  }
+}
+async function createIncident(){
+  const statusEl=document.getElementById('incidentActionStatus');
+  const domain=document.getElementById('incidentDomain').value;
+  const severity=document.getElementById('incidentSeverity').value;
+  const source=(document.getElementById('incidentSource').value||'').trim()||'logs-dashboard';
+  const summary=(document.getElementById('incidentSummary').value||'').trim();
+  if(!summary){ statusEl.textContent='摘要不能为空'; return; }
+  statusEl.textContent='提交中...';
+  try{
+    const j=await apiJson('/api/system/ops/incident',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({domain,severity,source,summary})
+    });
+    if(j&&j.success){
+      statusEl.textContent='创建成功';
+      document.getElementById('incidentSummary').value='';
+      await refreshOpsDashboard();
+      return;
+    }
+    statusEl.textContent=(j&&j.message)||'创建失败';
+  }catch(e){
+    statusEl.textContent='创建失败';
+  }
+}
+function applyThresholdIncidentSuggestion(btn){
+  if(!btn) return;
+  const key=String(btn.getAttribute('data-threshold-key')||'');
+  const diff=String(btn.getAttribute('data-threshold-diff')||'0');
+  const maxDrift=String(btn.getAttribute('data-threshold-maxdrift')||'0');
+  const domainEl=document.getElementById('incidentDomain');
+  const severityEl=document.getElementById('incidentSeverity');
+  const sourceEl=document.getElementById('incidentSource');
+  const summaryEl=document.getElementById('incidentSummary');
+  const statusEl=document.getElementById('incidentActionStatus');
+  if(domainEl) domainEl.value='logs';
+  if(severityEl) severityEl.value='high';
+  if(sourceEl) sourceEl.value='threshold-alert';
+  if(summaryEl) summaryEl.value='阈值差值告警：'+key+' diff='+diff+' maxDrift='+maxDrift+'，建议核查并评审门禁阈值。';
+  if(statusEl) statusEl.textContent='已生成建单建议，请点击“创建 Incident”';
+}
+function applyThresholdBatchSuggestion(){
+  const statusEl=document.getElementById('incidentActionStatus');
+  const suggestBtns=Array.from(document.querySelectorAll('[data-threshold-suggest="1"]'));
+  if(!suggestBtns.length){
+    if(statusEl) statusEl.textContent='当前无超阈项，无需建单';
+    return;
+  }
+  const items=suggestBtns.map(function(btn){
+    const key=String(btn.getAttribute('data-threshold-key')||'');
+    const diff=String(btn.getAttribute('data-threshold-diff')||'0');
+    const maxDrift=String(btn.getAttribute('data-threshold-maxdrift')||'0');
+    return key+'(diff='+diff+', maxDrift='+maxDrift+')';
+  });
+  const domainEl=document.getElementById('incidentDomain');
+  const severityEl=document.getElementById('incidentSeverity');
+  const sourceEl=document.getElementById('incidentSource');
+  const summaryEl=document.getElementById('incidentSummary');
+  if(domainEl) domainEl.value='logs';
+  if(severityEl) severityEl.value='high';
+  if(sourceEl) sourceEl.value='threshold-alert-batch';
+  if(summaryEl) summaryEl.value='阈值批量告警：'+items.join('；')+'。建议执行阈值评审与治理跟踪。';
+  if(statusEl) statusEl.textContent='已生成批量建单建议，请点击“创建 Incident”';
+}
+async function closeIncident(id){
+  if(!id) return;
+  const note=window.prompt('请输入关闭说明','resolved-by-dashboard');
+  if(note===null) return;
+  const statusEl=document.getElementById('incidentActionStatus');
+  statusEl.textContent='关闭中...';
+  try{
+    const j=await apiJson('/api/system/ops/incident/'+encodeURIComponent(id)+'/resolve',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({note})
+    });
+    if(j&&j.success){
+      statusEl.textContent='关闭成功';
+      await refreshOpsDashboard();
+      return;
+    }
+    statusEl.textContent=(j&&j.message)||'关闭失败';
+  }catch(e){
+    statusEl.textContent='关闭失败';
+  }
+}
+async function connect(){
+  if(connecting) return;
+  connecting=true;
+  try{
+    if(es){ es.close(); es=null; }
+    await loadTail();
+    const q=buildQuery();
+    es=new EventSource('/api/logs/stream?tail=200&'+q);
+    es.onopen=()=>{ stat.textContent='已连接'; lastMessageAt=Date.now(); };
+    es.onerror=()=>{ stat.textContent='连接中断，重连中…'; try{ es.close(); }catch(e){} es=null; scheduleReconnect(); };
+    es.onmessage=(e)=>{ lastMessageAt=Date.now(); try{ const o=JSON.parse(e.data); append(o);}catch(_){} };
+  }catch(e){
+    stat.textContent='连接失败，重连中…';
+    scheduleReconnect();
+  }finally{
+    connecting=false;
+  }
+}
+function startStreamWatchdog(){
+  if(streamWatchdog) return;
+  streamWatchdog=setInterval(function(){
+    if(paused) return;
+    if(connecting) return;
+    if(!es){ connect(); return; }
+    if(!lastMessageAt) return;
+    if(Date.now()-lastMessageAt>20000){
+      try{ es.close(); }catch(e){}
+      es=null;
+      stat.textContent='连接超时，重连中…';
+      connect();
+    }
+  },5000);
 }
 function loadFiles(){
-  fetch('/api/logs/files').then(r=>r.json()).then(j=>{
+  apiJson('/api/logs/files').then(j=>{
+    const oldVal=(document.getElementById('fileSel').value||'');
     const sel=document.getElementById('fileSel'); sel.innerHTML='';
     if(j&&j.success&&Array.isArray(j.files)){ j.files.forEach(f=>{ const opt=document.createElement('option'); opt.value=f.file; opt.textContent=f.file+' ('+f.size+'B)'; sel.appendChild(opt); }); }
+    if(oldVal && Array.from(sel.options).some(x=>x.value===oldVal)) sel.value=oldVal;
     const f=sel.value||''; document.getElementById('downBtn').href=f?('/api/logs/download?file='+encodeURIComponent(f)):'#';
   });
 }
-document.getElementById('lvSel').onchange=connect;
+document.getElementById('lvSel').onchange=function(){
+  try{ localStorage.setItem('logLevel', this.value || 'info'); }catch(e){}
+  applyLogLevelSelectTone(this);
+  connect();
+};
 document.getElementById('modSel').onchange=connect;
 document.getElementById('kw').onchange=connect;
-document.getElementById('autoScroll').onchange=scrollBottom;
+document.getElementById('autoScroll').onchange=function(){ scrollBottom(true); };
 document.getElementById('pauseBtn').onclick=function(){ paused=!paused; this.innerHTML=paused?'<i class="bi bi-play"></i> 继续':'<i class="bi bi-pause"></i> 暂停'; };
 document.getElementById('clearBtn').onclick=function(){ box.innerHTML=''; lines=0; cnt.textContent='0 行'; };
-document.getElementById('fileSel').onchange=function(){ document.getElementById('downBtn').href='/api/logs/download?file='+encodeURIComponent(this.value); };
-loadFiles(); connect(); setInterval(loadFiles, 15000);
+document.getElementById('fileSel').onchange=function(){ document.getElementById('downBtn').href='/api/logs/download?file='+encodeURIComponent(this.value); connect(); };
+document.getElementById('createIncidentBtn').onclick=createIncident;
+document.getElementById('openIncidentsBody').addEventListener('click',function(e){
+  const btn=e.target && e.target.closest ? e.target.closest('[data-incident-close]') : null;
+  if(!btn) return;
+  closeIncident(btn.getAttribute('data-incident-close'));
+});
+document.addEventListener('click',function(e){
+  const btn=e.target && e.target.closest ? e.target.closest('[data-threshold-suggest]') : null;
+  if(!btn) return;
+  applyThresholdIncidentSuggestion(btn);
+});
+document.getElementById('thresholdBatchSuggestBtn').onclick=applyThresholdBatchSuggestion;
+async function initLogLevel(){
+  let lv='';
+  try{
+    const j=await apiJson('/api/settings');
+    lv=(j&&j.success&&j.settings&&j.settings.logLevel)?String(j.settings.logLevel):'';
+  }catch(e){}
+  if(!lv){
+    try{ lv=String(localStorage.getItem('logLevel')||''); }catch(e){}
+  }
+  lv=String(lv||'info').toLowerCase();
+  if(!['fatal','error','warn','info','debug'].includes(lv)) lv='info';
+  const sel=document.getElementById('lvSel');
+  if(sel){ sel.value=lv; applyLogLevelSelectTone(sel); }
+}
+initLogLevel().finally(function(){
+  loadFiles();
+  connect();
+  refreshOpsDashboard();
+  startStreamWatchdog();
+  setInterval(loadFiles, 15000);
+  if(!opsRefreshTimer) opsRefreshTimer=setInterval(refreshOpsDashboard, 30000);
+});
 </script>
 </body>
 </html>

@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-03-18T06:20:58.145Z",
+  "reviewWindow": "2026-Q1",
+  "owners": {
+    "release": "release-manager",
+    "qualityGate": "qa-owner",
+    "apiContract": "api-owner",
+    "opsGovernance": "ops-owner"
+  },
+  "cadence": {
+    "gateReview": "weekly",
+    "trendCalibrationReview": "weekly",
+    "lowFrequencyGovernanceReview": "weekly",
+    "fullAcceptanceReview": "quarterly"
+  },
+  "slas": {
+    "p1": "1h",
+    "p2": "4h",
+    "p3": "24h"
+  },
+  "actions": [
+    "每周复盘 gate/trend/notify/ops 四类产物稳定性",
+    "每周复审低频异常白名单与阈值",
+    "每季度执行全量收官验收并归档报告",
+    "触发 P1 时冻结发布并重跑 full gate 链路"
+  ],
+  "releaseCriteria": [
+    "service-gate-summary passedRate >= 0.99",
+    "contract 失败数 = 0",
+    "service-gate-notify severity != critical/high",
+    "ops-domain-sop 与 low-frequency-governance 产物均可生成"
+  ]
+}

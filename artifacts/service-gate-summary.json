@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-03-18T06:20:57.888Z",
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "groupedFailures": {},
+  "results": [
+    {
+      "name": "stream-service-tests",
+      "category": "service",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/stream-service-tests.js",
+      "startedAt": "2026-03-18T06:20:56.903Z",
+      "endedAt": "2026-03-18T06:20:56.996Z",
+      "exitCode": 0,
+      "ok": true
+    },
+    {
+      "name": "auth-service-tests",
+      "category": "service",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/auth-service-tests.js",
+      "startedAt": "2026-03-18T06:20:56.996Z",
+      "endedAt": "2026-03-18T06:20:57.177Z",
+      "exitCode": 0,
+      "ok": true
+    },
+    {
+      "name": "http-smoke-strict",
+      "category": "smoke",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/http-smoke.js --strict",
+      "startedAt": "2026-03-18T06:20:57.177Z",
+      "endedAt": "2026-03-18T06:20:57.307Z",
+      "exitCode": 0,
+      "ok": true
+    },
+    {
+      "name": "player-auth-contract-tests",
+      "category": "contract",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/player-auth-contract-tests.js",
+      "startedAt": "2026-03-18T06:20:57.307Z",
+      "endedAt": "2026-03-18T06:20:57.452Z",
+      "exitCode": 0,
+      "ok": true
+    },
+    {
+      "name": "export-proxy-contract-tests",
+      "category": "contract",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/export-proxy-contract-tests.js",
+      "startedAt": "2026-03-18T06:20:57.452Z",
+      "endedAt": "2026-03-18T06:20:57.636Z",
+      "exitCode": 0,
+      "ok": true
+    },
+    {
+      "name": "system-authz-contract-tests",
+      "category": "contract",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/system-authz-contract-tests.js",
+      "startedAt": "2026-03-18T06:20:57.636Z",
+      "endedAt": "2026-03-18T06:20:57.768Z",
+      "exitCode": 0,
+      "ok": true
+    },
+    {
+      "name": "ops-governance-contract-tests",
+      "category": "contract",
+      "command": "C:\\Program Files\\nodejs\\node.exe src/utils/ops-governance-contract-tests.js",
+      "startedAt": "2026-03-18T06:20:57.768Z",
+      "endedAt": "2026-03-18T06:20:57.887Z",
+      "exitCode": 0,
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+name: Service Quality Gate
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/service-quality-gate.yml"
+  pull_request:
+    branches: [ "main", "master" ]
+    paths:
+      - "src/**"
+      - "package.json"
+      - ".github/workflows/service-quality-gate.yml"
+  workflow_dispatch:
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run service quality gate (node direct)
+        env:
+          SERVICE_GATE_SUMMARY_PATH: artifacts/service-gate-summary.json
+        run: node src/utils/run-service-gate-with-server.js
+
+      - name: Build gate trend dashboard
+        if: always()
+        env:
+          SERVICE_GATE_SUMMARY_PATH: artifacts/service-gate-summary.json
+          SERVICE_GATE_HISTORY_PATH: artifacts/service-gate-history.json
+          SERVICE_GATE_TREND_PATH: artifacts/service-gate-trend.json
+          SERVICE_GATE_TREND_MARKDOWN_PATH: artifacts/service-gate-trend.md
+          SERVICE_GATE_TREND_WINDOW: "20"
+          SERVICE_GATE_HISTORY_MAX: "300"
+          SERVICE_GATE_DYNAMIC_MIN_RUNS: "8"
+          SERVICE_GATE_DYNAMIC_ALPHA: "0.6"
+          SERVICE_GATE_DYNAMIC_MAX_DRIFT: "2"
+        run: node src/utils/service-gate-trend.js
+
+      - name: Notify gate result by category
+        if: always()
+        env:
+          SERVICE_GATE_SUMMARY_PATH: artifacts/service-gate-summary.json
+          SERVICE_GATE_TREND_PATH: artifacts/service-gate-trend.json
+          SERVICE_GATE_NOTIFY_JSON_PATH: artifacts/service-gate-notify.json
+          SERVICE_GATE_NOTIFY_MARKDOWN_PATH: artifacts/service-gate-notify.md
+          SERVICE_GATE_GOVERNANCE_JSON_PATH: artifacts/service-gate-governance.json
+          SERVICE_GATE_GOVERNANCE_MARKDOWN_PATH: artifacts/service-gate-governance.md
+          SERVICE_GATE_NOTIFY_CHANNEL: service-quality-gate
+          SERVICE_GATE_THRESHOLD_SERVICE_CRITICAL: "0"
+          SERVICE_GATE_THRESHOLD_SMOKE_CRITICAL: "0"
+          SERVICE_GATE_THRESHOLD_CONTRACT_HIGH: "1"
+          SERVICE_GATE_THRESHOLD_CONTRACT_MEDIUM: "0"
+          SERVICE_GATE_WEBHOOK_URL: ${{ secrets.SERVICE_GATE_WEBHOOK_URL }}
+        run: node src/utils/service-gate-notify.js
+
+      - name: Build ops domain dashboard and SOP
+        if: always()
+        env:
+          OPS_DOMAIN_SOP_JSON_PATH: artifacts/ops-domain-sop.json
+          OPS_DOMAIN_SOP_MARKDOWN_PATH: artifacts/ops-domain-sop.md
+          OPS_LOW_FREQUENCY_WHITELIST: ""
+          OPS_LOW_FREQUENCY_REQUEST_THRESHOLD: "30"
+          OPS_LOW_FREQUENCY_LATENCY_THRESHOLD_MS: "3000"
+        run: node src/utils/ops-domain-sop.js
+
+      - name: Build low frequency governance
+        if: always()
+        env:
+          OPS_LOW_FREQUENCY_GOVERNANCE_JSON_PATH: artifacts/ops-low-frequency-governance.json
+          OPS_LOW_FREQUENCY_GOVERNANCE_MARKDOWN_PATH: artifacts/ops-low-frequency-governance.md
+          OPS_LOW_FREQUENCY_WHITELIST: ""
+          OPS_LOW_FREQUENCY_REQUEST_THRESHOLD: "30"
+          OPS_LOW_FREQUENCY_LATENCY_THRESHOLD_MS: "3000"
+        run: node src/utils/ops-low-frequency-governance.js
+
+      - name: Build final acceptance and quarterly governance report
+        if: always()
+        env:
+          SERVICE_GATE_SUMMARY_PATH: artifacts/service-gate-summary.json
+          SERVICE_GATE_TREND_PATH: artifacts/service-gate-trend.json
+          SERVICE_GATE_NOTIFY_JSON_PATH: artifacts/service-gate-notify.json
+          SERVICE_GATE_GOVERNANCE_JSON_PATH: artifacts/service-gate-governance.json
+          OPS_DOMAIN_SOP_JSON_PATH: artifacts/ops-domain-sop.json
+          OPS_LOW_FREQUENCY_GOVERNANCE_JSON_PATH: artifacts/ops-low-frequency-governance.json
+          FINAL_ACCEPTANCE_REPORT_JSON_PATH: artifacts/final-acceptance-report.json
+          FINAL_ACCEPTANCE_REPORT_MARKDOWN_PATH: artifacts/final-acceptance-report.md
+          QUARTERLY_GOVERNANCE_POLICY_JSON_PATH: artifacts/quarterly-governance-policy.json
+          QUARTERLY_GOVERNANCE_POLICY_MARKDOWN_PATH: artifacts/quarterly-governance-policy.md
+        run: node src/utils/final-acceptance-report.js
+
+      - name: Upload gate summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-gate-summary
+          path: artifacts/service-gate-summary.json
+
+      - name: Upload gate notify artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-gate-notify
+          path: |
+            artifacts/service-gate-notify.json
+            artifacts/service-gate-notify.md
+            artifacts/service-gate-governance.json
+            artifacts/service-gate-governance.md
+
+      - name: Upload gate trend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-gate-trend
+          path: |
+            artifacts/service-gate-history.json
+            artifacts/service-gate-trend.json
+            artifacts/service-gate-trend.md
+
+      - name: Upload ops domain artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-domain-sop
+          path: |
+            artifacts/ops-domain-sop.json
+            artifacts/ops-domain-sop.md
+
+      - name: Upload ops low frequency artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-low-frequency-governance
+          path: |
+            artifacts/ops-low-frequency-governance.json
+            artifacts/ops-low-frequency-governance.md
+
+      - name: Upload final acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-acceptance-report
+          path: |
+            artifacts/final-acceptance-report.json
+            artifacts/final-acceptance-report.md
+            artifacts/quarterly-governance-policy.json
+            artifacts/quarterly-governance-policy.md

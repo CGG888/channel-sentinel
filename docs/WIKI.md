@@ -83,6 +83,7 @@
 ## 3. 页面导览与常用操作
 
 - 首页（检测页）：导入/输入地址进行批量检测；支持筛选、搜索、排序、统计。  
+- 首页职责限定：仅检测与统计，不承担频道展示与频道编辑。  
 - 结果页：集中管理频道元数据（名称、分组、Logo、catchup 参数等）并保存版本。  
 - 播放器页：根据直播/回看/协议自动选用 mpegts.js 或 hls.js；支持外部播放器。  
 - 登录页：账号密码 + 图形验证码；未登录将拦截核心页面与接口访问。  
@@ -122,24 +123,26 @@ UDPXY 快速部署（示例，非本项目组件）：
   - 单播直播与回看 → hls.js。  
 - 默认音频：默认“非静音”。若浏览器拦截自动播放，首次点击后继续。  
 - EPG 面板：节目单查询、当前状态联动、上一频道/停止/下一频道；面板上下留白不贴边。  
-- 回看规范（外网重点）：使用“单播代理 + 回放源基础 URL + 时间参数（ku9 等）”，严禁把 `/rtp/` 组播路径拼入回看。  
+- 回看规范（外网重点）：回放基址与时间参数均由后端规则中心统一生成，前端仅调用接口。  
+- 频道编辑页支持自动展示“回放源基础 URL”，并新增“回放地址（完整）”编辑框用于维护 catchup-source 模板。  
 - 支持的回看时间格式：`iso8601、ku9、mytv、npt、rtsp_range、playseek、startend14、beginend14、unix_s、unix_ms`。  
 - 外部播放器：桌面 PotPlayer、移动端 VLC（设备自适应）。
 - 示例：  
   - 直播（组播经 UDPXY）：`http://<udpxy-host>:<port>/rtp/<ip>:<port>`  
-  - 回看（ku9 格式）：`http://<unicast-proxy>/<base>.m3u8?ku9=20260101-120000-20260101-130000`
+  - 回看：调用 `/api/catchup/play` 由后端返回最终可播 URL  
+  - 规则预览：调用 `/api/catchup/profile` 返回规则推导基址与完整回放地址模板
 - 常见问题：  
   - 无画面：确认 UDPXY 可直连访问；或 HLS 源跨域（CORS）未放行；  
   - 声音静音：浏览器策略导致，点击播放区域即可恢复；  
   - 回看报错：确认参数格式与时间范围正确、上游已开放回看接口。
 
-回看时间格式示例：  
+回看时间格式示例（由规则中心渲染）：  
 - iso8601：`...&start=2026-02-21T12:00:00Z&end=2026-02-21T13:00:00Z`  
-- ku9：`?ku9=20260221-120000-20260221-130000`  
-- mytv：`?playback=20260221120000-20260221130000`  
-- npt：`?npt=43200-46800`（单位秒，示例 12:00–13:00）  
-- unix_s：`?start=1771646400&end=1771650000`  
-- unix_ms：`?start=1771646400000&end=1771650000000`
+- ku9：`...&starttime=20260221T120000&endtime=20260221T130000`  
+- mytv：`...&starttime=20260221120000&endtime=20260221130000`  
+- npt：`...&npt=12:00:00-13:00:00`  
+- unix_s：`...&start=1771646400&end=1771650000`  
+- unix_ms：`...&start=1771646400000&end=1771650000000`
 
 ### Windows 4K 播放说明（硬件加速）
 
@@ -246,16 +249,15 @@ http://proxy.example/rtp/239.1.1.1:1234?fcc=10.0.0.1:9999
   ]
 }
 ```
-
-常见导出参数（以 M3U 为例，按页面生成为准）：  
-- `scope=lan|internet`：范围（内网/外网）  
-- `status=online|all`：仅在线或全部  
-- `protocol=http|rtsp`：优先协议  
+- 常见导出参数（以 M3U 为例，按页面生成为准）：  
+- `scope=internal|external`：范围（内网/外网）  
+- `status=online|offline|all`：在线状态筛选  
+- `fmt=default|ku9|iso8601...`：回看时间格式  
+- `proto=http|rtsp`：回看协议偏好  
 - `token=xxxx`：外网启用 Token 时必须附带  
-- `catchup=ku9|iso8601...`：回看参数格式（按需要）  
 
 示例：  
-`/api/export/m3u?scope=internet&status=online&protocol=http&catchup=ku9&token=YOUR_TOKEN`
+`/api/export/m3u?scope=external&status=online&fmt=ku9&proto=http&token=YOUR_TOKEN`
 
 ---
 
@@ -360,8 +362,8 @@ location / {
 - HLS/MPEGTS 内核已做错误重试，必要时查看浏览器控制台日志定位网络/跨域问题。
 
 4) “外网回看失败”  
-- 请确保按规范生成：单播代理 + 回放源基础 URL + 时间参数（如 ku9）。  
-- 禁止将 `/rtp/` 组播路径拼入回看。
+- 优先检查 `/api/catchup/play` 返回的错误信息与规则命中日志。  
+- 通过 `/api/system/replay-rules/hits` 查看命中规则、错误码与降级情况。
 
 5) “自动更新失败”  
 - 非 Git 仓库或未安装 Git：请使用 `git clone` 的部署方式；安装 Git 后再试。  
@@ -415,6 +417,7 @@ location / {
 - 版本：`POST /api/persist/save`、`GET /api/persist/list`、`POST /api/persist/load-version`、`POST /api/persist/delete-version`  
 - 配置：`/api/config/*`（logo-templates、fcc-servers、udpxy-servers、group-titles、group-rules、proxies、app-settings、epg-sources）  
 - 更新：`POST /api/system/update`（源码安装；Docker 请拉镜像）
+- 回放规则观测与回滚：`GET /api/system/replay-rules/status`、`GET /api/system/replay-rules/hits`、`GET /api/system/replay-rules/snapshots`、`POST /api/system/replay-rules/snapshot`、`POST /api/system/replay-rules/rollback`
 
 2) curl 示例  
 
@@ -423,7 +426,10 @@ location / {
 curl -s http://localhost:3000/api/system/info
 
 # 导出 M3U（示例参数按页面“接口弹窗”生成为准）
-curl -L "http://localhost:3000/api/export/m3u?scope=internet&status=online&protocol=http"
+curl -L "http://localhost:3000/api/export/m3u?scope=external&status=online&fmt=ku9&proto=http"
+
+# 查看回放规则状态
+curl -s http://localhost:3000/api/system/replay-rules/status
 ```
 
 2) 术语对照  

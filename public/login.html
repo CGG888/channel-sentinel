@@ -5,33 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPTV Checker - 登录</title>
     <link rel="icon" type="image/png" href="/iptv.png">
-    <link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/vendor/bootstrap-icons/1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script>
+        try {
+            const k = localStorage.getItem('iptv:theme');
+            const t = k || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        } catch (e) {}
+        try {
+            if (window.top && window.top !== window.self) {
+                window.top.location.replace(window.location.href);
+            }
+        } catch (e) {}
+    </script>
     <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            min-height: 100dvh;
+            background: #0f172a !important;
+            overflow: hidden;
+        }
         body {
-            background: #000;
+            position: fixed;
+            inset: 0;
+        }
+    </style>
+    <link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/theme-tokens.css" rel="stylesheet">
+    <link href="css/shadcn-ui.css" rel="stylesheet">
+    <style>
+        html, body {
+            background: #0f172a !important;
+            min-height: 100dvh;
+        }
+        body {
+            background: var(--login-fallback-bg, #0f172a) !important;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100vh;
             margin: 0;
+            padding: 16px;
+            width: 100%;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            position: relative;
+            position: fixed;
+            inset: 0;
             overflow: hidden;
         }
         .bg-bing {
             position: fixed;
             inset: 0;
-            z-index: -1;
+            z-index: 0;
             pointer-events: none;
+            background: linear-gradient(140deg, #6f42c1 0%, #4f46e5 45%, #0f172a 100%);
+        }
+        .bg-bing::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.28);
+        }
+        .theme-login-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 20;
         }
         .bg-bing img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            opacity: 0;
+            transition: opacity .35s ease;
+        }
+        .bg-bing.ready img {
+            opacity: 1;
+        }
+        .bg-bing.loading img {
+            opacity: 0;
         }
         .login-card {
+            position: relative;
+            z-index: 2;
             width: 100%;
             max-width: 400px;
             padding: 2.5rem;
@@ -55,7 +112,7 @@
         .login-header h1 {
             font-size: 1.75rem;
             margin-bottom: 0.5rem;
-            color: #333;
+            color: #18181b;
             font-weight: 700;
             letter-spacing: -0.5px;
         }
@@ -101,11 +158,84 @@
             border-color: #6f42c1;
             opacity: 0.7;
         }
+        .theme-login-toggle {
+            border: 1px solid rgba(255, 255, 255, 0.45) !important;
+            background: rgba(255, 255, 255, 0.28) !important;
+            backdrop-filter: blur(8px);
+            color: #ffffff !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+            min-width: 92px;
+        }
+        .theme-login-toggle:hover {
+            background: rgba(255, 255, 255, 0.4) !important;
+        }
+        :root[data-theme="light"] .login-card {
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(255, 255, 255, 0.45) !important;
+        }
+        :root[data-theme="light"] body {
+            --login-fallback-bg: #edf2ff;
+        }
+        :root[data-theme="light"] .bg-bing {
+            background: linear-gradient(145deg, #b69cf0 0%, #8ab4ff 48%, #d7e3ff 100%);
+        }
+        :root[data-theme="dark"] .bg-bing::after {
+            background: rgba(0, 0, 0, 0.5);
+        }
+        :root[data-theme="dark"] body {
+            --login-fallback-bg: #020617;
+        }
+        :root[data-theme="dark"] .bg-bing {
+            background: linear-gradient(145deg, #121a3a 0%, #1c2a5c 45%, #020617 100%);
+        }
+        :root[data-theme="dark"] .login-card {
+            background: rgba(12, 16, 24, 0.78) !important;
+            border: 1px solid rgba(148, 163, 184, 0.2) !important;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.48);
+            backdrop-filter: blur(14px);
+        }
+        :root[data-theme="dark"] .login-header h1 {
+            color: #f4f4f5;
+        }
+        :root[data-theme="dark"] .login-header .text-muted {
+            color: #cbd5e1 !important;
+        }
+        :root[data-theme="dark"] .form-label {
+            color: #f1f5f9 !important;
+        }
+        :root[data-theme="dark"] .input-icon {
+            opacity: 0.95;
+        }
+        :root[data-theme="dark"] .theme-login-toggle {
+            border: 1px solid rgba(148, 163, 184, 0.45) !important;
+            background: rgba(15, 23, 42, 0.45) !important;
+            color: #e2e8f0 !important;
+        }
+        :root[data-theme="dark"] .theme-login-toggle:hover {
+            background: rgba(15, 23, 42, 0.62) !important;
+        }
+        @media (max-width: 576px) {
+            .theme-login-toggle {
+                top: 12px;
+                right: 12px;
+                min-width: 84px;
+            }
+            .login-card {
+                padding: 1.5rem;
+            }
+            .login-header {
+                margin-bottom: 1.4rem;
+            }
+            .login-header h1 {
+                font-size: 1.45rem;
+            }
+        }
     </style>
 </head>
 <body>
+    <button class="btn btn-sm btn-outline-secondary theme-toggle-btn theme-login-toggle" id="themeToggleBtnLogin" type="button" data-theme-toggle></button>
     <div class="bg-bing">
-        <img src="https://bing.img.run/rand_uhd.php" alt="随机获取Bing历史壁纸UHD超高清原图">
+        <img id="loginBgImg" src="" alt="随机获取Bing历史壁纸UHD超高清原图" referrerpolicy="no-referrer" loading="eager" decoding="async">
     </div>
     <div class="login-card">
         <div class="login-header">
@@ -155,9 +285,24 @@
     </div>
 
     <script src="/vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/core/api-client.js"></script>
+    <script src="/js/theme-manager.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.IptvTheme) window.IptvTheme.initAll();
+        });
+    </script>
+    <script>
+        async function apiJson(url, options) {
+            if (window.IptvCore && window.IptvCore.api && typeof window.IptvCore.api.request === 'function') {
+                const resp = await window.IptvCore.api.request(url, options || {});
+                return resp && resp.data ? resp.data : {};
+            }
+            const r = await fetch(url, options || {});
+            return await r.json();
+        }
         function loadSystemInfoLogin(){
-            fetch('/api/system/info').then(r=>r.json()).then(j=>{
+            apiJson('/api/system/info').then(j=>{
                 if(j&&j.success&&j.version){
                     var el=document.getElementById('loginVersion');
                     if(el) el.textContent='v'+j.version;
@@ -165,6 +310,80 @@
             }).catch(()=>{});
         }
         document.addEventListener('DOMContentLoaded', loadSystemInfoLogin);
+        function initLoginWallpaper() {
+            const img = document.getElementById('loginBgImg');
+            const wrap = document.querySelector('.bg-bing');
+            if (!img || !wrap) return;
+            const remoteSources = [
+                'https://bing.img.run/rand_uhd.php?t=' + Date.now(),
+                'https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN'
+            ];
+            wrap.classList.add('loading');
+            img.onload = function() {
+                wrap.classList.remove('loading');
+                wrap.classList.add('ready');
+            };
+            img.onerror = function() {
+                wrap.classList.remove('loading');
+            };
+            const loadRemote = function(url, timeoutMs) {
+                return new Promise((resolve, reject) => {
+                    const tmp = new Image();
+                    const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs || 5000);
+                    tmp.onload = function() {
+                        clearTimeout(timer);
+                        resolve(url);
+                    };
+                    tmp.onerror = function() {
+                        clearTimeout(timer);
+                        reject(new Error('error'));
+                    };
+                    tmp.referrerPolicy = 'no-referrer';
+                    tmp.src = url;
+                });
+            };
+            const fetchBingJsonImage = async function(url) {
+                try {
+                    const j = await apiJson(url, { cache: 'no-store' });
+                    const item = j && Array.isArray(j.images) && j.images[0] ? j.images[0] : null;
+                    if (!item || !item.url) return '';
+                    const full = item.url.startsWith('http') ? item.url : ('https://cn.bing.com' + item.url);
+                    return full;
+                } catch (e) {
+                    return '';
+                }
+            };
+            const canLoadRemote = (function() {
+                try {
+                    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                    if (!c) return true;
+                    if (c.saveData) return false;
+                    const et = String(c.effectiveType || '').toLowerCase();
+                    if (et === 'slow-2g' || et === '2g') return false;
+                    return true;
+                } catch (e) {
+                    return true;
+                }
+            })();
+            if (!canLoadRemote) {
+                wrap.classList.remove('loading');
+                return;
+            }
+            setTimeout(async function() {
+                try {
+                    const direct = await loadRemote(remoteSources[0], 6000);
+                    img.src = direct;
+                    return;
+                } catch (e) {}
+                const jsonUrl = await fetchBingJsonImage(remoteSources[1]);
+                if (!jsonUrl) return;
+                try {
+                    const verified = await loadRemote(jsonUrl, 6000);
+                    img.src = verified;
+                } catch (e) {}
+            }, 1200);
+        }
+        document.addEventListener('DOMContentLoaded', initLoginWallpaper);
         function refreshCaptcha() {
             document.getElementById('captchaImg').src = '/api/captcha?t=' + Date.now();
             document.getElementById('captcha').value = '';
@@ -181,7 +400,7 @@
             }catch(e){ return '/'; }
         }
         // 检查是否已经登录
-        fetch('/api/auth/check').then(r => r.json()).then(j => {
+        apiJson('/api/auth/check').then(j => {
             if (j.success) window.location.href = getRedirect();
         }).catch(() => {});
 
@@ -198,12 +417,10 @@
             errorDiv.classList.add('d-none');
 
             try {
-                const res = await fetch('/api/login', {
+                const data = await apiJson('/api/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, captcha })
+                    body: { username, password, captcha }
                 });
-                const data = await res.json();
                 
                 if (data.success) {
                     window.location.href = getRedirect();

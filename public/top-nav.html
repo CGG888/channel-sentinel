@@ -1,0 +1,55 @@
+<nav class="navbar wiki-nav py-2">
+  <div class="container d-flex align-items-center gap-2" style="max-width:1200px;">
+    <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/" title="IPTV Checker">
+      <img src="/iptv.png" alt="" style="height:18px;width:auto;">
+      <span class="ms-2 fw-bold brand-text" style="color:#6f42c1;">IPTV Checker</span>
+    </a>
+    <div class="actions">
+      <a class="btn btn-sm btn-outline-secondary" href="/" title="主页" data-nav-link="index">
+        <i class="bi bi-house me-1"></i>主页
+      </a>
+      <a class="btn btn-sm btn-outline-secondary" href="/results" title="频道/检测结果" data-nav-link="results">
+        <i class="bi bi-collection-play me-1"></i>频道
+      </a>
+      <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器" data-nav-link="player">
+        <i class="bi bi-play-circle me-1"></i>播放
+      </a>
+      <div class="dropdown" id="topSettingsGroup">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" id="topSettingsDropdownBtn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-gear-fill me-1"></i>设置
+        </button>
+        <ul class="dropdown-menu" style="min-width: 100%;">
+          <li><h6 class="dropdown-header">设置中心</h6></li>
+          <li><button class="dropdown-item" type="button" id="settingsAppBtn"><i class="bi bi-gear me-2"></i>应用设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsFccBtn"><i class="bi bi-lightning-charge me-2"></i>FCC设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsGroupBtn"><i class="bi bi-collection me-2"></i>分组设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsLogoBtn"><i class="bi bi-image me-2"></i>台标设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsProxyBtn"><i class="bi bi-diagram-3 me-2"></i>代理设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsApiBtn"><i class="bi bi-link-45deg me-2"></i>接口设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsEpgBtn"><i class="bi bi-calendar-event me-2"></i>EPG设置</button></li>
+          <li><button class="dropdown-item" type="button" id="settingsReplayRulesBtn"><i class="bi bi-diagram-2 me-2"></i>回放规则</button></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><button class="dropdown-item" type="button" id="settingsWebdavBtn"><i class="bi bi-cloud-upload me-2"></i>WebDAV</button></li>
+          <li><a class="dropdown-item" href="/logs.html" title="日志中心" data-nav-link="logs"><i class="bi bi-clipboard-data me-2"></i>日志中心</a></li>
+        </ul>
+      </div>
+      <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank">
+        <i class="bi bi-book me-1"></i>指南
+      </a>
+      <button class="btn btn-sm btn-outline-secondary theme-toggle-btn" id="themeToggleBtnNav" type="button" data-theme-toggle></button>
+      <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
+        <i class="bi bi-github me-1"></i>GitHub
+      </a>
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
+          <i class="bi bi-person-circle"></i> <span id="userDisplay">Admin</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" style="width: 100%; min-width: 100%;">
+          <li><a class="dropdown-item" href="#" data-nav-action="change-password" data-bs-toggle="modal" data-bs-target="#changePwdModal">修改密码</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="#" data-nav-action="logout">退出登录</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>

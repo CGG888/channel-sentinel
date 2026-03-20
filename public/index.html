@@ -5,10 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>首页 - IPTV Checker</title>
     <link rel="icon" type="image/png" href="/iptv.png">
-    <link href="/vendor/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.7.2/font/bootstrap-icons.css">
+    <script>
+      document.documentElement.classList.add('auth-pending');
+    </script>
+    <script>
+      try {
+        const k = localStorage.getItem('iptv:theme');
+        const t = k || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+      } catch (e) {}
+    </script>
+    <link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css">
     <link href="css/custom.css" rel="stylesheet">
+    <link href="css/theme-tokens.css" rel="stylesheet">
+    <link href="css/shadcn-ui.css" rel="stylesheet">
+    <script src="/js/core/api-client.js"></script>
+    <script src="/js/core/auth-gate.js"></script>
+    <script src="/js/core/nav-bridge.js"></script>
+    <script src="/js/shared/version-manager.js"></script>
+    <script src="/js/index/version-manager.js"></script>
+    <script src="/js/top-nav-loader.js" defer></script>
     <style>
+      html.auth-pending body{
+        visibility:hidden !important;
+        background:#0b1221 !important;
+      }
       :root{ --brand-size: 1.05rem; }
       .ver-dot{display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 0 0 rgba(255,59,59,0.7);animation:ver-blink 1.2s infinite}
       @keyframes ver-blink{
@@ -27,69 +49,16 @@
       .brand-text{font-size:var(--brand-size);}
     </style>
     <script>
-        // 登录检查
-        (async function() {
-            try {
-                const r = await fetch('/api/auth/check');
-                const j = await r.json();
-                if (!j.success) {
-                    window.location.href = '/login.html';
-                } else {
-                    window.currentUser = j.username;
-                    // 等待DOM加载后更新
-                    function updateDisplay() {
-                         const userDisplay = document.getElementById('userDisplay');
-                         if (userDisplay) userDisplay.textContent = j.username;
-                    }
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', updateDisplay);
-                    } else {
-                        updateDisplay();
-                    }
-                }
-            } catch(e) {
-                window.location.href = '/login.html';
-            }
-        })();
+      (async function () {
+        if (window.IptvCore && window.IptvCore.auth && typeof window.IptvCore.auth.ensureAuth === 'function') {
+          await window.IptvCore.auth.ensureAuth();
+          return;
+        }
+      })();
     </script>
 </head>
-<body>
-    <!-- 顶部导航（与 Wiki 页面风格统一） -->
-    <nav class="navbar wiki-nav py-2">
-      <div class="container d-flex align-items-center gap-2" style="max-width:1200px;">
-        <a class="navbar-brand d-flex align-items-center text-decoration-none" href="/" title="IPTV Checker">
-          <img src="/iptv.png" alt="" style="height:18px;width:auto;">
-          <span class="ms-2 fw-bold brand-text" style="color:#6f42c1;">IPTV Checker</span>
-        </a>
-        <div class="actions">
-          <a class="btn btn-sm btn-outline-secondary" href="/" title="主页">
-            <i class="bi bi-house me-1"></i>主页
-          </a>
-          <a class="btn btn-sm btn-outline-secondary" href="/results" title="频道/检测结果">
-            <i class="bi bi-collection-play me-1"></i>频道
-          </a>
-          <a class="btn btn-sm btn-outline-secondary" href="/player.html" target="_blank" title="播放器">
-            <i class="bi bi-play-circle me-1"></i>播放
-          </a>
-          <a class="btn btn-sm btn-outline-secondary" href="/docs/" target="_blank">
-            <i class="bi bi-book me-1"></i>指南
-          </a>
-          <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
-            <i class="bi bi-github me-1"></i>GitHub
-          </a>
-          <div class="dropdown">
-            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown" style="min-width: 140px;">
-                <i class="bi bi-person-circle"></i> <span id="userDisplay">Admin</span>
-            </button>
-            <ul class="dropdown-menu" style="width: 100%; min-width: 100%;">
-                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePwdModal">修改密码</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()">退出登录</a></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </nav>
+<body data-nav-page="index" data-nav-settings="index">
+    <div id="topNavMount"></div>
     <div class="container mt-4" style="max-width:1200px;">
         <div class="d-flex justify-content-between align-items-center mb-4 title-center-wrap">
             <h1 class="mb-0 d-flex align-items-center gap-2 title-center page-title">
@@ -126,7 +95,7 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
                 <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-gear-fill me-2"></i>检测配置</h5>
                 
-                <div class="input-group input-group-sm shadow-sm" style="width: auto;">
+                <div class="input-group input-group-sm shadow-sm d-none" style="width: auto;" id="indexDataManageRow">
                     <span class="input-group-text bg-white text-muted"><i class="bi bi-clock-history"></i></span>
                     <select class="form-select border-start-0" id="versionsSelectIndex" style="max-width: 320px; min-width: 260px;"></select>
                     <button class="btn btn-outline-success btn-icon" id="saveBtnIndex" title="保存当前配置"><i class="bi bi-hdd-fill"></i></button>
@@ -284,1115 +253,32 @@
                 </div>
             </div>
         </div>
-        <div class="main-card mt-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-                <h5 class="mb-0 fw-bold"><i class="bi bi-card-list me-2"></i>组播单播预览列表</h5>
-                
-                <div class="d-flex gap-2 flex-grow-1 justify-content-end">
-                    <div class="input-group" style="max-width: 300px;">
-                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                        <input class="form-control border-start-0 ps-0" id="searchInput" placeholder="搜索频道...">
-                    </div>
-                    
-                    <div class="dropdown">
-                        <button class="btn btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown">
-                            <i class="bi bi-box-arrow-up me-1"></i> 导出
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow">
-                            <li class="px-3 py-2">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" id="exportOnline" checked>
-                                    <label class="form-check-label" for="exportOnline">在线</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" id="exportOffline">
-                                    <label class="form-check-label" for="exportOffline">离线</label>
-                                </div>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><button class="dropdown-item" onclick="exportData('txt');return false;"><i class="bi bi-file-text me-2"></i>导出 TXT</button></li>
-                            <li><button class="dropdown-item" onclick="exportData('m3u');return false;"><i class="bi bi-file-earmark-play me-2"></i>导出 M3U</button></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-light p-3 rounded-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div class="btn-group">
-                    <button class="btn btn-outline-secondary" id="filterAll">全部</button>
-                    <button class="btn btn-outline-success active" id="filterOnline">在线</button>
-                    <button class="btn btn-outline-danger" id="filterOffline">离线</button>
-                </div>
-                
-                <div class="d-flex align-items-center gap-3">
-                    <div class="form-check mb-0 user-select-none">
-                        <input class="form-check-input" type="checkbox" id="selectAllIndexPage">
-                        <label class="form-check-label" for="selectAllIndexPage">全选</label>
-                    </div>
-                    
-                    <div class="btn-group">
-                         <button class="btn btn-outline-danger" id="batchDeleteBtn"><i class="bi bi-trash me-1"></i>删除</button>
-                         <button class="btn btn-outline-secondary" id="clearAllBtn"><i class="bi bi-x-circle me-1"></i>清空</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-12" id="streams-list"></div>
-            </div>
-            
-            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
-                <div class="d-flex align-items-center gap-2">
-                    <select class="form-select form-select-sm" id="pageSizeSelect" style="width: auto;">
-                        <option value="20" selected>20条/页</option>
-                        <option value="50">50条/页</option>
-                        <option value="100">100条/页</option>
-                        <option value="all">全部显示</option>
-                    </select>
-                    <span id="pageInfo" class="text-muted small"></span>
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn"><i class="bi bi-chevron-left"></i> 上一页</button>
-                    <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn">下一页 <i class="bi bi-chevron-right"></i></button>
-                </div>
-            </div>
-        </div>
     </div>
-    <script src="/vendor/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/theme-manager.js"></script>
+    <script src="/js/index/result-renderer.js"></script>
+    <script src="/js/index/detect-runner.js"></script>
+    <script src="/js/index/input-parser.js"></script>
+    <script src="/js/index/range-detect.js"></script>
+    <script src="/js/index/bootstrap.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        if (window.IptvTheme) window.IptvTheme.initAll();
+      });
+    </script>
     <script>
         let allStreams = [];
         let detectCancel = false;
         let detectRunning = false;
-        function getGroupTitles() {
-            try { return JSON.parse(localStorage.getItem('groupTitles') || '[]'); } catch(e) { return []; }
-        }
-        function saveGroupTitles(list) {
-            localStorage.setItem('groupTitles', JSON.stringify(list));
-        }
-        function ensureDefaultGroups() {
-            const list = getGroupTitles();
-            if (list.length === 0) saveGroupTitles(['默认']);
-        }
-        function getLogoTemplate() {
-            return localStorage.getItem('logoTemplate') || 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png';
-        }
-        function saveLogoTemplate(tpl) {
-            localStorage.setItem('logoTemplate', tpl);
-        }
-        function nameVariants(name) {
-            const n = (name || '').trim();
-            const plain = n.replace(/\s+/g, '');
-            const base = [n, plain];
-            const extras = ['4K', '高清', 'HD'];
-            const vars = [];
-            base.forEach(b => { vars.push(b); extras.forEach(ex => vars.push(b + ex)); });
-            return [...new Set(vars)];
-        }
-        function buildLogoCandidates(name) {
-            const tpl = getLogoTemplate();
-            const names = nameVariants(name);
-            const exts = ['.png', '.jpg', '.jpeg'];
-            const urls = [];
-            names.forEach(nn => {
-                exts.forEach(ext => {
-                    let u = tpl.replace('{name}', nn);
-                    u = u.replace(/\.(png|jpg|jpeg)$/i, ext);
-                    urls.push(u);
-                });
-            });
-            return [...new Set(urls)];
-        }
-        function chooseLogoCandidate(name, resolution) {
-            const cands = buildLogoCandidates(name);
-            if ((resolution || '').toLowerCase() === '3840x2160') {
-                const i = cands.findIndex(u => /4k/i.test(u));
-                if (i >= 0) return cands[i];
-            }
-            return cands[0] || '';
-        }
         let lastSearch = '';
         let selectedSet = new Set();
         let pageSize = 20;
         let currentPage = 1;
         let filterStatus = 'online'; // all/online/offline
-// 在进度条下方显示上一条检测结果
-function showLastResult(data, name, multicastUrl) {
-    let lastResultDiv = document.getElementById('lastResultInfo');
-    if (!lastResultDiv) {
-        lastResultDiv = document.createElement('div');
-        lastResultDiv.id = 'lastResultInfo';
-        lastResultDiv.className = 'alert alert-secondary mt-2';
-        const progressBarWrap = document.getElementById('progressBarWrap');
-        progressBarWrap.parentNode.insertBefore(lastResultDiv, progressBarWrap.nextSibling);
-    }
-    lastResultDiv.style.display = '';
-        lastResultDiv.innerHTML = `最近检测：<b>${name || data.name || '-'}</b> | <span style='color:#888;'>${multicastUrl || data.multicastUrl || '-'}</span> | 分辨率:<b>${data.resolution || '-'}</b> | 编码:<b>${data.codec || '-'}</b> | 帧率:<b>${data.frameRate || '-'}</b> | <span style='color:${data.isAvailable ? '#28a745' : '#dc3545'};font-weight:bold;'>${data.isAvailable ? '在线' : '离线'}</span>`;
-}
-// 检查流
-async function checkStream(udpxyUrl, multicastUrl, name = '') {
-    showProgress(0, 1, `正在检测: ${name || '-'}`);
-    const startTime = Date.now();
-    try {
-        const response = await fetch('/api/check-stream', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ udpxyUrl, multicastUrl, name }),
-        });
-        const data = await response.json();
-        if (!data.success) throw new Error(data.message || '检测失败');
-        // 检测完成后立即显示本条数据
-        showProgress(1, 1, `检测完成: ${name || '-'} | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
-        showLastResult(data, name, multicastUrl);
-        setTimeout(() => {
-            // 检测完成后统计并显示详细数据
-            const total = 1;
-            const online = data.isAvailable ? 1 : 0;
-            const offline = data.isAvailable ? 0 : 1;
-            const usedSec = ((Date.now() - startTime) / 1000).toFixed(2);
-            showProgress(1, 1, `检测完成 | 总数: ${total} 在线: ${online} 离线: ${offline} 耗时: ${usedSec}s | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
-            getStreams();
-        }, 1800);
-        return data;
-    } catch (error) {
-        showProgress(1, 1, `检测失败: ${name || '-'}`);
-        setTimeout(hideProgress, 1800);
-        console.error('Error:', error);
-        return { success: false, message: '请求失败' };
-    }
-}
-// 获取所有流
-async function getStreams() {
-    try {
-        const response = await fetch('/api/streams');
-        const data = await response.json();
-        allStreams = data.streams || [];
-        updateStatsAndDisplay();
-    } catch (error) {
-        console.error('Error:', error);
-    }
-}
-// 删除流
-async function deleteStream(index) {
-    showCenterConfirm('确定要删除该流吗？', async function(ok) {
-        if (!ok) return;
-        try {
-            const response = await fetch(`/api/stream/${index}`, { method: 'DELETE' });
-            const data = await response.json();
-            if (data.success) getStreams();
-        } catch (error) { console.error('Error:', error); }
-    });
-}
-// 批量检测流
-async function batchCheckStreams(udpxyUrl, batchText) {
-    const lines = batchText.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-    const multicastList = lines.map(line => {
-        const [name, multicastUrl] = line.split(',');
-        return { name: name ? name.trim() : '', multicastUrl: multicastUrl ? multicastUrl.trim() : '' };
-    }).filter(item => item.multicastUrl.startsWith('rtp://'));
-    if (multicastList.length === 0) {
-        showCenterConfirm('请粘贴组播地址', null, true);
-        return;
-    }
-    try {
-        let lastSuccess = null;
-        for (let i = 0; i < multicastList.length; i++) {
-            if (detectCancel) { showProgress(i, multicastList.length, '检测已停止'); break; }
-            const item = multicastList[i];
-            showProgress(i, multicastList.length, `正在检测: ${item.name || '-'}`);
-            // 检测本条
-            const response = await fetch('/api/check-stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ udpxyUrl, multicastUrl: item.multicastUrl, name: item.name }),
-            });
-            const data = await response.json();
-            // 检测后立即显示本条数据
-            showProgress(i + 1, multicastList.length, `检测: ${item.name || '-'} | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
-            if (data.success) lastSuccess = { ...data, name: item.name, multicastUrl: item.multicastUrl };
-            if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
-            await new Promise(r => setTimeout(r, 400)); // 短暂延迟便于观察进度
-        }
-        // 统计
-        const responseAll = await fetch('/api/streams');
-        const allData = await responseAll.json();
-        const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
-        const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
-        showProgress(multicastList.length, multicastList.length, detectCancel ? `检测停止 | 已完成: ${onlineCount+offlineCount} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
-        try { showDetectionSummary(allData.streams || []); } catch(e) {}
-        try { notifyDetectionDone(onlineCount, offlineCount, (allData.streams||[]).length); } catch(e) {}
-        getStreams();
-    } catch (error) {
-        showProgress(1, 1, '批量检测请求失败');
-        setTimeout(hideProgress, 1800);
-        console.error('Error:', error);
-    }
-}
-function parsePlaylistText(t) {
-    const lines = t.split('\n').map(s => s.trim()).filter(s => s);
-    const out = [];
-    const epgUrls = [];
-    const headMatches = [];
-    for (const ln of lines) {
-        if (/^#EXTM3U/i.test(ln)) headMatches.push(ln);
-        else if (/^#EXTINF/i.test(ln)) break;
-    }
-    headMatches.forEach(h => {
-        const rx1 = /x-tvg-url\s*=\s*"([^"]+)"/ig;
-        const rx2 = /x-tvg-url\s*=\s*'([^']+)'/ig;
-        let m;
-        while ((m = rx1.exec(h)) !== null) epgUrls.push(m[1]);
-        while ((m = rx2.exec(h)) !== null) epgUrls.push(m[1]);
-    });
-    if (t.includes('#EXTM3U')) {
-        let curAttrs = {};
-        for (let i = 0; i < lines.length; i++) {
-            const ln = lines[i];
-            if (/^#EXTINF/i.test(ln)) {
-                const kv = ln.replace(/^#EXTINF:[^ ]*\s*/i, '');
-                const idx = kv.lastIndexOf(',');
-                const attrStr = idx !== -1 ? kv.slice(0, idx).trim() : '';
-                const nm = idx !== -1 ? kv.slice(idx + 1).trim() : '';
-                const attrs = {};
-                const re = /([\w\-]+)\s*=\s*"([^"]*)"|([\w\-]+)\s*=\s*'([^']*)'/g;
-                let m;
-                while ((m = re.exec(attrStr)) !== null) {
-                    const k = (m[1] || m[3] || '').trim();
-                    const v = (m[2] || m[4] || '').trim();
-                    if (k) attrs[k] = v;
-                }
-                curAttrs = {
-                    name: nm.replace(/^[`'"]+|[`'"]+$/g, ''),
-                    tvgId: attrs['tvg-id'] || '',
-                    tvgName: attrs['tvg-name'] || '',
-                    tvgLogo: attrs['tvg-logo'] || '',
-                    groupTitle: attrs['group-title'] || '',
-                    catchup: attrs['catchup'] || '',
-                    catchupSource: attrs['catchup-source'] || ''
-                };
-            } else if (!ln.startsWith('#')) {
-                const uRaw = ln.trim();
-                const u = uRaw.replace(/^[`'"]+|[`'"]+$/g, '');
-                const item = {
-                    name: curAttrs.name || '',
-                    url: u,
-                    tvgId: curAttrs.tvgId || '',
-                    tvgName: curAttrs.tvgName || '',
-                    tvgLogo: curAttrs.tvgLogo || '',
-                    groupTitle: curAttrs.groupTitle || '',
-                    catchup: curAttrs.catchup || '',
-                    catchupSource: curAttrs.catchupSource || ''
-                };
-                out.push(item);
-                curAttrs = {};
-            }
-        }
-    } else {
-        for (const ln of lines) {
-            if (ln.startsWith('#')) continue;
-            if (ln.includes(',')) {
-                const sp = ln.split(',');
-                const n = sp.shift();
-                const u = sp.join(',');
-                const nm = (n || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                const url = (u || '').trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                out.push({ name: nm, url: url, tvgId: '', tvgName: '', tvgLogo: '', groupTitle: '', catchup: '', catchupSource: '' });
-            } else {
-                const url = ln.trim().replace(/^[`'"]+|[`'"]+$/g, '');
-                out.push({ name: '', url, tvgId: '', tvgName: '', tvgLogo: '', groupTitle: '', catchup: '', catchupSource: '' });
-            }
-        }
-    }
-    const filtered = out.filter(it => it.url && (it.url.startsWith('rtp://') || it.url.startsWith('http://') || it.url.startsWith('https://')));
-    try { window.__lastM3UImport = { epgHeaderUrls: Array.from(new Set(epgUrls)), items: filtered }; } catch(e) {}
-    return filtered;
-}
-function classifyScopeByUrl(u) {
-    try {
-        const x = new URL(u);
-        const h = x.hostname || '';
-        if (h === 'localhost' || h === '127.0.0.1') return '内网EPG';
-        if (/^192\.168\./.test(h)) return '内网EPG';
-        if (/^10\./.test(h)) return '内网EPG';
-        if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(h)) return '内网EPG';
-        return '外网EPG';
-    } catch(e) { return '外网EPG'; }
-}
-async function persistImportedMeta(items) {
-    try {
-        const epgUrls = (window.__lastM3UImport && window.__lastM3UImport.epgHeaderUrls) ? window.__lastM3UImport.epgHeaderUrls : [];
-        let groups = Array.from(new Set(items.map(x => String(x.groupTitle||'').trim()).filter(Boolean)));
-        try {
-            const cur = await fetch('/api/config/group-titles').then(r=>r.json()).catch(()=>({titles:[],titlesObj:[]}));
-            const now = Array.isArray(cur.titles) ? cur.titles : [];
-            const merged = Array.from(new Set(now.concat(groups))).filter(Boolean).map(n => ({name:n,color:''}));
-            await fetch('/api/config/group-titles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({titlesObj:merged})});
-        } catch(e) {}
-        if (Array.isArray(epgUrls) && epgUrls.length>0) {
-            try {
-                const cur = await fetch('/api/config/epg-sources').then(r=>r.json()).catch(()=>({sources:[]}));
-                const list = Array.isArray(cur.sources)?cur.sources:[];
-                const add = [];
-                epgUrls.forEach(u=>{
-                    const scope = classifyScopeByUrl(u);
-                    const exists = list.find(x => x && x.url === u);
-                    if (!exists) add.push({ name: '导入EPG/'+(function(){try{ return new URL(u).hostname }catch(e){ return '源' }})(), url: u, scope });
-                });
-                if (add.length>0) {
-                    const merged = list.concat(add).map(x=>({id:x.id||'',name:x.name||'未命名EPG',url:x.url,scope:(x.scope==='外网EPG'?'外网EPG':'内网EPG')}));
-                    await fetch('/api/config/epg-sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sources:merged})});
-                }
-            } catch(e) {}
-        }
-        let existing = [];
-        try { existing = await fetch('/api/streams').then(r=>r.json()).then(j=>Array.isArray(j.streams)?j.streams:[]); } catch(e) { existing = []; }
-        const byKey = {};
-        existing.forEach(s => { const k = normalizeKey(String(s.multicastUrl||'').trim()); if (k) byKey[k] = s; });
-        const tasks = [];
-        items.forEach(it=>{
-            const u = String(it.url||'').trim();
-            if(!u) return;
-            const key = normalizeKey(u);
-            const cur = byKey[key] || {};
-            let mUrl = cur.multicastUrl || (function(){
-                try {
-                    const uu = new URL(u);
-                    if (uu.pathname.includes('/rtp/')) {
-                        const seg = uu.pathname.split('/rtp/')[1] || '';
-                        const ip = seg.split('?')[0] || '';
-                        if (ip) return 'rtp://' + ip;
-                    }
-                } catch(e) {}
-                return u;
-            })();
-            const upd = {};
-            if (!cur.tvgId && it.tvgId) upd.tvgId = it.tvgId;
-            if (!cur.tvgName && it.tvgName) upd.tvgName = it.tvgName;
-            if (!cur.groupTitle && it.groupTitle) upd.groupTitle = it.groupTitle;
-            if (!cur.name && it.name) upd.name = it.name;
-            const logoNow = String(cur.logo||'').trim();
-            if (!logoNow && it.tvgLogo) upd.logo = it.tvgLogo;
-            if (it.catchup) upd.m3uCatchup = it.catchup;
-            if (it.catchupSource) upd.m3uCatchupSource = it.catchupSource;
-            if (Object.keys(upd).length>0) {
-                tasks.push(fetch('/api/stream/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({udpxyUrl:cur.udpxyUrl||'',multicastUrl:mUrl,update:upd})}).catch(()=>null));
-            }
-        });
-        if (tasks.length>0) await Promise.all(tasks);
-    } catch(e) {}
-}
-function normalizeKey(url) {
-    if (url.startsWith('rtp://')) {
-        const p = parseRtpUrl(url);
-        return p ? ('rtp:' + p.ip) : ('rtp:' + url);
-    }
-    try {
-        const u = new URL(url);
-        if (u.pathname.includes('/rtp/')) {
-            const seg = u.pathname.split('/rtp/')[1] || '';
-            const ip = seg.split(':')[0] || '';
-            return ip ? ('rtp:' + ip) : ('http:' + u.hostname + u.pathname);
-        }
-        return 'http:' + u.hostname + u.pathname;
-    } catch(e) {
-        return (url.split('?')[0] || url);
-    }
-}
-function unifyChannelNames(items) {
-    const groups = new Map();
-    for (const it of items) {
-        const k = normalizeKey(String(it.url || '').trim().replace(/^[`'"]+|[`'"]+$/g, ''));
-        const arr = groups.get(k) || [];
-        arr.push(it);
-        groups.set(k, arr);
-    }
-    for (const [k, arr] of groups.entries()) {
-        let canonical = '';
-        for (const x of arr) {
-            if (x.name && x.name.trim()) { canonical = x.name.trim(); break; }
-        }
-        if (!canonical) {
-            if (k.startsWith('rtp:')) canonical = k.slice(4);
-            else canonical = (arr[0].name || '').trim() || '频道';
-        }
-        for (const x of arr) x.name = canonical;
-    }
-    return items;
-}
-async function batchCheckStreamsMixed(udpxyUrl, batchText) {
-    const lines = batchText.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-    const rawList = lines.map(line => {
-        const parts = line.split(',');
-        let nm = '';
-        let u0 = '';
-        if (parts.length <= 1) {
-            u0 = parts[0] ? parts[0].trim() : '';
-        } else {
-            nm = parts[0] ? parts[0].trim() : '';
-            u0 = parts.slice(1).join(',').trim();
-        }
-        nm = nm.replace(/^[`'"]+|[`'"]+$/g, '');
-        u0 = u0.replace(/^[`'"]+|[`'"]+$/g, '');
-        return { name: nm, url: u0 };
-    }).filter(item => item.url && (item.url.startsWith('rtp://') || item.url.startsWith('http://') || item.url.startsWith('https://')));
-    // 扩展单播URL中的 [start-end] 范围
-    function expandBracketRange(u) {
-        const m = u.match(/\[(\d+)\s*-\s*(\d+)\]/);
-        if (!m) return [u];
-        const a = m[1], b = m[2];
-        let start = parseInt(a, 10), end = parseInt(b, 10);
-        if (isNaN(start) || isNaN(end)) return [u];
-        if (start > end) { const t = start; start = end; end = t; }
-        const width = a.length; // 保留原有位数的前导零
-        const prefix = u.slice(0, m.index);
-        const suffix = u.slice(m.index + m[0].length);
-        const out = [];
-        for (let i = start; i <= end; i++) {
-            const num = String(i).padStart(width, '0');
-            out.push(prefix + num + suffix);
-        }
-        return out;
-    }
-    let list = [];
-    rawList.forEach(item => {
-        const urls = expandBracketRange(item.url);
-        urls.forEach(exp => list.push({ name: item.name, url: exp }));
-    });
-    if (list.length === 0) {
-        showCenterConfirm('请粘贴有效的地址', null, true);
-        return;
-    }
-    try {
-        let finished = 0;
-        let lastSuccess = null;
-        const limit = parseInt((document.getElementById('concurrencySelect') && document.getElementById('concurrencySelect').value) || '5', 10);
-        showProgress(0, list.length, `正在检测（单播范围），共${list.length}条`);
-        let idx = 0;
-        async function detectOne(item, index) {
-            if (detectCancel) return;
-            showProgress(finished, list.length, `正在检测: ${item.name || '-'} (${index+1}/${list.length})`);
-            let resp;
-            const isUdpRtpHttp = item.url.startsWith('http://') || item.url.startsWith('https://');
-            let asRtp = null;
-            if (isUdpRtpHttp) {
-                try {
-                    const u = new URL(item.url);
-                    if (u.pathname.includes('/rtp/')) {
-                        const seg = u.pathname.split('/rtp/')[1] || '';
-                        const ipPort = seg.split('?')[0];
-                        if (ipPort && ipPort.includes(':')) {
-                            asRtp = 'rtp://' + ipPort;
-                        }
-                    }
-                } catch(e) {}
-            }
-            if (item.url.startsWith('rtp://') || asRtp) {
-                resp = await fetch('/api/check-stream', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ udpxyUrl, multicastUrl: asRtp ? asRtp : item.url, name: item.name }),
-                });
-            } else {
-                resp = await fetch('/api/check-http-stream', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: item.url, name: item.name }),
-                });
-            }
-            const data = await resp.json();
-            finished++;
-            showProgress(finished, list.length, `检测: ${item.name || '-'} | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
-            if (data.success) {
-                lastSuccess = { ...data, name: item.name, multicastUrl: item.url };
-            }
-            if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
-        }
-        async function runNext() {
-            if (detectCancel || idx >= list.length) return;
-            const i = idx++;
-            const item = list[i];
-            await detectOne(item, i);
-            await runNext();
-        }
-        await Promise.all(Array(Math.min(limit, list.length)).fill(0).map(() => runNext()));
-        const responseAll = await fetch('/api/streams');
-        const allData = await responseAll.json();
-        const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
-        const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
-        showProgress(list.length, list.length, detectCancel ? `检测停止 | 已完成: ${finished} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${list.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
-        try { showDetectionSummary(allData.streams || []); } catch(e) {}
-        try { notifyDetectionDone(onlineCount, offlineCount, (allData.streams||[]).length); } catch(e) {}
-        getStreams();
-    } catch (error) {
-        showProgress(1, 1, '批量检测请求失败');
-        setTimeout(hideProgress, 1800);
-    }
-}
         // 清除按钮逻辑（普通清除）
-        document.getElementById('clearAllBtn').onclick = async function() {
-            showCenterConfirm('确定要清空所有检测结果吗？', async function(ok) {
-                if (!ok) return;
-                await fetch('/api/streams', { method: 'DELETE' });
-                getStreams();
-            });
-        };
-        // 组播检测、检测结果标题字号风格统一
-const groupTitle = document.querySelector('.main-card h5.mb-3.text-center');
-if (groupTitle) {
-    groupTitle.style.fontSize = '1.25rem';
-    groupTitle.style.fontWeight = 'bold';
-    groupTitle.style.letterSpacing = '1px';
-    groupTitle.style.marginBottom = '18px';
-}
-const resultTitle = document.querySelector('.main-card.mt-4 h5.mb-0, .main-card.mt-4 h4.mb-0');
-if (resultTitle) {
-    resultTitle.style.fontSize = '1.25rem';
-    resultTitle.style.fontWeight = 'bold';
-    resultTitle.style.letterSpacing = '1px';
-    resultTitle.style.marginBottom = '18px';
-}
-// 2. 操作区布局调整
-const opRow = document.querySelector('.main-card.mt-4 .row.mb-2 .col-12.d-flex');
-if (opRow) {
-    // 搜索框靠左
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.classList.add('me-3');
-        opRow.insertBefore(searchInput, opRow.firstChild);
-    }
-    // 筛选按钮居中
-    const btnAll = document.getElementById('filterAll');
-    const btnOnline = document.getElementById('filterOnline');
-    const btnOffline = document.getElementById('filterOffline');
-    const btnClear = document.getElementById('clearAllBtn');
-    if (btnAll && btnOnline && btnOffline && btnClear) {
-        const btnGroup = document.createElement('div');
-        btnGroup.className = 'd-flex justify-content-center align-items-center';
-        btnGroup.style.gap = '8px';
-        btnGroup.appendChild(btnAll);
-        btnGroup.appendChild(btnOnline);
-        btnGroup.appendChild(btnOffline);
-        btnGroup.appendChild(btnClear);
-        opRow.appendChild(btnGroup);
-    }
-    // 移除每页显示和页码相关内容
-    const pageSizeSelect = document.getElementById('pageSizeSelect');
-    const pageInfo = document.getElementById('pageInfo');
-    if (pageSizeSelect) pageSizeSelect.remove();
-    if (pageInfo) pageInfo.remove();
-    // 不再插入页码相关div
-}
-        // 显示统计和流列表
-        function updateStatsAndDisplay() {
-            const search = lastSearch.trim().toLowerCase();
-            let filtered = allStreams;
-            if (search) {
-                filtered = allStreams.filter(s => (s.name || '').toLowerCase().includes(search) || (s.multicastUrl || '').toLowerCase().includes(search));
-            }
-            if (filterStatus === 'online') filtered = filtered.filter(s => s.isAvailable);
-            if (filterStatus === 'offline') filtered = filtered.filter(s => !s.isAvailable);
-            const online = filtered.filter(s => s.isAvailable);
-            const offline = filtered.filter(s => !s.isAvailable);
-            document.getElementById('stat-total').innerText = filtered.length;
-            document.getElementById('stat-online').innerText = online.length;
-            document.getElementById('stat-offline').innerText = offline.length;
-            // 直接显示全部，不分页
-            const total = filtered.length;
-            const sizeVal = pageSize === 'all' ? total : Number(pageSize);
-            const pages = sizeVal >= total ? 1 : Math.max(1, Math.ceil(total / sizeVal));
-            if (currentPage > pages) currentPage = pages;
-            if (currentPage < 1) currentPage = 1;
-            const start = (sizeVal >= total) ? 0 : (currentPage - 1) * sizeVal;
-            const end = (sizeVal >= total) ? total : Math.min(start + sizeVal, total);
-            const pageArr = filtered.slice(start, end);
-            // 单行显示
-            const render = arr => arr.map((stream, idx) => `
-    <div class="stream-item d-flex align-items-center ${stream.isAvailable ? 'available' : 'unavailable'} p-3 mb-2 rounded border bg-white shadow-sm position-relative overflow-hidden">
-        <div class="d-flex align-items-center flex-grow-1 gap-3 flex-wrap">
-            <div class="form-check mb-0">
-                 <input type="checkbox" class="form-check-input sel-index" data-index="${allStreams.indexOf(stream)}">
-            </div>
-            
-            ${stream.logo ? `<img src="${stream.logo}" alt="" class="rounded bg-light border" style="width:48px;height:48px;object-fit:contain;" onerror="if(!this.dataset.err){this.dataset.err=1;this.src='/api/proxy/stream?url='+encodeURIComponent(this.src);}">` : '<div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width:48px;height:48px;"><i class="bi bi-tv"></i></div>'}
-            
-            <div class="d-flex flex-column" style="min-width: 180px; max-width: 300px;">
-                <span class="fw-bold text-dark text-truncate" title="${stream.name || ''}">${stream.name || '未命名频道'}</span>
-                <span class="small text-muted text-truncate font-monospace" title="${stream.multicastUrl}">${stream.multicastUrl}</span>
-            </div>
 
-            <div class="d-flex flex-wrap gap-2 align-items-center ms-lg-3">
-                 <span class="badge ${stream.isAvailable ? 'bg-success' : 'bg-danger'} rounded-pill d-flex align-items-center">
-                    ${stream.isAvailable ? '<i class="bi bi-check-circle-fill me-1"></i>在线' : '<i class="bi bi-x-circle-fill me-1"></i>离线'}
-                 </span>
-                 ${stream.isAvailable ? `
-                     <span class="badge bg-light text-dark border">Resolution: ${stream.resolution || '-'}</span>
-                     <span class="badge bg-light text-dark border">FPS: ${stream.frameRate || '-'}</span>
-                     <span class="badge bg-light text-dark border">Codec: ${stream.codec || '-'}</span>
-                 ` : ''}
-                 ${stream.groupTitle ? `<span class="badge bg-info text-dark bg-opacity-10 border border-info">Group: ${stream.groupTitle}</span>` : ''}
-            </div>
-        </div>
 
-        <div class="d-flex gap-2 ms-auto align-self-center">
-            <button class="btn btn-sm btn-outline-success" onclick="openExternalPlayerIndex(${allStreams.indexOf(stream)})" title="外部播放器">
-                <i class="bi bi-box-arrow-up-right"></i> <span class="d-none d-md-inline">外部</span>
-            </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="playStreamByIndex(${allStreams.indexOf(stream)})" title="网页播放">
-                    <i class="bi bi-play-circle"></i> <span class="d-none d-md-inline">播放</span>
-                </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteStream(${allStreams.indexOf(stream)})" title="删除">
-                <i class="bi bi-trash"></i> <span class="d-none d-md-inline">删除</span>
-            </button>
-        </div>
-    </div>
-`).join('');
-            document.getElementById('streams-list').innerHTML = render(pageArr);
-            const info = document.getElementById('pageInfo');
-            const sel = document.getElementById('pageSizeSelect');
-            const prev = document.getElementById('prevPageBtn');
-            const next = document.getElementById('nextPageBtn');
-            if (info) info.textContent = (sizeVal >= total) ? `第 1/1 页（共 ${total} 条）` : `第 ${currentPage}/${pages} 页（共 ${total} 条）`;
-            if (sel) {
-                sel.value = (pageSize === 'all') ? 'all' : String(pageSize);
-                sel.onchange = function() {
-                    pageSize = this.value === 'all' ? 'all' : Number(this.value);
-                    currentPage = 1;
-                    updateStatsAndDisplay();
-                };
-            }
-            if (prev) prev.onclick = function() { if (currentPage > 1) { currentPage--; updateStatsAndDisplay(); } };
-            if (next) next.onclick = function() { if (sizeVal >= total) return; if (currentPage < pages) { currentPage++; updateStatsAndDisplay(); } };
-            const selectAllBox = document.getElementById('selectAllIndexPage');
-            if (selectAllBox) {
-                const boxes = Array.from(document.querySelectorAll('.sel-index'));
-                const allChecked = boxes.length > 0 && boxes.every(b => selectedSet.has(Number(b.dataset.index)));
-                selectAllBox.checked = allChecked;
-                selectAllBox.onchange = function() {
-                    const xs = Array.from(document.querySelectorAll('.sel-index'));
-                    xs.forEach(x => {
-                        const i = Number(x.dataset.index);
-                        if (this.checked) { selectedSet.add(i); x.checked = true; } else { selectedSet.delete(i); x.checked = false; }
-                    });
-                };
-            }
-            const boxes = Array.from(document.querySelectorAll('.sel-index'));
-            boxes.forEach(b => {
-                b.checked = selectedSet.has(Number(b.dataset.index));
-                b.onchange = function() {
-                    const i = Number(this.dataset.index);
-                    if (this.checked) selectedSet.add(i); else selectedSet.delete(i);
-                };
-            });
-        }
-        // 搜索功能
-        document.getElementById('searchInput').addEventListener('input', function() {
-            lastSearch = this.value;
-            updateStatsAndDisplay();
-        });
-        // 表单提交处理（范围检测）改为提示使用下方统一按钮
-        document.getElementById('streamForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            showCenterConfirm('请使用下方“检测”按钮进行统一检测', null, true);
-        });
-        function fillHostSelect(sel, defVal) {
-            sel.innerHTML = '';
-            for (let i = 1; i <= 254; i++) {
-                const opt = document.createElement('option');
-                opt.value = String(i);
-                opt.text = String(i);
-                sel.appendChild(opt);
-            }
-            sel.value = String(defVal);
-        }
-        function parseCIDR(cidrStr) {
-            const parts = (cidrStr || '').trim().split('/');
-            if (parts.length !== 2) return null;
-            const ipStr = parts[0].trim();
-            const maskLen = parseInt(parts[1], 10);
-            if (isNaN(maskLen) || maskLen < 0 || maskLen > 32) return null;
-            const octets = ipStr.split('.').map(n => parseInt(n, 10));
-            if (octets.length !== 4 || octets.some(n => isNaN(n) || n < 0 || n > 255)) return null;
-            const ip = ((octets[0] << 24) >>> 0) | (octets[1] << 16) | (octets[2] << 8) | (octets[3] >>> 0);
-            const mask = maskLen === 0 ? 0 : ((0xFFFFFFFF << (32 - maskLen)) >>> 0);
-            const network = (ip & mask) >>> 0;
-            const hostmask = (~mask) >>> 0;
-            let start = network;
-            let end = (network | hostmask) >>> 0;
-            if (maskLen <= 30) {
-                start = (network + 1) >>> 0;
-                end = (end - 1) >>> 0;
-            }
-            function toIpString(v) {
-                return [(v >>> 24) & 0xFF, (v >>> 16) & 0xFF, (v >>> 8) & 0xFF, v & 0xFF].join('.');
-            }
-            return { start: toIpString(start), end: toIpString(end) };
-        }
-        function parseRtpUrl(u) {
-            const s = (u || '').trim();
-            if (!s.startsWith('rtp://')) return null;
-            const body = s.slice(6);
-            const parts = body.split(':');
-            if (parts.length !== 2) return null;
-            const ip = parts[0];
-            const port = parseInt(parts[1], 10);
-            const octets = ip.split('.').map(n => parseInt(n, 10));
-            if (octets.length !== 4 || octets.some(n => isNaN(n) || n < 0 || n > 255)) return null;
-            if (isNaN(port) || port < 1 || port > 65535) return null;
-            return { ip, port };
-        }
-        function ipv4ToInt(ip) {
-            const o = ip.split('.').map(n => parseInt(n, 10));
-            return ((o[0] << 24) >>> 0) | (o[1] << 16) | (o[2] << 8) | (o[3] >>> 0);
-        }
-        function updateRangeSummary() {
-            const startEl = document.getElementById('rangeStart');
-            const endEl = document.getElementById('rangeEnd');
-            const sumEl = document.getElementById('rangeSummary');
-            const cidrEl = document.getElementById('cidrInput');
-            if (!startEl || !endEl || !sumEl) return;
-            const s = parseRtpUrl(startEl.value);
-            const e = parseRtpUrl(endEl.value);
-            if (!s || !e) {
-                const cidrStr = cidrEl ? cidrEl.value.trim() : '';
-                const parts = cidrStr.split('/');
-                if (parts.length === 2) {
-                    const maskLen = parseInt(parts[1], 10);
-                    if (!isNaN(maskLen) && maskLen >= 0 && maskLen <= 32) {
-                        const total = maskLen === 32 ? 1 : (1 << (32 - maskLen));
-                        const count = maskLen <= 30 ? Math.max(total - 2, 0) : total;
-                        sumEl.value = `${cidrStr}  组播数量：${count}`;
-                        return;
-                    }
-                }
-                sumEl.value = '';
-                return;
-            }
-            const si = ipv4ToInt(s.ip);
-            const ei = ipv4ToInt(e.ip);
-            if (si > ei) {
-                sumEl.value = `${s.ip} - ${e.ip}  组播数量：-`;
-                return;
-            }
-            const count = (ei - si + 1);
-            sumEl.value = `${s.ip} - ${e.ip}  组播数量：${count}`;
-        }
-        window.addEventListener('DOMContentLoaded', function() {
-            const applyBtn = document.getElementById('applyCidrBtn');
-            if (applyBtn) {
-                applyBtn.addEventListener('click', function() {
-                    const cidr = document.getElementById('cidrInput').value.trim();
-                    const portVal = document.getElementById('portInput')?.value.trim();
-                    const port = portVal ? parseInt(portVal, 10) : 9000;
-                    if (isNaN(port) || port < 1 || port > 65535) {
-                        showCenterConfirm('端口需为1-65535之间的数字', null, true);
-                        return;
-                    }
-                    const rng = parseCIDR(cidr);
-                    if (!rng) {
-                        showCenterConfirm('CIDR格式不正确，示例：239.76.250.1/24', null, true);
-                        return;
-                    }
-                    const startEl = document.getElementById('rangeStart');
-                    const endEl = document.getElementById('rangeEnd');
-                    const startEmpty = !(startEl && startEl.value.trim());
-                    const endEmpty = !(endEl && endEl.value.trim());
-                    if (startEmpty && endEmpty) {
-                        if (startEl) startEl.value = `rtp://${rng.start}:${port}`;
-                        if (endEl) endEl.value = `rtp://${rng.end}:${port}`;
-                    }
-                    const sParsed = parseRtpUrl(startEl?.value || '');
-                    const eParsed = parseRtpUrl(endEl?.value || '');
-                    const appliedStart = sParsed ? sParsed.ip : rng.start;
-                    const appliedEnd = eParsed ? eParsed.ip : rng.end;
-                    let countStr = '-';
-                    if (sParsed && eParsed) {
-                        const si = ipv4ToInt(sParsed.ip);
-                        const ei = ipv4ToInt(eParsed.ip);
-                        if (si <= ei) countStr = String(ei - si + 1);
-                    } else {
-                        const parts = cidr.split('/');
-                        if (parts.length === 2) {
-                            const maskLen = parseInt(parts[1], 10);
-                            if (!isNaN(maskLen) && maskLen >= 0 && maskLen <= 32) {
-                                const total = maskLen === 32 ? 1 : (1 << (32 - maskLen));
-                                const count = maskLen <= 30 ? Math.max(total - 2, 0) : total;
-                                countStr = String(count);
-                            }
-                        }
-                    }
-                    showStatusInfo(`组播检测已应用CIDR：${cidr} → ${appliedStart} - ${appliedEnd}  检测组播数量：${countStr}`);
-                    updateRangeSummary();
-                });
-            }
-            const clearBtn = document.getElementById('clearCidrBtn');
-            if (clearBtn) {
-                clearBtn.addEventListener('click', function() {
-                    const startEl = document.getElementById('rangeStart');
-                    const endEl = document.getElementById('rangeEnd');
-                    const cidrEl = document.getElementById('cidrInput');
-                    const sumEl = document.getElementById('rangeSummary');
-                    if (startEl) startEl.value = '';
-                    if (endEl) endEl.value = '';
-                    if (cidrEl) cidrEl.value = '';
-                    if (sumEl) sumEl.value = '';
-                    showStatusInfo('');
-                    updateRangeSummary();
-                });
-            }
-            const rs = document.getElementById('rangeStart');
-            const re = document.getElementById('rangeEnd');
-            const ci = document.getElementById('cidrInput');
-            if (rs) rs.addEventListener('input', updateRangeSummary);
-            if (re) re.addEventListener('input', updateRangeSummary);
-            if (ci) ci.addEventListener('input', function() {
-                const cidr = ci.value.trim();
-                const rng = parseCIDR(cidr);
-                const portVal = document.getElementById('portInput')?.value.trim();
-                const port = portVal ? parseInt(portVal, 10) : 9000;
-                const startEl = document.getElementById('rangeStart');
-                const endEl = document.getElementById('rangeEnd');
-                if (rng) {
-                    if (startEl) startEl.value = `rtp://${rng.start}:${port}`;
-                    if (endEl) endEl.value = `rtp://${rng.end}:${port}`;
-                }
-                updateRangeSummary();
-            });
-            updateRangeSummary();
-        });
-        // 统一检测与停止按钮
-        document.getElementById('startDetectBtn').addEventListener('click', async () => {
-            if (detectRunning) return;
-            const startBtn = document.getElementById('startDetectBtn');
-            const stopBtn = document.getElementById('stopDetectBtn');
-            detectCancel = false;
-            detectRunning = true;
-            if (startBtn) startBtn.disabled = true;
-            if (stopBtn) stopBtn.disabled = false;
-            const udpxyUrl = document.getElementById('udpxyUrl').value;
-            const batchText = document.getElementById('batchInput').value;
-            const startUrl = document.getElementById('rangeStart').value.trim();
-            const endUrl = document.getElementById('rangeEnd').value.trim();
-            if (!udpxyUrl) {
-                showCenterConfirm('请先填写UDPXY服务器地址', null, true);
-                detectRunning = false;
-                if (startBtn) startBtn.disabled = false;
-                return;
-            }
-            try {
-                if (batchText.trim()) {
-                    await batchCheckStreamsMixed(udpxyUrl, batchText);
-                } else if (startUrl && endUrl) {
-                    await rangeCheckStreams(udpxyUrl, startUrl, endUrl);
-                } else {
-                    showCenterConfirm('请粘贴组播地址或填写范围再点击检测', null, true);
-                }
-            } finally {
-                detectRunning = false;
-                if (startBtn) startBtn.disabled = false;
-            }
-        });
-        document.getElementById('stopDetectBtn').addEventListener('click', () => {
-            detectCancel = true;
-            showStatusInfo('检测已请求停止，稍后结束当前任务');
-        });
-        // 导出功能
-        function exportData(type) {
-            // 弹窗说明
-            let msg = '';
-            if (type === 'txt') {
-                msg = 'TXT格式说明：包含分组行“分组名,#genre#”，其后为“频道名,地址”。';
-            } else if (type === 'm3u') {
-                msg = 'M3U格式说明：每行为标准M3U格式，地址为UDPXY服务器/rtp/ip:端口。\n如需对频道分组，请使用EPG软件进行操作。';
-            }
-            showCenterConfirm(msg, function(ok) {
-                if (!ok) return;
-                fetch('/api/streams').then(r => r.json()).then(data => {
-                    const streams = data.streams || [];
-                    const onlineEl = document.getElementById('exportOnline');
-                    const offlineEl = document.getElementById('exportOffline');
-                    const onlineChecked = onlineEl ? onlineEl.checked : false;
-                    const offlineChecked = offlineEl ? offlineEl.checked : false;
-                    if (!onlineChecked && !offlineChecked) {
-                        showCenterConfirm('请至少选择一种导出类型（在线/离线）', null, true);
-                        return;
-                    }
-                    let filtered = streams;
-                    if (onlineChecked && !offlineChecked) {
-                        filtered = streams.filter(s => s.isAvailable);
-                    } else if (!onlineChecked && offlineChecked) {
-                        filtered = streams.filter(s => !s.isAvailable);
-                    }
-                    if (filtered.length === 0) {
-                        showCenterConfirm('没有可导出的数据', null, true);
-                        return;
-                    }
-                    function qualityLabel(resolution) {
-                        const r = (resolution || '').toLowerCase();
-                        if (r === '720x576' || r === '1280x720') return '标清';
-                        if (r === '1920x1080') return '高清';
-                        if (r === '3840x2160') return '超高清';
-                        return '未知';
-                    }
-                    let content = '';
-                    let filename = '';
-                    if (type === 'txt') {
-                        content = filtered.map(s => {
-                            const q = qualityLabel(s.resolution);
-                            return `${s.name || ''},${s.multicastUrl},${q}`;
-                        }).join('\r\n');
-                        filename = (onlineChecked && !offlineChecked) ? 'iptv_online.txt' : (!onlineChecked && offlineChecked) ? 'iptv_offline.txt' : 'iptv_all.txt';
-                    } else if (type === 'm3u') {
-                        content = '#EXTM3U\r\n' + filtered.map(s => {
-                            const q = qualityLabel(s.resolution);
-                            const httpUrlBase = `${s.udpxyUrl}/rtp/${(s.multicastUrl||'').replace('rtp://','')}`;
-                            const fpsStr = s.frameRate ? `${s.frameRate}fps` : '-';
-                            const suffix = `$${q}-${fpsStr}`;
-                            const httpUrl = httpUrlBase + '?' + (s.httpParam ? s.httpParam : '') + (s.httpParam ? '' : '') + suffix;
-                            const tvgId = s.tvgId || '';
-                            const tvgName = s.tvgName || s.name || '';
-                            const tvgLogo = s.logo || '';
-                            const groupTitle = s.groupTitle || '';
-                            let catchupAttr = '';
-                            if (s.catchupBase) {
-                                if ((s.catchupFormat || 'ku9') === 'ku9') {
-                                    catchupAttr = ` catchup="default" catchup-source="${s.catchupBase}?starttime=${'${(b)yyyyMMdd|UTC}'}T${'${(b)HHmmss|UTC}'}&endtime=${'${(e)yyyyMMdd|UTC}'}T${'${(e)HHmmss|UTC}'}"`;
-                                } else {
-                                    catchupAttr = ` catchup="default" catchup-source="${s.catchupBase}?starttime={utc:yyyyMMddHHmmss}&endtime={utcend:yyyyMMddHHmmss}"`;
-                                }
-                            }
-                            return `#EXTINF:-1 tvg-id="${tvgId}" tvg-name="${tvgName}" tvg-logo="${tvgLogo}" group-title="${groupTitle}"${catchupAttr},${s.name || ''}\r\n${httpUrl}`;
-                        }).join('\r\n');
-                        filename = (onlineChecked && !offlineChecked) ? 'iptv_online.m3u' : (!onlineChecked && offlineChecked) ? 'iptv_offline.m3u' : 'iptv_all.m3u';
-                    }
-                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
-                });
-            }, true);
-        }
-        // 范围检测工具与入口
-        function ipToInt(ip) {
-            const parts = ip.split('.').map(Number);
-            if (parts.length !== 4 || parts.some(n => isNaN(n) || n < 0 || n > 255)) return null;
-            return (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3];
-        }
-        function intToIp(intv) {
-            const a = (intv >>> 24) & 255, b = (intv >>> 16) & 255, c = (intv >>> 8) & 255, d = intv & 255;
-            return `${a}.${b}.${c}.${d}`;
-        }
-        function parseRtp(url) {
-            const u = (url || '').trim();
-            if (!u.startsWith('rtp://')) return null;
-            const hostPort = u.replace('rtp://', '');
-            const [host, portStr] = hostPort.split(':');
-            const port = Number(portStr);
-            const ipInt = ipToInt(host);
-            if (!ipInt || !port) return null;
-            return { ipInt, port, host };
-        }
-        async function rangeCheckStreams(udpxyUrl, startUrl, endUrl) {
-            if (!udpxyUrl) { showCenterConfirm('请先选择UDPXY服务器', null, true); return; }
-            const s = parseRtp(startUrl);
-            const e = parseRtp(endUrl);
-            if (!s || !e) { showCenterConfirm('请输入正确的范围（rtp://ip:port）', null, true); return; }
-            if (s.port !== e.port) { showCenterConfirm('起止端口需一致', null, true); return; }
-            let a = s.ipInt, b = e.ipInt;
-            if (a > b) [a, b] = [b, a];
-            const total = (b - a + 1);
-            let count = total;
-            showProgress(0, count, `正在范围检测，共${count}条`);
-            const multicastList = [];
-            for (let i = 0; i < count; i++) {
-                const ip = intToIp(a + i);
-                multicastList.push({ name: '', multicastUrl: `rtp://${ip}:${s.port}` });
-            }
-            try {
-                let lastSuccess = null;
-                let idx = 0;
-                let finished = 0;
-                const limit = parseInt((document.getElementById('concurrencySelect') && document.getElementById('concurrencySelect').value) || '5', 10);
-                async function detectOne(item) {
-                    if (detectCancel) return;
-                    const resp = await fetch('/api/check-stream', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ udpxyUrl, multicastUrl: item.multicastUrl, name: '' })
-                    });
-                    const data = await resp.json();
-                    finished++;
-                    showProgress(finished, multicastList.length, `检测: (${udpxyUrl}/rtp/${item.multicastUrl.replace('rtp://','')}) | 分辨率:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
-                    if (data.success) lastSuccess = { ...data, name: '', multicastUrl: item.multicastUrl };
-                    if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
-                }
-                async function runNext() {
-                    if (detectCancel || idx >= multicastList.length) return;
-                    const item = multicastList[idx++];
-                    showProgress(finished, multicastList.length, `正在检测: (${udpxyUrl}/rtp/${item.multicastUrl.replace('rtp://','')})`);
-                    await detectOne(item);
-                    await runNext();
-                }
-                await Promise.all(Array(Math.min(limit, multicastList.length)).fill(0).map(() => runNext()));
-                const responseAll = await fetch('/api/streams');
-                const allData = await responseAll.json();
-                const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
-                const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
-                showProgress(multicastList.length, multicastList.length, detectCancel ? `检测停止 | 已完成: ${finished} 在线: ${onlineCount} 离线: ${offlineCount}` : `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
-                getStreams();
-            } catch (err) {
-                showProgress(1, 1, '范围检测请求失败');
-                setTimeout(hideProgress, 1800);
-            }
-        }
-        // 进度条上方、下方、进度条本身样式统一美化
-function showStatusInfo(text) {
-    let statusDiv = document.getElementById('progressStatusInfo');
-    if (!statusDiv) {
-        statusDiv = document.createElement('div');
-        statusDiv.id = 'progressStatusInfo';
-        // 插入到批量检测按钮下方，进度条上方
-        const batchBtn = document.getElementById('batchCheckBtn');
-        if (batchBtn && batchBtn.parentNode.parentNode.nextElementSibling) {
-            batchBtn.parentNode.parentNode.parentNode.insertBefore(statusDiv, batchBtn.parentNode.parentNode.nextElementSibling);
-        } else {
-            // 兜底：插入到进度条上方
-            const barWrap = document.getElementById('progressBarWrap');
-            barWrap.parentNode.insertBefore(statusDiv, barWrap);
-        }
-    }
-    statusDiv.style.display = '';
-    statusDiv.style.marginTop = '12px'; // 增加与按钮的间距
-    statusDiv.innerHTML = text;
-}
-function hideStatusInfo() {
-    let statusDiv = document.getElementById('progressStatusInfo');
-    if (statusDiv) statusDiv.style.display = 'none';
-}
-// 修改 showProgress 让进度条上方/下方/进度条本身样式一致
-function showProgress(done, total, status) {
-    const barWrap = document.getElementById('progressBarWrap');
-    const bar = document.getElementById('progressBar');
-    barWrap.style.display = '';
-    let percent = total ? Math.round(done / total * 100) : 0;
-    bar.style.width = percent + '%';
-    bar.innerText = `${percent}% | 进度: ${done}/${total} | ${status || ''}`;
-    showStatusInfo(status || '');
-}
-function hideProgress() {
-    document.getElementById('progressBarWrap').style.display = 'none';
-    hideStatusInfo();
-    let lastResultDiv = document.getElementById('lastResultInfo');
-    if (lastResultDiv) lastResultDiv.style.display = 'none';
-    let currentCheckInfo = document.getElementById('currentCheckInfo');
-    if (currentCheckInfo) currentCheckInfo.style.display = 'none';
-}
+
 // UDPXY服务器管理：多服务器添加、删除与选择（localStorage 持久化）
 const UDPS_KEY = 'udpxyServers';
 const UDP_CURR_KEY = 'udpxyCurrentId';
@@ -1442,16 +328,18 @@ function renderUdpxySelect() {
 async function syncUdpxyServersBackend() {
     const list = getUdpxyServers();
     const curr = getCurrentUdpxyId();
-    await fetch('/api/config/udpxy-servers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ servers: list, currentId: curr }) });
+    await apiJson('/api/config/udpxy-servers', { method: 'POST', body: { servers: list, currentId: curr } });
 }
 async function loadUdpxyServersBackend() {
     try {
-        const r = await fetch('/api/config/udpxy-servers');
-        const j = await r.json();
-        if (j.success && Array.isArray(j.servers) && j.servers.length > 0) {
-            localStorage.setItem(UDPS_KEY, JSON.stringify(j.servers));
-            if (j.currentId) localStorage.setItem(UDP_CURR_KEY, j.currentId);
-        }
+        const j = await apiJson('/api/config/udpxy-servers');
+        if (!j || !j.success) return;
+        const list = Array.isArray(j.servers) ? j.servers : [];
+        localStorage.setItem(UDPS_KEY, JSON.stringify(list));
+        let currId = typeof j.currentId === 'string' ? j.currentId : '';
+        if (!currId && list[0] && list[0].id) currId = String(list[0].id);
+        if (currId) localStorage.setItem(UDP_CURR_KEY, currId);
+        else localStorage.removeItem(UDP_CURR_KEY);
     } catch(e) {}
 }
 function addUdpxy(name, url) {
@@ -1487,14 +375,14 @@ function deleteCurrentUdpxy() {
 // 页面加载时：初始化服务器选择与只读地址
 window.addEventListener('DOMContentLoaded', function() {
     // 从后端恢复设置到本地缓存（分组、Logo模板、FCC服务器）
-    fetch('/api/settings').then(r => r.json()).then(j => {
+    apiJson('/api/settings').then(j => {
         if (j.success && j.settings) {
             if (Array.isArray(j.settings.groupTitles)) localStorage.setItem('groupTitles', JSON.stringify(j.settings.groupTitles));
             if (typeof j.settings.logoTemplate === 'string') localStorage.setItem('logoTemplate', j.settings.logoTemplate);
             if (Array.isArray(j.settings.fccServers)) localStorage.setItem('fccServers', JSON.stringify(j.settings.fccServers));
         }
     }).catch(() => {});
-    fetch('/api/config/group-titles').then(r => r.json()).then(j => {
+    apiJson('/api/config/group-titles').then(j => {
         if (!j || !j.success) return;
         const localListRaw = localStorage.getItem('groupTitles');
         const localList = (() => { try { return JSON.parse(localListRaw || '[]'); } catch(e) { return []; } })();
@@ -1530,10 +418,21 @@ window.addEventListener('DOMContentLoaded', function() {
     // 版本列表初始化与事件
     function getCurrentVersionFile() { try { return localStorage.getItem('currentVersionFile') || ''; } catch(e) { return ''; } }
     function setCurrentVersionFile(f) { try { localStorage.setItem('currentVersionFile', f || ''); } catch(e) {} }
+    function parseBackupValue(v) {
+        const raw = String(v || '');
+        const idx = raw.indexOf('|');
+        if (idx <= 0) return { type: '', filename: raw };
+        return { type: raw.slice(0, idx), filename: raw.slice(idx + 1) };
+    }
+    function formatBackupLabel(v) {
+        const dt = v && v.time ? new Date(v.time) : null;
+        const t = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '-';
+        const tag = v && v.type === 'sqlite-main' ? '主库' : (v && v.type === 'sqlite' ? 'SQLite备份' : 'JSON备份');
+        return '[' + tag + '] ' + v.file + ' · ' + t;
+    }
     async function refreshVersionsIndex(selectedFile, quiet) {
         try {
-            const r = await fetch('/api/persist/list');
-            const j = await r.json();
+            const j = await apiJson('/api/persist/backups');
             const sel = document.getElementById('versionsSelectIndex');
             if (!sel) return;
             sel.innerHTML = '';
@@ -1542,63 +441,116 @@ window.addEventListener('DOMContentLoaded', function() {
             placeholder.text = '请选择版本';
             sel.appendChild(placeholder);
             sel.value = '';
-            if (j.success && Array.isArray(j.versions) && j.versions.length > 0) {
-                j.versions.forEach(v => { const opt = document.createElement('option'); opt.value = v.file; opt.text = v.file; sel.appendChild(opt); });
+            if (j.success && Array.isArray(j.backups) && j.backups.length > 0) {
+                j.backups.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = `${v.type}|${v.file}`;
+                    opt.text = formatBackupLabel(v);
+                    sel.appendChild(opt);
+                });
                 if (selectedFile) {
-                    const has = j.versions.find(v => v.file === selectedFile);
+                    const has = j.backups.find(v => `${v.type}|${v.file}` === selectedFile);
                     sel.value = has ? selectedFile : '';
                 }
-                if (!quiet) showCenterConfirm('刷新成功：共 ' + j.versions.length + ' 个版本', null, true);
+                if (!quiet) showCenterConfirm('刷新成功：共 ' + j.backups.length + ' 个备份（当前模式：' + (j.mode || '-') + '）', null, true);
             } else {
-                if (!quiet) showCenterConfirm('刷新成功：暂无版本', null, true);
+                if (!quiet) showCenterConfirm('刷新成功：当前模式暂无可用备份', null, true);
             }
+            ensureBackupSafetyHintIndex();
         } catch(e) {}
+    }
+    function ensureBackupSafetyHintIndex() {
+        const sel = document.getElementById('versionsSelectIndex');
+        if (!sel) return;
+        let tip = document.getElementById('backupSafetyHintIndex');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'backupSafetyHintIndex';
+            tip.style.cssText = 'margin-top:8px;color:#dc3545;font-size:12px;font-weight:600;';
+            sel.parentNode && sel.parentNode.appendChild(tip);
+        }
+        tip.textContent = '重要提示：请先预览备份数据。确认无误后，再通过确认弹窗恢复到主库。';
+    }
+    async function applyLoadedPayloadIndex(meta, filename, j, selected, previewMode) {
+        if (Array.isArray(j.streams)) {
+            allStreams = j.streams;
+            updateStatsAndDisplay();
+        } else {
+            await getStreams();
+        }
+        if (Array.isArray(j.settings?.groupTitles)) localStorage.setItem('groupTitles', JSON.stringify(j.settings.groupTitles));
+        if (typeof j.settings?.logoTemplate === 'string') localStorage.setItem('logoTemplate', j.settings.logoTemplate);
+        if (Array.isArray(j.settings?.fccServers)) localStorage.setItem('fccServers', JSON.stringify(j.settings.fccServers));
+        const total = typeof j.loadedCount === 'number' ? j.loadedCount : (Array.isArray(allStreams) ? allStreams.length : 0);
+        const online = Array.isArray(allStreams) ? allStreams.filter(s => s.isAvailable).length : 0;
+        const offline = total - online;
+        const label = meta.type === 'sqlite-main' ? ('SQLite主库 ' + filename) : (meta.type === 'sqlite' ? ('SQLite备份 ' + filename) : ('JSON备份 ' + filename));
+        setCurrentVersionFile(selected);
+        await refreshVersionsIndex(selected, true);
+        if (previewMode) {
+            showCenterConfirm('已预览：' + label + '（总 ' + total + '，在线 ' + online + '，离线 ' + offline + '）。请确认无误后再恢复主库。', null, true);
+            return;
+        }
+        const backupTip = j && j.preBackup ? ('；恢复前已创建保护备份：' + j.preBackup) : '';
+        showCenterConfirm('已恢复：' + label + ' 到主库（总 ' + total + '，在线 ' + online + '，离线 ' + offline + '）' + backupTip, null, true);
     }
     async function loadSelectedVersionIndex() {
         const sel = document.getElementById('versionsSelectIndex');
         if (!sel || !sel.value) { showCenterConfirm('请先选择要加载的版本', null, true); return; }
-        const filename = sel.value;
-        const r = await fetch('/api/persist/load-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
-        const j = await r.json();
-        if (j.success) {
-            setCurrentVersionFile(filename);
-            await refreshVersionsIndex(filename, true);
-            await getStreams();
-            if (Array.isArray(j.settings?.groupTitles)) localStorage.setItem('groupTitles', JSON.stringify(j.settings.groupTitles));
-            if (typeof j.settings?.logoTemplate === 'string') localStorage.setItem('logoTemplate', j.settings.logoTemplate);
-            if (Array.isArray(j.settings?.fccServers)) localStorage.setItem('fccServers', JSON.stringify(j.settings.fccServers));
-            try {
-                const total = Array.isArray(allStreams) ? allStreams.length : 0;
-                const online = Array.isArray(allStreams) ? allStreams.filter(s => s.isAvailable).length : 0;
-                const offline = total - online;
-                showCenterConfirm('已加载版本：' + filename + '（总 ' + total + '，在线 ' + online + '，离线 ' + offline + '）', null, true);
-            } catch(e) {}
+        const selected = sel.value;
+        const meta = parseBackupValue(selected);
+        const filename = meta.filename;
+        if (meta.type === 'sqlite') {
+            const jp = await apiJson('/api/persist/preview-backup', { method: 'POST', body: { type: meta.type, filename } });
+            if (!(jp && jp.success)) {
+                showCenterConfirm('预览失败：' + (jp && jp.message ? jp.message : '未知错误'), null, true);
+                return;
+            }
+            await applyLoadedPayloadIndex(meta, filename, jp, selected, true);
+            showCenterConfirm('预览完成。确认恢复后将覆盖主库，是否继续恢复？', async function(ok){
+                if (!ok) return;
+                const jr = await apiJson('/api/persist/restore-backup', { method: 'POST', body: { type: meta.type, filename, confirmed: true } });
+                if (!(jr && jr.success)) {
+                    showCenterConfirm('恢复失败：' + (jr && jr.message ? jr.message : '未知错误'), null, true);
+                    return;
+                }
+                await applyLoadedPayloadIndex(meta, filename, jr, selected, false);
+            });
+            return;
         }
+        const j = await apiJson('/api/persist/load-backup', { method: 'POST', body: { type: meta.type, filename } });
+        if (!(j && j.success)) {
+            showCenterConfirm('加载失败：' + (j && j.message ? j.message : '未知错误'), null, true);
+            return;
+        }
+        await applyLoadedPayloadIndex(meta, filename, j, selected, false);
     }
     async function deleteSelectedVersionIndex() {
         const sel = document.getElementById('versionsSelectIndex');
-        const filename = sel && sel.value ? sel.value : '';
-        if (!filename) { showCenterConfirm('请先选择要删除的版本', null, true); return; }
-        const r = await fetch('/api/persist/delete-version', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) });
-        const j = await r.json();
+        const selected = sel && sel.value ? sel.value : '';
+        if (!selected) { showCenterConfirm('请先选择要删除的版本', null, true); return; }
+        const meta = parseBackupValue(selected);
+        if (meta.type === 'sqlite-main') { showCenterConfirm('主库不可删除', null, true); return; }
+        const filename = meta.filename;
+        const j = await apiJson('/api/persist/delete-backup', { method: 'POST', body: { type: meta.type, filename } });
         if (j && j.success) {
-            if (getCurrentVersionFile() === filename) setCurrentVersionFile('');
+            if (getCurrentVersionFile() === selected) setCurrentVersionFile('');
             await refreshVersionsIndex('', true);
-            showCenterConfirm('已删除版本：' + filename, null, true);
+            showCenterConfirm('已删除备份：' + filename, null, true);
         } else {
             showCenterConfirm('删除失败：' + (j && j.message ? j.message : '未知错误'), null, true);
         }
     }
     async function persistSaveIndex() {
-        const r = await fetch('/api/persist/save', { method: 'POST' });
-        const j = await r.json();
+        const j = await apiJson('/api/persist/save', { method: 'POST' });
         if (j.success) {
             try {
-                const lr = await fetch('/api/persist/list');
-                const lj = await lr.json();
-                const latest = (lj.success && Array.isArray(lj.versions) && lj.versions[0]) ? lj.versions[0].file : '';
                 await refreshVersionsIndex(getCurrentVersionFile(), true);
-                showCenterConfirm(latest ? ('保存成功：streams.json 与 ' + latest) : '保存成功：streams.json', null, true);
+                const parts = [];
+                if (j.jsonBackup) parts.push('JSON=' + j.jsonBackup);
+                if (j.sqliteBackup) parts.push('SQLite=' + j.sqliteBackup);
+                const txt = parts.length > 0 ? ('；同时间备份：' + parts.join('，')) : '';
+                showCenterConfirm('保存成功：streams.json' + txt, null, true);
             } catch(e) { showCenterConfirm('保存成功：streams.json', null, true); }
         }
     }
@@ -1606,16 +558,16 @@ window.addEventListener('DOMContentLoaded', function() {
         const curr = getCurrentVersionFile();
         let verCount = 0;
         try {
-            const r = await fetch('/api/persist/list');
-            const j = await r.json();
-            if (j.success && Array.isArray(j.versions)) verCount = j.versions.length;
+            const j = await apiJson('/api/persist/backups');
+            if (j.success && Array.isArray(j.backups)) verCount = j.backups.length;
         } catch(e) {}
         await refreshVersionsIndex(curr, true);
         await getStreams();
         const total = Array.isArray(allStreams) ? allStreams.length : 0;
         const online = Array.isArray(allStreams) ? allStreams.filter(s => s.isAvailable).length : 0;
         const offline = total - online;
-        const currLabel = curr && curr.length ? curr : 'streams.json';
+        const currMeta = parseBackupValue(curr);
+        const currLabel = curr && curr.length ? ((currMeta.type === 'sqlite-main' ? 'SQLite主库 ' : (currMeta.type === 'sqlite' ? 'SQLite备份 ' : 'JSON备份 ')) + currMeta.filename) : 'streams.json';
         showCenterConfirm('刷新成功：当前版本 ' + currLabel + '，版本 ' + verCount + ' 个，当前数据条数 ' + total + '（在线 ' + online + '，离线 ' + offline + '）', null, true);
     }
     const btnRefresh = document.getElementById('refreshVersionsBtnIndex');
@@ -1626,7 +578,44 @@ window.addEventListener('DOMContentLoaded', function() {
     if (btnLoad) btnLoad.onclick = loadSelectedVersionIndex;
     if (btnDelete) btnDelete.onclick = deleteSelectedVersionIndex;
     if (btnSave) btnSave.onclick = persistSaveIndex;
-    refreshVersionsIndex(getCurrentVersionFile(), true);
+    function bindSettingsTriggerIndex(btnId, targetId) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.onclick = function() {
+            const target = document.getElementById(targetId);
+            if (target) target.click();
+        };
+    }
+    function initTopSettingsBindingsIndex() {
+        const settingsWebdavBtnIndex = document.getElementById('settingsWebdavBtn');
+        if (settingsWebdavBtnIndex) settingsWebdavBtnIndex.onclick = function(){ jumpToResultsSettings('webdav'); };
+        const settingsAppBtnIndex = document.getElementById('settingsAppBtn');
+        if (settingsAppBtnIndex) settingsAppBtnIndex.onclick = function(){ jumpToResultsSettings('app'); };
+        const settingsFccBtnIndex = document.getElementById('settingsFccBtn');
+        if (settingsFccBtnIndex) settingsFccBtnIndex.onclick = function(){ jumpToResultsSettings('fcc'); };
+        const settingsGroupBtnIndex = document.getElementById('settingsGroupBtn');
+        if (settingsGroupBtnIndex) settingsGroupBtnIndex.onclick = function(){ jumpToResultsSettings('group'); };
+        const settingsLogoBtnIndex = document.getElementById('settingsLogoBtn');
+        if (settingsLogoBtnIndex) settingsLogoBtnIndex.onclick = function(){ jumpToResultsSettings('logo'); };
+        const settingsProxyBtnIndex = document.getElementById('settingsProxyBtn');
+        if (settingsProxyBtnIndex) settingsProxyBtnIndex.onclick = function(){ jumpToResultsSettings('proxy'); };
+        const settingsApiBtnIndex = document.getElementById('settingsApiBtn');
+        if (settingsApiBtnIndex) settingsApiBtnIndex.onclick = function(){ jumpToResultsSettings('api'); };
+        const settingsEpgBtnIndex = document.getElementById('settingsEpgBtn');
+        if (settingsEpgBtnIndex) settingsEpgBtnIndex.onclick = function(){ jumpToResultsSettings('epg'); };
+        const settingsReplayRulesBtnIndex = document.getElementById('settingsReplayRulesBtn');
+        if (settingsReplayRulesBtnIndex) settingsReplayRulesBtnIndex.onclick = function(){ jumpToResultsSettings('replayRules'); };
+    }
+    function jumpToResultsSettings(action) {
+        try { localStorage.setItem('openSettingsAction', String(action || 'open')); } catch(e) {}
+        window.location.href = '/results';
+    }
+    initTopSettingsBindingsIndex();
+    document.addEventListener('iptv:top-nav-ready', initTopSettingsBindingsIndex);
+    const indexVersionManager = window.IptvCore && window.IptvCore.index && typeof window.IptvCore.index.initVersionManager === 'function'
+        ? window.IptvCore.index.initVersionManager()
+        : null;
+    if (!indexVersionManager) refreshVersionsIndex(getCurrentVersionFile(), true);
     loadUdpxyServersBackend().then(() => { renderUdpxySelect(); });
     const select = document.getElementById('udpxySelect');
     const nameInput = document.getElementById('udpxyNameInput');
@@ -1663,283 +652,6 @@ window.addEventListener('DOMContentLoaded', function() {
         getStreams();
         // 页面加载时初始化统计
         updateInputCount();
-        function openPotPlayer(url) {
-    const schemes = [
-        'potplayer://' + url,
-        'potplayer://play?url=' + encodeURIComponent(url)
-    ];
-    let opened = false;
-    try {
-        window.location.href = schemes[0];
-        opened = true;
-    } catch(e) {}
-    setTimeout(() => {
-        if (!opened) {
-            try {
-                window.location.href = schemes[1];
-            } catch(e) {}
-        }
-    }, 200);
-}
-function openExternalPlayerUrl(url, title){
-    try{
-        var ua = navigator.userAgent || '';
-        if(/iPhone|iPad|iPod/i.test(ua)){
-            var t = 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(url);
-            if(title) t += '&title=' + encodeURIComponent(String(title));
-            window.location.href = t; 
-            return;
-        }
-        if(/Android/i.test(ua)){
-            window.location.href = 'vlc://' + url; 
-            return;
-        }
-        openPotPlayer(url);
-    }catch(e){}
-}
-function openExternalPlayerIndex(index){
-    try{
-        var s = allStreams[index];
-        if(!s) return;
-        function displayUrlBaseLocal(stream){
-            var u = String(stream.multicastUrl||'').trim();
-            var scheme = u.split(':')[0].toLowerCase();
-            var isMc = !!stream.udpxyUrl || scheme==='rtp' || scheme==='udp';
-            var useExternal = (localStorage.getItem('useExternal')==='true');
-            var proxyList=[];
-            try{ proxyList = JSON.parse(localStorage.getItem('proxyList')||'[]') }catch(e){}
-            var extUrl = localStorage.getItem('externalUrl')||'';
-            function currentUdpxy(){
-                try{
-                    var list = JSON.parse(localStorage.getItem('udpxyServers')||'[]');
-                    var curr = localStorage.getItem('udpxyCurrentId')||'';
-                    var item = list.find(function(x){ return x.id===curr });
-                    return (item&&item.url)||'';
-                }catch(e){ return '' }
-            }
-            if(isMc){
-                var base = '';
-                if(useExternal){
-                    var extItem = proxyList.find(function(x){ return x.type==='组播代理' });
-                    base = (extItem&&extItem.url)||extUrl||(stream.udpxyUrl||currentUdpxy()||'');
-                }else{
-                    base = (stream.udpxyUrl||currentUdpxy()||'');
-                }
-                base = String(base||'').trim().replace(/\/+$/, '');
-                var addr = u.replace(/^(rtp|udp):\/\//i, '');
-                return base + '/rtp/' + addr;
-            }else{
-                if(useExternal){
-                    var proxyItem = proxyList.find(function(x){ return x.type==='单播代理' });
-                    var pb = (proxyItem&&proxyItem.url)||'';
-                    if(pb){
-                        pb = pb.replace(/\/+$/,'');
-                        var stripped = u.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
-                        return pb + '/' + stripped;
-                    }
-                }
-                return u;
-            }
-        }
-        var base = displayUrlBaseLocal(s);
-        var u = String(s.multicastUrl||'').trim();
-        var isRtpOrUdp = /^(rtp|udp):\/\//i.test(u);
-        var isMc = !!s.udpxyUrl || isRtpOrUdp || base.indexOf('/rtp/') > -1;
-        if(isMc && s.httpParam){
-            var hasQ = base.indexOf('?') > -1;
-            if(base.indexOf(s.httpParam) === -1){
-                base = base + (hasQ ? '&' : '?') + s.httpParam;
-            }
-        }
-        var title = String(s.name||s.tvgName||'').trim();
-        openExternalPlayerUrl(base, title);
-    }catch(e){}
-}
-function playStreamByIndex(index){
-    try{
-        var s = allStreams[index];
-        if(!s) return;
-        function displayUrlBaseLocal(stream){
-            var u = String(stream.multicastUrl||'').trim();
-            var scheme = u.split(':')[0].toLowerCase();
-            var isMc = !!stream.udpxyUrl || scheme==='rtp' || scheme==='udp';
-            var useExternal = (localStorage.getItem('useExternal')==='true');
-            var proxyList=[];
-            try{ proxyList = JSON.parse(localStorage.getItem('proxyList')||'[]') }catch(e){}
-            var extUrl = localStorage.getItem('externalUrl')||'';
-            function currentUdpxy(){
-                try{
-                    var list = JSON.parse(localStorage.getItem('udpxyServers')||'[]');
-                    var curr = localStorage.getItem('udpxyCurrentId')||'';
-                    var item = list.find(function(x){ return x.id===curr });
-                    return (item&&item.url)||'';
-                }catch(e){ return '' }
-            }
-            if(isMc){
-                var base = '';
-                if(useExternal){
-                    var extItem = proxyList.find(function(x){ return x.type==='组播代理' });
-                    base = (extItem&&extItem.url)||extUrl||(stream.udpxyUrl||currentUdpxy()||'');
-                }else{
-                    base = (stream.udpxyUrl||currentUdpxy()||'');
-                }
-                base = String(base||'').trim().replace(/\/+$/, '');
-                var addr = u.replace(/^(rtp|udp):\/\//i, '');
-                return base + '/rtp/' + addr;
-            }else{
-                if(useExternal){
-                    var proxyItem = proxyList.find(function(x){ return x.type==='单播代理' });
-                    var pb = (proxyItem&&proxyItem.url)||'';
-                    if(pb){
-                        pb = pb.replace(/\/+$/,'');
-                        var stripped = u.replace(/^https?:\/\//i, '').replace(/^\/+/, '');
-                        return pb + '/' + stripped;
-                    }
-                }
-                return u;
-            }
-        }
-        var base = displayUrlBaseLocal(s);
-        var u = String(s.multicastUrl||'').trim();
-        var isRtpOrUdp = /^(rtp|udp):\/\//i.test(u);
-        var isMc = !!s.udpxyUrl || isRtpOrUdp || base.indexOf('/rtp/') > -1;
-        if(isMc && s.httpParam){
-            var hasQ = base.indexOf('?') > -1;
-            if(base.indexOf(s.httpParam) === -1){
-                base = base + (hasQ ? '&' : '?') + s.httpParam;
-            }
-        }
-        var title = String(s.name||s.tvgName||'').trim();
-        var tvgName = String(s.tvgName||s.name||'').trim();
-        var logo = String(s.logo||'').trim();
-        var useExternal = (localStorage.getItem('useExternal')==='true');
-        var qs = new URLSearchParams();
-        qs.set('url', base);
-        if(title) qs.set('title', title);
-        if(tvgName) qs.set('tvgName', tvgName);
-        if(!useExternal && logo) qs.set('logo', logo);
-        qs.set('live','1');
-        qs.set('ui','mini');
-        var w = window.open('/player.html?'+qs.toString(), 'player_live', 'width=1200,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
-        if(w){ w.focus&&w.focus(); }
-    }catch(e){}
-}
-function openEditModal(index) {
-    const s = allStreams[index];
-    let modal = document.getElementById('editModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'editModal';
-        modal.innerHTML = `
-        <div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.25);z-index:9999;">
-          <div class="modal-dialog">
-            <div class="modal-content" style="border-radius:12px;">
-              <div class="modal-header">
-                <h5 class="modal-title">编辑频道信息</h5>
-                <button type="button" class="btn-close" id="editClose"></button>
-              </div>
-              <div class="modal-body">
-                <div class="mb-2"><label class="form-label">频道名称</label><input class="form-control" id="editName"></div>
-                <div class="mb-2"><label class="form-label">tvg-id</label><input class="form-control" id="editTvgId"></div>
-                <div class="mb-2"><label class="form-label">tvg-name</label><input class="form-control" id="editTvgName"></div>
-                <div class="mb-2"><label class="form-label">频道台标 URL</label><input class="form-control" id="editLogo"></div>
-                <div class="mb-2"><label class="form-label">频道分组（group-title）</label><div class="d-flex" style="gap:8px;"><select class="form-select" id="editGroupSelect"></select><input class="form-control" id="newGroupInput" placeholder="新分组"><button class="btn btn-outline-secondary" id="addGroupBtn">添加</button></div></div>
-                <div class="mb-2"><label class="form-label">台标模板</label><div class="d-flex" style="gap:8px;"><input class="form-control" id="editLogoTemplate" placeholder="http://host/LOGO/{name}.png"><button class="btn btn-outline-secondary" id="autoLogoBtn">自动匹配</button></div></div>
-                <div class="mb-2">
-                  <label class="form-label">回放格式</label>
-                  <select class="form-select" id="editCatchupFmt">
-                    <option value="ku9">ku9</option>
-                    <option value="mytv">mytv</option>
-                  </select>
-                </div>
-                <div class="mb-2"><label class="form-label">回放源基础URL</label><input class="form-control" id="editCatchupBase" placeholder="http://host/path"></div>
-                <div class="mb-2"><label class="form-label">HTTP参数（示例：fcc=1.2.3.4:15970）</label><input class="form-control" id="editHttpParam" placeholder="fcc=ip:port"></div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="editSave">保存</button>
-                <button type="button" class="btn btn-secondary" id="editCancel">取消</button>
-              </div>
-            </div>
-          </div>
-        </div>`;
-        document.body.appendChild(modal);
-    }
-    document.getElementById('editName').value = s.name || '';
-    document.getElementById('editTvgId').value = s.tvgId || '';
-    document.getElementById('editTvgName').value = s.tvgName || '';
-    document.getElementById('editLogo').value = s.logo || '';
-    ensureDefaultGroups();
-    const groupSel = document.getElementById('editGroupSelect');
-    groupSel.innerHTML = '';
-    getGroupTitles().forEach(g => { const opt = document.createElement('option'); opt.value = g; opt.text = g; groupSel.appendChild(opt); });
-    groupSel.value = s.groupTitle || (groupSel.options[0] ? groupSel.options[0].value : '');
-    document.getElementById('editLogoTemplate').value = getLogoTemplate();
-    document.getElementById('editCatchupFmt').value = s.catchupFormat || 'ku9';
-    document.getElementById('editCatchupBase').value = s.catchupBase || '';
-    document.getElementById('editHttpParam').value = s.httpParam || '';
-    modal.style.display = 'block';
-    modal.querySelector('.modal').classList.add('show');
-    function close() {
-        modal.style.display = 'none';
-        modal.querySelector('.modal').classList.remove('show');
-    }
-    document.getElementById('editClose').onclick = close;
-    document.getElementById('editCancel').onclick = close;
-    document.getElementById('addGroupBtn').onclick = function() {
-        const v = (document.getElementById('newGroupInput').value || '').trim();
-        if (!v) return;
-        const list = getGroupTitles();
-        if (!list.includes(v)) {
-            list.push(v);
-            saveGroupTitles(list);
-        }
-        groupSel.innerHTML = '';
-        getGroupTitles().forEach(g => { const opt = document.createElement('option'); opt.value = g; opt.text = g; groupSel.appendChild(opt); });
-        groupSel.value = v;
-        document.getElementById('newGroupInput').value = '';
-    };
-    document.getElementById('editLogoTemplate').addEventListener('change', function() {
-        const tpl = this.value || '';
-        if (tpl) saveLogoTemplate(tpl);
-    });
-    document.getElementById('autoLogoBtn').onclick = function() {
-        const name = document.getElementById('editName').value || s.name || '';
-        const cand = chooseLogoCandidate(name, s.resolution || '');
-        if (cand) document.getElementById('editLogo').value = cand;
-    };
-    document.getElementById('editSave').onclick = async function() {
-        const payload = {
-            udpxyUrl: s.udpxyUrl,
-            multicastUrl: s.multicastUrl,
-            update: {
-                name: document.getElementById('editName').value || '',
-                tvgId: document.getElementById('editTvgId').value || '',
-                tvgName: document.getElementById('editTvgName').value || '',
-                logo: document.getElementById('editLogo').value || '',
-                groupTitle: document.getElementById('editGroupSelect').value || '',
-                catchupFormat: document.getElementById('editCatchupFmt').value || 'ku9',
-                catchupBase: document.getElementById('editCatchupBase').value || '',
-                httpParam: document.getElementById('editHttpParam').value || ''
-            }
-        };
-        try {
-            const resp = await fetch('/api/stream/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await resp.json();
-            if (data.success) {
-                close();
-                getStreams();
-            } else {
-                showCenterConfirm('保存失败', null, true);
-            }
-        } catch (e) {
-            showCenterConfirm('请求失败', null, true);
-        }
-    };
-}
 // 居中弹窗函数（美化为与删除弹窗一致的样式）
 function showCenterConfirm(msg, callback, onlyOk = false) {
     let modal = document.getElementById('centerModal');
@@ -1980,328 +692,14 @@ function showCenterConfirm(msg, callback, onlyOk = false) {
     okBtn.onclick = function() { close(); if (callback) callback(true); };
     cancelBtn.onclick = function() { close(); if (callback) callback(false); };
 }
-function buildDetectionStats(list) {
-    const arr = Array.isArray(list) ? list : [];
-    const total = arr.length;
-    const online = arr.filter(s => s.isAvailable).length;
-    const offline = total - online;
-    const grpMap = {};
-    arr.forEach(s => {
-        const g = (s.groupTitle || '未分组').trim() || '未分组';
-        grpMap[g] = (grpMap[g] || 0) + 1;
-    });
-    const groups = Object.entries(grpMap).sort((a,b)=>b[1]-a[1]);
-    const groupCount = groups.length;
-    let multicast = 0, unicast = 0;
-    const udpxyMap = {};
-    const domainMap = {};
-    let bitrateSum = 0, bitrateCnt = 0, fpsSum = 0, fpsCnt = 0;
-    arr.forEach(s => {
-        const u = String(s.multicastUrl || '').trim();
-        const scheme = u.split(':')[0].toLowerCase();
-        const isMc = !!s.udpxyUrl || scheme === 'rtp' || scheme === 'udp';
-        if (isMc) {
-            multicast++;
-            const h = (String(s.udpxyUrl||'').trim() || '').replace(/^https?:\/\//,'').split('/')[0] || '未知';
-            udpxyMap[h] = (udpxyMap[h]||0)+1;
-        } else {
-            unicast++;
-            let host = '未知';
-            try { const uu = new URL(u); host = uu.hostname; } catch(e) {}
-            domainMap[host] = (domainMap[host]||0)+1;
-        }
-        if (s.isAvailable && typeof s.bitRate === 'number' && s.bitRate > 0) { bitrateSum += s.bitRate; bitrateCnt++; }
-        const fr = parseFloat(String(s.frameRate||'').toString());
-        if (!Number.isNaN(fr) && fr > 0) { fpsSum += fr; fpsCnt++; }
-    });
-    const resMap = { '3840x2160':0,'1920x1080':0,'1280x720':0,'其他':0 };
-    arr.forEach(s => {
-        const r = String(s.resolution || '').trim();
-        if (r === '3840x2160') resMap['3840x2160']++;
-        else if (r === '1920x1080') resMap['1920x1080']++;
-        else if (r === '1280x720') resMap['1280x720']++;
-        else resMap['其他']++;
-    });
-    const codecMap = {};
-    arr.forEach(s => {
-        const c = (s.codec || '').trim() || '-';
-        codecMap[c] = (codecMap[c] || 0) + 1;
-    });
-    const epgCovered = arr.filter(s => (s.tvgId && s.tvgId.trim()) || (s.tvgName && s.tvgName.trim())).length;
-    const withLogo = arr.filter(s => String(s.logo||'').trim()).length;
-    const avgBitrateMbps = bitrateCnt ? (bitrateSum/bitrateCnt/1000000) : 0;
-    const avgFps = fpsCnt ? (fpsSum/fpsCnt) : 0;
-    return { total, online, offline, groups, groupCount, multicast, unicast, resMap, codecMap, epgCovered, withLogo, udpxyMap, domainMap, avgBitrateMbps, avgFps };
-}
-function ensureDetectSummaryStyles() {
-    if (document.getElementById('detectSummaryStyle')) return;
-    const style = document.createElement('style');
-    style.id = 'detectSummaryStyle';
-    style.textContent = `
-    #detectSummaryModal .modal-content{border-radius:20px;box-shadow:0 24px 64px rgba(2,6,23,.24)}
-    #detectSummaryModal .detect-card{border:1px solid #e5e7eb;border-radius:16px;padding:16px;background:linear-gradient(180deg,#f8fafc,#ffffff)}
-    #detectSummaryModal .detect-badges .badge{border-radius:12px;padding:.5rem .75rem;font-weight:600}
-    #detectSummaryModal .detect-title{display:flex;align-items:center;gap:10px}
-    #detectSummaryModal .detect-title img{width:36px;height:36px;border-radius:10px;object-fit:cover}
-    #detectSummaryModal .detect-sub{color:#64748b;font-size:.9rem}
-    #detectSummaryModal .detect-table th,#detectSummaryModal .detect-table td{vertical-align:middle}
-    #detectSummaryModal .chip{display:inline-block;padding:.35rem .6rem;border:1px solid #e5e7eb;border-radius:999px;background:#f8fafc;margin:.15rem .25rem;font-size:.85rem}
-    #detectSummaryModal .stack{display:flex;flex-wrap:wrap;gap:.5rem}
-    #detectSummaryModal .progress-line{height:6px;border-radius:4px;background:linear-gradient(90deg,#14b8a6,#2563eb)}
-    `;
-    document.head.appendChild(style);
-}
-function showDetectionSummary(list) {
-    let modal = document.getElementById('detectSummaryModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'detectSummaryModal';
-        modal.innerHTML = '<div class="modal fade" tabindex="-1" style="display:block;background:rgba(15,23,42,.28);z-index:10000;"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content"><div class="modal-header border-0 pb-0 d-flex align-items-center"><div class="detect-title"><img id="detectSummaryLogo" alt="IPTV"><div><div class="fw-bold">检测结果统计</div><div class="detect-sub" id="detectSummaryTime"></div></div></div><div class="ms-auto"></div><button type="button" class="btn-close" id="detectSummaryClose"></button></div><div class="modal-body pt-2" id="detectSummaryBody"></div><div class="modal-footer border-0 pt-0"><button class="btn btn-primary px-4" id="detectSummaryOk">确定</button></div></div></div></div>';
-        document.body.appendChild(modal);
-    }
-    ensureDetectSummaryStyles();
-    const s = buildDetectionStats(list);
-    const topGroups = s.groups.slice(0, 10).map(([g,c]) => {
-        const w = s.total ? Math.max(6, Math.round((c/s.total)*100)) : 6;
-        return `<tr><td>${g}</td><td class="text-end" style="width:110px">${c}</td><td style="width:40%"><div class="progress-line" style="width:${w}%"></div></td></tr>`;
-    }).join('');
-    const moreGroups = s.groups.length > 10 ? `<div class="text-muted small">其余 ${s.groups.length - 10} 个分组略</div>` : '';
-    const codecRows = Object.entries(s.codecMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<span class="badge bg-light text-dark border me-2 mb-2">${k}: ${v}</span>`).join('');
-    const udpxyRows = Object.entries(s.udpxyMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="d-flex justify-content-between"><span class="text-truncate" title="${k}">${k}</span><span>${v}</span></div>`).join('') || '<div class="text-muted">暂无</div>';
-    const domainRows = Object.entries(s.domainMap).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>`<div class="d-flex justify-content-between"><span class="text-truncate" title="${k}">${k}</span><span>${v}</span></div>`).join('') || '<div class="text-muted">暂无</div>';
-    const body = document.getElementById('detectSummaryBody');
-    if (body) {
-        body.innerHTML = `
-        <div class="row g-3">
-          <div class="col-lg-7">
-            <div class="detect-card">
-              <div class="d-flex flex-wrap gap-2 detect-badges">
-                <span class="badge text-bg-secondary">总数 ${s.total}</span>
-                <span class="badge text-bg-success">在线 ${s.online}</span>
-                <span class="badge text-bg-danger">离线 ${s.offline}</span>
-                <span class="badge text-bg-info">分组 ${s.groupCount}</span>
-                <span class="badge text-bg-warning">组播 ${s.multicast}</span>
-                <span class="badge bg-light text-dark border">单播 ${s.unicast}</span>
-                <span class="badge text-bg-primary">有EPG ${s.epgCovered}</span>
-                <span class="badge bg-light text-dark border">有Logo ${s.withLogo}</span>
-              </div>
-              <div class="mt-3 d-flex flex-wrap gap-2">
-                <span class="badge bg-light text-dark border">4K ${s.resMap['3840x2160']}</span>
-                <span class="badge bg-light text-dark border">1080P ${s.resMap['1920x1080']}</span>
-                <span class="badge bg-light text-dark border">720P ${s.resMap['1280x720']}</span>
-                <span class="badge bg-light text-dark border">其他 ${s.resMap['其他']}</span>
-                <span class="badge bg-light text-dark border">平均码率 ${s.avgBitrateMbps.toFixed(2)} Mbps</span>
-                <span class="badge bg-light text-dark border">平均帧率 ${s.avgFps.toFixed(1)} fps</span>
-              </div>
-              <div class="mt-3">${codecRows}</div>
-            </div>
-            <div class="detect-card mt-3">
-              <div class="d-flex justify-content-between align-items-center mb-2"><span class="fw-bold">分组统计（前10）</span><span class="text-muted small">按频道数降序</span></div>
-              <div class="table-responsive"><table class="table table-sm align-middle mb-0 detect-table"><thead><tr><th style="min-width:140px">分组</th><th class="text-end" style="width:110px">频道数</th><th style="width:40%"></th></tr></thead><tbody>${topGroups || '<tr><td>无</td><td class="text-end">0</td><td></td></tr>'}</tbody></table></div>
-              ${moreGroups}
-            </div>
-          </div>
-          <div class="col-lg-5">
-            <div class="detect-card h-100">
-              <div class="row g-3">
-                <div class="col-12">
-                  <div class="border rounded-3 p-3">
-                    <div class="fw-bold mb-2">UDPXY 服务器（前6）</div>
-                    ${udpxyRows}
-                  </div>
-                </div>
-                <div class="col-12">
-                  <div class="border rounded-3 p-3">
-                    <div class="fw-bold mb-2">单播域名（前6）</div>
-                    ${domainRows}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-    }
-    modal.style.display = 'block';
-    modal.querySelector('.modal').classList.add('show');
-    const closeBtn = document.getElementById('detectSummaryClose');
-    const okBtn = document.getElementById('detectSummaryOk');
-    const close = function(){ modal.style.display='none'; modal.querySelector('.modal').classList.remove('show'); restoreTitleNotify(); };
-    if (closeBtn) closeBtn.onclick = close;
-    if (okBtn) okBtn.onclick = close;
-    const logo = document.getElementById('detectSummaryLogo');
-    if (logo) {
-        logo.onerror = function() {
-            const svg = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect rx="12" ry="12" width="64" height="64" fill="#2563eb"/><rect x="10" y="16" width="44" height="28" rx="4" fill="#ffffff"/><rect x="14" y="20" width="36" height="20" rx="2" fill="#e2e8f0"/><rect x="22" y="48" width="20" height="6" rx="3" fill="#1e293b"/></svg>');
-            logo.src = svg;
-        };
-        logo.src = '/iptv.png';
-    }
-    const t = document.getElementById('detectSummaryTime');
-    if (t) t.textContent = new Date().toLocaleString();
-}
-let __titleBackup = document.title;
-let __titleTimer = null;
-let __favBackupHref = '';
-function setFaviconBadge() {
-    try {
-        const link = document.querySelector('link[rel="icon"]');
-        if (!link) return;
-        __favBackupHref = link.href;
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = function() {
-            const c = document.createElement('canvas');
-            c.width = 64; c.height = 64;
-            const ctx = c.getContext('2d');
-            ctx.drawImage(img, 0, 0, 64, 64);
-            ctx.fillStyle = '#ff3b3b';
-            ctx.beginPath(); ctx.arc(52,12,10,0,Math.PI*2); ctx.fill();
-            const url = c.toDataURL('image/png');
-            link.href = url;
-        };
-        img.src = __favBackupHref;
-    } catch(e) {}
-}
-function restoreTitleNotify() {
-    try { if (__titleTimer) { clearInterval(__titleTimer); __titleTimer = null; } } catch(e){}
-    try { document.title = __titleBackup; } catch(e){}
-    try {
-        const link = document.querySelector('link[rel="icon"]');
-        if (link && __favBackupHref) link.href = __favBackupHref;
-    } catch(e){}
-}
-function notifyDetectionDone(online, offline, total) {
-    const msg = `检测完成 总${total} 在线${online} 离线${offline}`;
-    if (document.hidden) {
-        __titleBackup = document.title;
-        let on = true;
-        __titleTimer = setInterval(function(){ document.title = on ? `【完成】${msg}` : __titleBackup; on = !on; }, 1200);
-        setFaviconBadge();
-        try {
-            if ('Notification' in window) {
-                if (Notification.permission === 'granted') new Notification('检测完成', { body: msg });
-                else if (Notification.permission !== 'denied') Notification.requestPermission().then(p => { if (p==='granted') new Notification('检测完成', { body: msg }); });
-            }
-        } catch(e){}
-        window.addEventListener('visibilitychange', function(){ if (!document.hidden) restoreTitleNotify(); }, { once: true });
-    }
-}
-// 统计输入框数据总数并显示到顶部统计卡片
-function updateInputCount() {
-    let rangeStart = (document.getElementById('rangeStart').value || '').trim();
-    let rangeEnd = (document.getElementById('rangeEnd').value || '').trim();
-    let batchInput = (document.getElementById('batchInput').value || '').trim();
-    let count = 0;
-    if (rangeStart && rangeEnd) {
-        const s = parseRtp(rangeStart);
-        const e = parseRtp(rangeEnd);
-        if (s && e) {
-            let a = s.ipInt, b = e.ipInt;
-            if (a > b) [a, b] = [b, a];
-            count = Math.min(b - a + 1, 1000);
-        }
-    } else if (batchInput) {
-        count = batchInput.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#')).length;
-    }
-    document.getElementById('stat-total').innerText = count;
-    document.getElementById('stat-online').innerText = 0;
-    document.getElementById('stat-offline').innerText = 0;
-}
-// 绑定输入事件
-const batchInputEl = document.getElementById('batchInput');
-const rangeStartEl = document.getElementById('rangeStart');
-const rangeEndEl = document.getElementById('rangeEnd');
-rangeStartEl.addEventListener('input', function() { if (!batchInputEl.value.trim()) updateInputCount(); });
-rangeEndEl.addEventListener('input', function() { if (!batchInputEl.value.trim()) updateInputCount(); });
-batchInputEl.addEventListener('input', updateInputCount);
-const batchInput = document.getElementById('batchInput');
-if (batchInput) batchInput.removeAttribute('required');
-const filterBtns = {
-    all: document.getElementById('filterAll'),
-    online: document.getElementById('filterOnline'),
-    offline: document.getElementById('filterOffline')
-};
-function updateFilterActive(status) {
-    if (filterBtns.all) filterBtns.all.classList.remove('active');
-    if (filterBtns.online) filterBtns.online.classList.remove('active');
-    if (filterBtns.offline) filterBtns.offline.classList.remove('active');
-    if (status === 'all' && filterBtns.all) filterBtns.all.classList.add('active');
-    if (status === 'online' && filterBtns.online) filterBtns.online.classList.add('active');
-    if (status === 'offline' && filterBtns.offline) filterBtns.offline.classList.add('active');
-}
-if (filterBtns.all) filterBtns.all.onclick = function() { filterStatus = 'all'; updateFilterActive('all'); updateStatsAndDisplay(); };
-if (filterBtns.online) filterBtns.online.onclick = function() { filterStatus = 'online'; updateFilterActive('online'); updateStatsAndDisplay(); };
-if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus = 'offline'; updateFilterActive('offline'); updateStatsAndDisplay(); };
-        const loadBtn = document.getElementById('loadFileBtn');
-        async function loadFromNetwork() {
-            const ta = document.getElementById('batchInput');
-            const raw = (ta.value || '').trim();
-            const urls = raw.split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#') && (s.startsWith('http://') || s.startsWith('https://')));
-            if (urls.length === 0) {
-                showCenterConfirm('请在输入框中填入m3u或txt的网络地址（http/https）后再点击“加载”', null, true);
-                return;
-            }
-            try {
-                const resp = await fetch('/api/fetch-text', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls })
-                });
-                const data = await resp.json();
-                const texts = (data.results || []).filter(r => r.ok).map(r => r.text);
-                let items = [];
-                for (const t of texts) {
-                    const parsed = parsePlaylistText(t);
-                    if (parsed && parsed.length) items = items.concat(parsed);
-                }
-                if (items.length) items = unifyChannelNames(items);
-                if (items.length === 0) {
-                    showCenterConfirm('未解析到有效地址', null, true);
-                    return;
-                }
-                try { await persistImportedMeta(items); } catch(e) {}
-                const lines = items.map(it => `${it.name || ''},${it.url}`);
-                ta.value = lines.join('\n');
-                updateInputCount();
-                const okCount = texts.length;
-                const failCount = urls.length - okCount;
-                showCenterConfirm(`网络源：成功${okCount} 失败${failCount}；解析到地址：${items.length} 条`, null, true);
-            } catch (e) {
-                showCenterConfirm('加载网络文件失败（代理错误或网络问题）', null, true);
-            }
-        }
-        if (loadBtn) loadBtn.onclick = loadFromNetwork;
-        const uploadBtn = document.getElementById('uploadFileBtn');
-        const uploadInput = document.getElementById('uploadFileInput');
-        if (uploadBtn && uploadInput) {
-            uploadBtn.onclick = function() { uploadInput.click(); };
-            uploadInput.onchange = async function(e) {
-                const f = e.target.files && e.target.files[0];
-                if (!f) return;
-                const txt = await f.text();
-                const items = parsePlaylistText(txt);
-                const itemsFixed = items && items.length ? unifyChannelNames(items) : [];
-                if (!itemsFixed || itemsFixed.length === 0) {
-                    showCenterConfirm('未解析到有效地址', null, true);
-                    return;
-                }
-                try { await persistImportedMeta(itemsFixed); } catch(e) {}
-                const lines = itemsFixed.map(it => `${it.name || ''},${it.url}`);
-                const ta = document.getElementById('batchInput');
-                ta.value = lines.join('\n');
-                updateInputCount();
-                showCenterConfirm(`已上传并解析：${itemsFixed.length} 条地址`, null, true);
-            };
-        }
-        document.getElementById('batchDeleteBtn').onclick = async function() {
-            const arr = Array.from(selectedSet);
-            if (arr.length === 0) return;
-            for (const i of arr) {
-                try { await fetch(`/api/stream/${i}`, { method: 'DELETE' }); } catch(e) {}
-            }
-            selectedSet = new Set();
-            getStreams();
-        };
+
+
+
+
+
+
+
+        if (window.IptvIndexBootstrap) window.IptvIndexBootstrap();
     </script>
     <!-- 修改密码弹窗 -->
     <div class="modal fade" id="changePwdModal" tabindex="-1">
@@ -2341,8 +739,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
         // 加载版本信息
         async function loadSystemInfo() {
             try {
-                const r = await fetch('/api/system/info');
-                const j = await r.json();
+                const j = await apiJson('/api/system/info');
                 if (j.success) {
                     document.getElementById('footerVersion').textContent = 'v' + j.version;
                     document.getElementById('modalCurrentVersion').textContent = 'v' + j.version;
@@ -2464,8 +861,7 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
             try {
                 const latestEl = document.getElementById('modalLatestVersion');
                 const targetTag = (latestEl && latestEl.textContent || '').trim();
-                const r = await fetch('/api/system/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetTag }) });
-                const j = await r.json();
+                const j = await apiJson('/api/system/update', { method: 'POST', body: { targetTag } });
                 alert(j.message);
                 if (j.success) {
                     location.reload();
@@ -2481,8 +877,9 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
         document.addEventListener('DOMContentLoaded', loadSystemInfo);
 
         async function doLogout() {
-            await fetch('/api/logout', { method: 'POST' });
-            window.location.href = '/login.html';
+            await apiJson('/api/logout', { method: 'POST' });
+            const back = encodeURIComponent(location.pathname + location.search + location.hash);
+            window.location.replace('/login.html?redirect=' + back + '&_t=' + Date.now());
         }
         async function doChangePwd() {
             const username = document.getElementById('newUsername').value;
@@ -2493,12 +890,10 @@ if (filterBtns.offline) filterBtns.offline.onclick = function() { filterStatus =
                 return;
             }
             try {
-                const r = await fetch('/api/auth/update', {
+                const j = await apiJson('/api/auth/update', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, oldPassword, password })
+                    body: { username, oldPassword, password }
                 });
-                const j = await r.json();
                 if (j.success) {
                     alert('修改成功');
                     const modalEl = document.getElementById('changePwdModal');

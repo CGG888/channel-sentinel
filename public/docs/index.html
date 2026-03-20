@@ -6,29 +6,34 @@
   <title> 使用指南 - IPTV Checker</title>
   <link rel="icon" type="image/png" href="/iptv.png">
   <link rel="shortcut icon" href="/iptv.png">
-  <link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-  <link href="/vendor/bootstrap-icons/1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/css/theme-tokens.css" rel="stylesheet">
+  <link href="/css/shadcn-ui.css" rel="stylesheet">
+  <script src="/js/theme-manager.js" defer></script>
+  <script src="/js/top-nav-loader.js" defer></script>
   <style>
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: auto; }
     :root{
       --bg:#f7f8fa; --card:#fff; --text:#212529; --muted:#6c757d; --border:#e9ecef; --link:#0d6efd;
-      --code-bg:#0e1116; --code-fg:#e6edf3;
+      --code-bg:#f6f8fa; --code-fg:#1f2937;
     }
     body.dark{
       --bg:#0b0f13; --card:#0f141a; --text:#e6edf3; --muted:#9aa4af; --border:#1f2630; --link:#6ea8fe;
       --code-bg:#0e1116; --code-fg:#e6edf3;
       color-scheme: dark;
     }
-    body { background:var(--bg); color:var(--text); }
+    body { background:var(--background); color:var(--foreground); }
+    #topNavMount { min-height: 56px; }
     .doc-wrap { display:flex; align-items:flex-start; gap:16px; }
-    .markdown-body { box-sizing: border-box; min-width: 200px; margin: 0; padding: 24px; background:var(--card); border-radius:12px; border:1px solid var(--border); flex:1; }
+    .markdown-body { box-sizing: border-box; min-width: 200px; margin: 0; padding: 24px; background:var(--card); color:var(--foreground); border-radius:12px; border:1px solid var(--border); flex:1; }
     .toc { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow: auto; }
     .toc a { text-decoration: none; color:var(--muted); display:block; padding:4px 8px; border-radius:6px; }
     .toc a:hover { color:var(--link); }
     .toc a.active { color:var(--link); font-weight:600; background: rgba(13,110,253,.12); border-left: 3px solid var(--link); padding-left: 5px; }
-    pre { background:var(--code-bg); color:var(--code-fg); padding:12px; border-radius:8px; overflow:auto; position:relative; }
+    pre { background:var(--code-bg); color:var(--code-fg); padding:12px; border-radius:8px; overflow:auto; position:relative; border:1px solid var(--border); }
     pre .copy-btn { position:absolute; top:8px; right:8px; border:1px solid var(--border); }
-    code { background: rgba(27,31,35,.05); padding: 2px 6px; border-radius: 6px; }
+    code { background: color-mix(in srgb, var(--secondary) 82%, transparent); color:var(--foreground); padding: 2px 6px; border-radius: 6px; }
     h1, h2, h3 { scroll-margin-top: 96px; }
     .page-header { background: linear-gradient(135deg, rgba(13,110,253,.06) 0%, transparent 100%); }
     .page-header .container { position: relative; }
@@ -45,11 +50,45 @@
     body.dark .navbar { background: rgba(15,20,26,.6); }
     .navbar .container { display:flex; align-items:center; gap:12px; }
     .navbar .actions { margin-left:auto; display:flex; gap:8px; flex-wrap:nowrap; align-items:center; }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { color:var(--foreground); }
+    .markdown-body p, .markdown-body li, .markdown-body td, .markdown-body th, .markdown-body blockquote, .markdown-body ul, .markdown-body ol { color:var(--foreground); }
+    .markdown-body a { color:var(--link); }
+    .markdown-body hr { border-color: var(--border); opacity: 1; }
+    .markdown-body table { color:var(--foreground); border-color:var(--border); }
+    .markdown-body table th, .markdown-body table td { border-color:var(--border); }
+    .markdown-body blockquote { border-left:3px solid var(--border); padding-left:12px; margin-left:0; }
+    .markdown-body strong { color:var(--foreground); }
+    .markdown-body img { max-width:100%; border-radius:8px; border:1px solid var(--border); }
+    .toc, .doc-toc .toc { background:var(--card) !important; border-color:var(--border) !important; color:var(--foreground); }
+    .toc .fw-semibold, .toc .small { color:var(--foreground); }
+    .toc input[type="search"] { background:var(--background); color:var(--foreground); }
+    .toc input[type="search"]::placeholder { color:var(--muted); }
+    .page-header { border-color: var(--border) !important; }
+    .page-header .btn-outline-secondary { background:var(--background); color:var(--foreground); border-color:var(--border); }
+    .page-header .btn-outline-secondary:hover { background:var(--accent); color:var(--accent-foreground); border-color:var(--accent); }
+    .page-header .btn-group .btn { border-color:var(--border); }
+    .page-header .text-muted, .page-header .muted { color:var(--muted) !important; }
+    :root[data-theme="dark"] .page-header { background: linear-gradient(135deg, rgba(59,130,246,.14) 0%, transparent 100%); }
+    :root[data-theme="dark"] .markdown-body { background:#0b1220; color:#e5e7eb; border-color:#243042; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+    :root[data-theme="dark"] .markdown-body h1, :root[data-theme="dark"] .markdown-body h2, :root[data-theme="dark"] .markdown-body h3, :root[data-theme="dark"] .markdown-body h4, :root[data-theme="dark"] .markdown-body h5, :root[data-theme="dark"] .markdown-body h6 { color:#f8fafc; }
+    :root[data-theme="dark"] .markdown-body p, :root[data-theme="dark"] .markdown-body li, :root[data-theme="dark"] .markdown-body td, :root[data-theme="dark"] .markdown-body th, :root[data-theme="dark"] .markdown-body blockquote, :root[data-theme="dark"] .markdown-body ul, :root[data-theme="dark"] .markdown-body ol { color:#e2e8f0; }
+    :root[data-theme="dark"] .markdown-body code { background:#111827; color:#e5e7eb; }
+    :root[data-theme="dark"] .markdown-body pre { background:#020617; color:#e2e8f0; border-color:#1f2937; }
+    :root[data-theme="dark"] .markdown-body blockquote { border-left-color:#334155; color:#cbd5e1; }
+    :root[data-theme="dark"] .markdown-body a { color:#93c5fd; }
+    :root[data-theme="dark"] .markdown-body strong { color:#f8fafc; }
+    :root[data-theme="dark"] .markdown-body img { border-color:#334155; }
+    :root[data-theme="dark"] .markdown-body mark { background:#facc15; color:#111827; }
+    :root[data-theme="dark"] .toc a { color:#cbd5e1; }
+    :root[data-theme="dark"] .toc a.active { background: rgba(59,130,246,.22); color:#93c5fd; border-left-color:#60a5fa; }
+    :root[data-theme="dark"] .toc a:hover { color:#93c5fd; }
+    :root[data-theme="dark"] .toc input[type="search"] { background:#0f172a; border-color:#334155; color:#e2e8f0; }
+    :root[data-theme="dark"] .toc input[type="search"]::placeholder { color:#94a3b8; }
+    :root[data-theme="dark"] .toc::-webkit-scrollbar-thumb { background: rgba(148,163,184,.45); }
+    :root[data-theme="dark"] .backtop { box-shadow: 0 6px 16px rgba(2,132,199,.35); }
     @media (min-width: 992px) {
-      /* 保证左侧目录在可视区域内持续可见 */
       .toc { max-height: calc(100vh - 100px); }
     }
-    /* XL 及以上：将目录固定在视口左侧中部，正文右移留白，避免遮挡 */
     @media (min-width: 1200px) {
       .doc-wrap { padding-left: 300px; }
       .doc-toc { position: fixed; left: 16px; top: 50%; transform: translateY(-50%); width: 260px; flex: 0 0 260px; }
@@ -66,22 +105,8 @@
     }
   </style>
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
-    <div class="container">
-      <a class="navbar-brand fw-bold d-flex align-items-center" href="/" style="white-space:nowrap;">
-        <img src="/iptv.png" alt="IPTV" class="me-2" style="height:18px;width:auto;">IPTV Checker
-      </a>
-      <div class="actions">
-        <a class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex" href="https://github.com/cgg888/iptv-checker" target="_blank">
-          <i class="bi bi-github me-1"></i>GitHub
-        </a>
-        <a class="btn btn-sm btn-primary" href="/" title="返回首页" style="white-space:nowrap;">
-          <i class="bi bi-house-door me-1"></i>返回
-        </a>
-      </div>
-    </div>
-  </nav>
+<body data-nav-page="docs" data-nav-settings="off">
+  <div id="topNavMount"></div>
 
   <header class="page-header py-4 mb-3 border-bottom">
     <div class="container d-flex align-items-center justify-content-between">
@@ -131,12 +156,14 @@
   <script src="/vendor/snarkdown/snarkdown.min.js"></script>
   <script>
     // 状态
-    const STORE_THEME = 'wiki:theme';
+    const STORE_THEME = 'iptv:theme';
     const STORE_FS = 'wiki:fontScale';
+    const STORE_SCROLL = 'wiki:scrollY';
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     function applyTheme(theme){
       const dark = theme==='dark';
       document.body.classList.toggle('dark', dark);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       const btn = document.getElementById('btnTheme');
       if(btn){ btn.querySelector('span').textContent = dark ? '亮色' : '暗色'; btn.querySelector('i').className = dark?'bi bi-sun':'bi bi-moon-stars'; }
       localStorage.setItem(STORE_THEME, dark?'dark':'light');
@@ -153,6 +180,12 @@
       document.getElementById('btnTheme').onclick = ()=> applyTheme(document.body.classList.contains('dark')?'light':'dark');
       document.getElementById('btnFontInc').onclick = ()=> applyFontScale(Math.min(1.5, (parseFloat(localStorage.getItem(STORE_FS))||1) + 0.1));
       document.getElementById('btnFontDec').onclick = ()=> applyFontScale(Math.max(0.8, (parseFloat(localStorage.getItem(STORE_FS))||1) - 0.1));
+      window.addEventListener('storage', (e)=>{
+        if (e && e.key === STORE_THEME) {
+          const t = e.newValue === 'dark' ? 'dark' : 'light';
+          applyTheme(t);
+        }
+      });
     }
 
     async function loadDoc() {
@@ -168,6 +201,7 @@
       applyHashScroll();
       const lm = res.headers.get('last-modified');
       if(lm){ const d = new Date(lm); const el = document.getElementById('lastUpd'); el.textContent = '更新于 ' + d.toLocaleString(); el.classList.remove('d-none'); }
+      restoreScroll();
     }
 
     function buildToc() {
@@ -203,7 +237,7 @@
           scrollingByClick = true;
           scrollToId(id);
           setActive(id);
-          history.replaceState(null,'','#'+id);
+          history.replaceState(null,'', location.pathname + location.search);
           setTimeout(()=>scrollingByClick=false, 400);
         });
         linkMap[id] = a;
@@ -276,9 +310,6 @@
           }
           if(cur){
             setActive(cur.id);
-            if(!scrollingByClick){
-              history.replaceState(null,'','#'+cur.id);
-            }
           }
           ticking = false;
         });
@@ -307,7 +338,7 @@
     function applyHashScroll() {
       if (location.hash) {
         const t = document.getElementById(location.hash.substring(1));
-        if (t) t.scrollIntoView({behavior:'smooth', block:'start'});
+        if (t) t.scrollIntoView({behavior:'auto', block:'start'});
       }
       window.addEventListener('hashchange', () => {
         const t = document.getElementById(location.hash.substring(1));
@@ -393,11 +424,50 @@
       window.scrollTo({ top: y, behavior:'smooth' });
     }
 
+    function isReloadNavigation(){
+      try{
+        const navEntry = performance.getEntriesByType && performance.getEntriesByType('navigation');
+        if (Array.isArray(navEntry) && navEntry[0] && navEntry[0].type) return navEntry[0].type === 'reload';
+      }catch(e){}
+      try{
+        if (performance && performance.navigation) return Number(performance.navigation.type) === 1;
+      }catch(e){}
+      return false;
+    }
+
+    function saveScroll(){
+      if (location.hash) return;
+      const y = Math.max(0, Math.floor(window.scrollY || 0));
+      try {
+        localStorage.setItem(STORE_SCROLL, String(y));
+        localStorage.setItem(STORE_SCROLL + ':ts', String(Date.now()));
+      } catch (e) {}
+    }
+
+    function restoreScroll(){
+      if (location.hash) return;
+      if (!isReloadNavigation()) return;
+      let y = 0;
+      let ts = 0;
+      try { y = Number(localStorage.getItem(STORE_SCROLL) || 0); } catch (e) { y = 0; }
+      try { ts = Number(localStorage.getItem(STORE_SCROLL + ':ts') || 0); } catch (e) { ts = 0; }
+      if (!Number.isFinite(ts) || (Date.now() - ts) > 1000 * 60 * 30) return;
+      if (!Number.isFinite(y) || y <= 0) return;
+      requestAnimationFrame(function(){ window.scrollTo(0, y); });
+      setTimeout(function(){ window.scrollTo(0, y); }, 120);
+      setTimeout(function(){ window.scrollTo(0, y); }, 260);
+    }
+
     initPrefs();
     loadDoc().catch(()=>{
       document.getElementById('doc').innerHTML =
         '<div class="alert alert-danger">无法加载文档，请稍后重试。</div>';
     });
+    document.addEventListener('iptv:top-nav-ready', function () {
+      restoreScroll();
+    });
+    window.addEventListener('scroll', saveScroll, { passive:true });
+    window.addEventListener('beforeunload', saveScroll);
   </script>
 </body>
 </html>

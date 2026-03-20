@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-03-18T06:20:58.093Z",
+  "thresholds": {
+    "lowRequestThreshold": 30,
+    "latencyThresholdMs": 3000
+  },
+  "whitelist": [],
+  "summary": {
+    "totalRiskDomains": 0,
+    "p1": 0,
+    "p2": 0,
+    "p3": 0
+  },
+  "domains": []
+}

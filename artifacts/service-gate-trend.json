@@ -1,0 +1,195 @@
+{
+  "generatedAt": "2026-03-19T05:03:27.981Z",
+  "historyPath": "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-history.json",
+  "thresholdStrategy": "dynamic-calibration",
+  "thresholdCalibration": {
+    "strategy": "dynamic-calibration",
+    "minRuns": 8,
+    "alpha": 0.6,
+    "maxDrift": 2,
+    "ready": true,
+    "base": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "recommended": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "applied": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "reason": "history-ready"
+  },
+  "summary": {
+    "totalRuns": 13,
+    "windowSize": 20,
+    "windowRuns": 13,
+    "avgFailRate": 0,
+    "p90FailRate": 0,
+    "avgServiceFailed": 0,
+    "avgSmokeFailed": 0,
+    "avgContractFailed": 0,
+    "p95ServiceFailed": 0,
+    "p95SmokeFailed": 0,
+    "p90ContractFailed": 0
+  },
+  "recommendedThreshold": {
+    "serviceCritical": 0,
+    "smokeCritical": 0,
+    "contractHigh": 1,
+    "contractMedium": 0
+  },
+  "recent": [
+    {
+      "ts": "2026-03-18T05:33:57.766Z",
+      "source": "service-gate-summary.json",
+      "total": 6,
+      "failed": 0,
+      "passed": 6,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-18T05:46:50.012Z",
+      "source": "service-gate-summary.json",
+      "total": 6,
+      "failed": 0,
+      "passed": 6,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-18T05:55:54.075Z",
+      "source": "service-gate-summary.json",
+      "total": 6,
+      "failed": 0,
+      "passed": 6,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-18T06:06:02.299Z",
+      "source": "service-gate-summary.json",
+      "total": 6,
+      "failed": 0,
+      "passed": 6,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-18T06:13:48.497Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-18T06:20:57.888Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T04:38:46.838Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T04:43:02.230Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T04:46:59.352Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T04:50:41.616Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T04:54:28.550Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T04:59:04.831Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    },
+    {
+      "ts": "2026-03-19T05:03:27.905Z",
+      "source": "service-gate-summary.json",
+      "total": 7,
+      "failed": 0,
+      "passed": 7,
+      "failRate": 0,
+      "serviceFailed": 0,
+      "smokeFailed": 0,
+      "contractFailed": 0
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "ok": true,
+  "severity": "info",
+  "channel": "release",
+  "threshold": {
+    "serviceCritical": 0,
+    "smokeCritical": 0,
+    "contractHigh": 1,
+    "contractMedium": 0
+  },
+  "dynamicThreshold": {
+    "enabled": true,
+    "applied": true,
+    "calibrated": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    }
+  },
+  "summaryPath": "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\service-gate-summary.json",
+  "trendPath": "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-trend.json",
+  "governancePath": "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-governance.json",
+  "governanceMarkdownPath": "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-governance.md",
+  "governance": {
+    "generatedAt": "2026-03-19T05:03:28.048Z",
+    "channel": "release",
+    "severity": "info",
+    "level": "P3",
+    "decision": "pass",
+    "owner": "release-manager",
+    "slaHours": 72,
+    "impactedCategories": [],
+    "categoryOwners": [],
+    "failedCount": 0,
+    "failedTasks": [],
+    "threshold": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "dynamicThreshold": {
+      "applied": true,
+      "reason": "history-ready"
+    },
+    "actions": [
+      "发布继续并观察趋势漂移",
+      "按周复盘阈值动态校准参数",
+      "持续保留历史产物用于后续校准"
+    ],
+    "closureChecklist": [
+      "重跑 service-quality-gate 并确认失败数归零",
+      "刷新 service-gate-trend 并确认阈值策略状态",
+      "刷新 service-gate-notify 并归档治理结果"
+    ]
+  },
+  "summary": {
+    "generatedAt": "2026-03-19T05:03:27.905Z",
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "groupedFailures": {},
+    "results": [
+      {
+        "name": "stream-service-tests",
+        "category": "service",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/stream-service-tests.js",
+        "startedAt": "2026-03-19T05:03:26.525Z",
+        "endedAt": "2026-03-19T05:03:26.615Z",
+        "exitCode": 0,
+        "ok": true
+      },
+      {
+        "name": "auth-service-tests",
+        "category": "service",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/auth-service-tests.js",
+        "startedAt": "2026-03-19T05:03:26.615Z",
+        "endedAt": "2026-03-19T05:03:26.845Z",
+        "exitCode": 0,
+        "ok": true
+      },
+      {
+        "name": "http-smoke-strict",
+        "category": "smoke",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/http-smoke.js --strict",
+        "startedAt": "2026-03-19T05:03:26.846Z",
+        "endedAt": "2026-03-19T05:03:27.040Z",
+        "exitCode": 0,
+        "ok": true
+      },
+      {
+        "name": "player-auth-contract-tests",
+        "category": "contract",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/player-auth-contract-tests.js",
+        "startedAt": "2026-03-19T05:03:27.041Z",
+        "endedAt": "2026-03-19T05:03:27.249Z",
+        "exitCode": 0,
+        "ok": true
+      },
+      {
+        "name": "export-proxy-contract-tests",
+        "category": "contract",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/export-proxy-contract-tests.js",
+        "startedAt": "2026-03-19T05:03:27.249Z",
+        "endedAt": "2026-03-19T05:03:27.576Z",
+        "exitCode": 0,
+        "ok": true
+      },
+      {
+        "name": "system-authz-contract-tests",
+        "category": "contract",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/system-authz-contract-tests.js",
+        "startedAt": "2026-03-19T05:03:27.576Z",
+        "endedAt": "2026-03-19T05:03:27.757Z",
+        "exitCode": 0,
+        "ok": true
+      },
+      {
+        "name": "ops-governance-contract-tests",
+        "category": "contract",
+        "command": "C:\\Program Files\\nodejs\\node.exe src/utils/ops-governance-contract-tests.js",
+        "startedAt": "2026-03-19T05:03:27.757Z",
+        "endedAt": "2026-03-19T05:03:27.905Z",
+        "exitCode": 0,
+        "ok": true
+      }
+    ]
+  }
+}

@@ -5,25 +5,50 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title> 播放器 - IPTV Checker</title>
   <link rel="icon" type="image/png" href="/iptv.png">
-  <link rel="preload" href="/vendor/bootstrap-icons/1.11.3/font/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6" as="font" type="font/woff2" crossorigin>
-  <link href="/vendor/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-  <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <script>
-    (async function(){
-      try{
-        const r=await fetch('/api/auth/check');
-        const j=await r.json();
-        if(!j.success){
-          var back=location.pathname+location.search+location.hash;
-          location.href='/login.html?redirect='+encodeURIComponent(back);
-        }
-      }catch(e){
-        var back=location.pathname+location.search+location.hash;
-        location.href='/login.html?redirect='+encodeURIComponent(back);
+    document.documentElement.classList.add('auth-pending');
+  </script>
+  <script>
+    try {
+      const k = localStorage.getItem('iptv:theme');
+      const t = k || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+    } catch (e) {}
+  </script>
+  <link rel="preload" href="/vendor/bootstrap-icons/1.11.3/font/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6" as="font" type="font/woff2" crossorigin>
+  <link href="/vendor/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/vendor/bootstrap-icons/1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/theme-tokens.css" rel="stylesheet">
+  <link href="css/shadcn-ui.css" rel="stylesheet">
+  <script src="/js/core/api-client.js"></script>
+  <script src="/js/core/auth-gate.js"></script>
+  <script src="/js/shared/proxy-utils.js"></script>
+  <script src="/js/player/catchup-service.js"></script>
+  <script src="/js/player/play-url-resolver.js"></script>
+  <script src="/js/player/retry-controller.js"></script>
+  <script src="/js/player/core-controller.js"></script>
+  <script src="/js/player/start-kernel.js"></script>
+  <script src="/js/player/epg-service.js"></script>
+  <script src="/js/player/epg-renderer.js"></script>
+  <script src="/js/player/epg-wiring.js"></script>
+  <script src="/js/player/epg-orchestrator.js"></script>
+  <script src="/js/player/epg-fallback-renderer.js"></script>
+  <script src="/js/player/ui-overlay.js"></script>
+  <script src="/js/player/ui-wiring.js"></script>
+  <script src="/js/player/source-wiring.js"></script>
+  <script>
+    (async function () {
+      if (window.IptvCore && window.IptvCore.auth && typeof window.IptvCore.auth.ensureAuth === 'function') {
+        await window.IptvCore.auth.ensureAuth();
+        return;
       }
     })();
   </script>
   <style>
+    html.auth-pending body{
+      visibility:hidden !important;
+      background:#000 !important;
+    }
     html,body{
       margin:0;
       padding:0;
@@ -547,6 +572,7 @@
     </div>
   </div>
   <script src="/vendor/qier-player/index.min.js"></script>
+  <script src="/js/theme-manager.js"></script>
   <script>
     function qs(k){return new URLSearchParams(location.search).get(k)||''}
     var rawUrl=qs('url');
@@ -554,7 +580,9 @@
     var v=null;
     var hevcHlsSwitchOnce=false;
     var currentPlayer=null;
-    var _reco={n:0,t:null,stall:null};
+    var _reco={n:0,t:null,stall:null,seq:0};
+    var retryStrategy=null;
+    var playSeq=0;
     var sources=[];
     var currentSourceIndex=-1;
     var liveBtn=null;
@@ -589,6 +617,14 @@
     var UI_HIDE_MS=3000;
     var lastHideTs=0;
     var infoTimer=null;
+    var uiOverlayCtrl=null;
+    var epgWiringCtrl=null;
+    var uiWiringCtrl=null;
+    var sourceWiringCtrl=null;
+    var logoObserver=null;
+    var logoPending=[];
+    var logoLoadTimer=null;
+    var playPriority=true;
     var INFO_HIDE_MS=10000;
     var epgHint=document.getElementById('epgHint');
     var epgList=document.getElementById('epgList');
@@ -599,6 +635,27 @@
     var settingsCache=null;
     var externalLogoTpl='';
     var selectedDate=new Date();
+    var replayProxyMode='path_no_scheme';
+    var replayProxyModeLoadedAt=0;
+    var replayProxyModePromise=null;
+    function apiRequest(url, options){
+      if(window.IptvCore&&window.IptvCore.api&&typeof window.IptvCore.api.request==='function'){
+        return window.IptvCore.api.request(url, options||{});
+      }
+      return fetch(url, options||{}).then(function(r){
+        return r.text().then(function(t){
+          var ct=(r.headers&&r.headers.get?r.headers.get('content-type'):'')||'';
+          var data=t;
+          if(ct.indexOf('application/json')!==-1){
+            try{ data=JSON.parse(t||'{}'); }catch(e){ data={}; }
+          }
+          return { ok:r.ok, status:r.status, data:data };
+        });
+      });
+    }
+    function apiJson(url, options){
+      return apiRequest(url, options).then(function(resp){ return resp&&resp.data?resp.data:{}; });
+    }
 
     var catTabs=document.getElementById('catTabs');
     var searchInput=document.getElementById('searchInput');
@@ -610,14 +667,114 @@
     var currentLiveProgram=null;
     var currentLiveTitle='';
     var channelNowTitleByKey={};
+    var replayRequestSeq=0;
+    var lastReplayClickKey='';
+    var lastReplayClickTs=0;
     var themeToggleBtn=document.getElementById('themeToggleBtn');
-    var isChannelDark=false;
+    var isChannelDark=(document.documentElement.getAttribute('data-theme')==='dark');
     var progressInfoWrap=null;
     var progressInfoMode=null;
     var progressInfoStart=null;
     var progressInfoTitle=null;
     var progressInfoEnd=null;
     var progressInfoMeta=null;
+
+    function ensureUiOverlayController(){
+      if(uiOverlayCtrl) return uiOverlayCtrl;
+      var mod=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.uiOverlay;
+      if(!mod||typeof mod.create!=='function') return null;
+      uiOverlayCtrl=mod.create({
+        getUiCompact:function(){ return uiCompact; },
+        getHovering:function(){ return isHoveringUi; },
+        setHovering:function(v){ isHoveringUi=!!v; },
+        getLastHideTs:function(){ return lastHideTs; },
+        setLastHideTs:function(v){ lastHideTs=Number(v||0); },
+        getUiTimer:function(){ return uiTimer; },
+        setUiTimer:function(v){ uiTimer=v; },
+        getInfoTimer:function(){ return infoTimer; },
+        setInfoTimer:function(v){ infoTimer=v; },
+        channelLayer:channelLayer,
+        epgLayer:epgLayer,
+        infoOverlay:infoOverlay,
+        uiHideMs:UI_HIDE_MS,
+        infoHideMs:INFO_HIDE_MS,
+        clearTimer:function(id){ clearTimeout(id); },
+        setTimer:function(fn,ms){ return setTimeout(fn,ms); }
+      });
+      return uiOverlayCtrl;
+    }
+
+    function ensureEpgWiringController(){
+      if(epgWiringCtrl) return epgWiringCtrl;
+      var mod=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.epgWiring;
+      if(!mod||typeof mod.create!=='function') return null;
+      epgWiringCtrl=mod.create({
+        epgDateTabs:epgDateTabs,
+        getSelectedDate:function(){ return selectedDate; },
+        setSelectedDate:function(v){ selectedDate=new Date(v||Date.now()); },
+        onDateChange:function(){
+          buildDateTabs();
+          if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
+        }
+      });
+      return epgWiringCtrl;
+    }
+
+    function ensureUiWiringController(){
+      if(uiWiringCtrl) return uiWiringCtrl;
+      var mod=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.uiWiring;
+      if(!mod||typeof mod.create!=='function') return null;
+      uiWiringCtrl=mod.create({
+        uiCompact:uiCompact,
+        themeToggleBtn:themeToggleBtn,
+        channelLayer:channelLayer,
+        epgLayer:epgLayer,
+        closeBtn:closeBtn,
+        epgSel:epgSel,
+        epgRefresh:epgRefresh,
+        searchInput:searchInput,
+        searchDebounceMs:200,
+        getUiOverlayController:function(){ return ensureUiOverlayController(); },
+        getLastHideTs:function(){ return lastHideTs; },
+        getChannelDark:function(){ return isChannelDark; },
+        setChannelDark:function(v){ isChannelDark=!!v; },
+        applyChannelTheme:function(){ applyChannelTheme(); },
+        showUi:function(){ showUi(); },
+        hideUi:function(){ hideUi(); },
+        showInfo:function(){ showInfo(); },
+        onEpgChange:function(){
+          if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
+        },
+        onEpgRefresh:function(){
+          if(current) fetchAndRenderEpg(current,{force:true}); else fetchAndRenderEpg(null,{force:true});
+        },
+        onSearchInput:function(){ renderChannels(); }
+      });
+      return uiWiringCtrl;
+    }
+
+    function ensureSourceWiringController(){
+      if(sourceWiringCtrl) return sourceWiringCtrl;
+      var mod=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.sourceWiring;
+      if(!mod||typeof mod.create!=='function') return null;
+      sourceWiringCtrl=mod.create({
+        getRawUrl:function(){ return rawUrl; },
+        getQierPlayer:function(){ return qierPlayer; },
+        getSourceBtn:function(){ return sourceBtn; },
+        setSourceBtn:function(v){ sourceBtn=v; },
+        getSourcePanel:function(){ return sourcePanel; },
+        setSourcePanel:function(v){ sourcePanel=v; },
+        setSourceLabelEl:function(v){ sourceLabelEl=v; },
+        setLiveBtn:function(v){ liveBtn=v; },
+        setLiveDot:function(v){ liveDot=v; },
+        setLiveLabelEl:function(v){ liveLabelEl=v; },
+        updateLiveBadge:function(){ updateLiveBadge(); },
+        getSources:function(){ return sources; },
+        getCurrentSourceIndex:function(){ return currentSourceIndex; },
+        onSelectSource:function(idx,play){ selectSource(idx,play); }
+      });
+      return sourceWiringCtrl;
+    }
 
     if(titleEl) titleEl.textContent=title;
     if(subEl) subEl.textContent=tvgName||'';
@@ -633,8 +790,7 @@
       return u+(u.indexOf('?')===-1?'?':'&')+arr.join('&');
     }
     (function initLogoOnLoad(){
-      var useExternal=false;
-      try{ useExternal=(localStorage.getItem('useExternal')==='true'); }catch(e){ useExternal=false; }
+      var useExternal=isExternalScope();
       var externalHost=isExternalHost();
       if((useExternal||externalHost) && logoImg){
         var nm=tvgName||title||'';
@@ -661,6 +817,49 @@
       console.log('[test-player]',msg);
     }
 
+    function stripAnySchemeLocal(url){
+      return String(url||'').replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//,'');
+    }
+    function detectUrlSchemeLocal(url,fallback){
+      var m=String(url||'').trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//);
+      return (m&&m[1])?String(m[1]).toLowerCase():String(fallback||'http').toLowerCase();
+    }
+    function normalizeProxyBaseUrlLocal(base){
+      var b=String(base||'').trim();
+      if(!b) return '';
+      if(!/^https?:\/\//i.test(b)) b='http://'+b.replace(/^\/+/,'');
+      return b;
+    }
+    function applyUnicastProxyModeLocal(rawUrl,proxyBaseUrl,mode,defaultScheme){
+      var raw=String(rawUrl||'').trim();
+      var pb=normalizeProxyBaseUrlLocal(proxyBaseUrl).replace(/\/+$/,'');
+      if(!raw||!pb) return raw;
+      if(raw.toLowerCase().startsWith((pb+'/').toLowerCase())) return raw;
+      var md=String(mode||'path_no_scheme').toLowerCase();
+      var sch=detectUrlSchemeLocal(raw,defaultScheme||'http');
+      var rawNoScheme=stripAnySchemeLocal(raw).replace(/^\/+/,'');
+      var rawWithScheme=/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw)?raw:(sch+'://'+rawNoScheme);
+      if(md==='full_url') return pb+'/'+rawWithScheme;
+      if(md==='with_proto_segment') return pb+'/'+sch+'/'+rawNoScheme;
+      return pb+'/'+rawNoScheme;
+    }
+    function currentReplayProxyModeLocal(){
+      var m=String(replayProxyMode||'path_no_scheme').toLowerCase();
+      return (m==='with_proto_segment'||m==='full_url')?m:'path_no_scheme';
+    }
+    function ensureReplayProxyModeLoaded(force){
+      var shouldForce=(force===true);
+      if(replayProxyModePromise) return replayProxyModePromise;
+      var now=Date.now();
+      if(!shouldForce&&replayProxyModeLoadedAt>0&&(now-replayProxyModeLoadedAt)<15000) return Promise.resolve();
+      replayProxyModePromise=apiJson('/api/system/replay-rules/selection').then(function(j){
+        var mode=String(j&&j.success&&j.selection&&j.selection.proxy?j.selection.proxy.mode:'').toLowerCase();
+        replayProxyMode=(mode==='with_proto_segment'||mode==='full_url')?mode:'path_no_scheme';
+        replayProxyModeLoadedAt=Date.now();
+      }).catch(function(){}).finally(function(){ replayProxyModePromise=null; });
+      return replayProxyModePromise;
+    }
+
     function applyChannelTheme(){
       if(!channelLayer) return;
       if(isChannelDark){
@@ -672,31 +871,7 @@
       }
     }
     if(themeToggleBtn){
-      themeToggleBtn.onclick=function(){
-        isChannelDark=!isChannelDark;
-        applyChannelTheme();
-      };
-    }
-
-    if(channelLayer){
-      channelLayer.addEventListener('mouseenter',function(){
-        isHoveringUi=true;
-        if(uiTimer) clearTimeout(uiTimer);
-      });
-      channelLayer.addEventListener('mouseleave',function(){
-        isHoveringUi=false;
-        resetUiTimer();
-      });
-    }
-    if(epgLayer){
-      epgLayer.addEventListener('mouseenter',function(){
-        isHoveringUi=true;
-        if(uiTimer) clearTimeout(uiTimer);
-      });
-      epgLayer.addEventListener('mouseleave',function(){
-        isHoveringUi=false;
-        resetUiTimer();
-      });
+      themeToggleBtn.onclick=null;
     }
 
     function updateLiveDotBlink(){
@@ -864,43 +1039,93 @@
     }
 
     function resolve(url){
-      var m=/\.m3u8(\?|$)/i.test(url)||url.indexOf('m3u8')>-1;
-      var base=m?('/api/proxy/hls?url='):('/api/proxy/stream?url=');
-      var qs=[];
       var nm=(current&&((current.tvgName||current.name)||''))||(tvgName||title||'');
-      if(nm) qs.push('title='+encodeURIComponent(nm));
       var md=isLive?'直播':'回放';
-      var cast='单播';
-      try{
-        var raw=String(url||'').trim();
-        var isMc=/^(rtp|udp):\/\//i.test(raw)||/\/rtp\//i.test(raw);
-        cast=isMc?'组播':'单播';
-      }catch(e){}
-      qs.push('mode='+encodeURIComponent(md));
-      qs.push('cast='+encodeURIComponent(cast));
       var prog='';
       if(isLive && currentLiveProgram && currentLiveProgram.title){ prog=currentLiveProgram.title; }
       if(!isLive && currentReplayProgram && currentReplayProgram.title){ prog=currentReplayProgram.title; }
-      if(prog) qs.push('programTitle='+encodeURIComponent(prog));
-      var sc='internal';
-      try{ sc=(localStorage.getItem('useExternal')==='true')?'external':'internal'; }catch(e){}
-      qs.push('scope='+encodeURIComponent(sc));
-      return base+encodeURIComponent(url)+(qs.length?('&'+qs.join('&')):'');
+      var sc=getScope();
+      var resolver=window.IptvCore&&window.IptvCore.player?window.IptvCore.player.playUrlResolver:null;
+      var meta=(resolver&&typeof resolver.buildLiveMeta==='function')
+        ? resolver.buildLiveMeta(url,{ title:nm, mode:md, programTitle:prog, scope:sc })
+        : (function(){
+            var cast='单播';
+            try{
+              var raw=String(url||'').trim();
+              var isMc=/^(rtp|udp):\/\//i.test(raw)||/\/rtp\//i.test(raw);
+              cast=isMc?'组播':'单播';
+            }catch(e){}
+            if(md==='回放') cast='单播';
+            return {title:nm,mode:md,cast:cast,programTitle:prog,scope:sc};
+          })();
+      if(resolver&&typeof resolver.resolveLive==='function'){
+        return resolver.resolveLive(url,meta);
+      }
+      var src=String(url||'');
+      var m=/\.m3u8(\?|$)/i.test(src)||src.indexOf('m3u8')>-1;
+      var base=m?('/api/proxy/hls?url='):('/api/proxy/stream?url=');
+      var qs=[];
+      if(meta&&meta.title) qs.push('title='+encodeURIComponent(meta.title));
+      if(meta&&meta.mode) qs.push('mode='+encodeURIComponent(meta.mode));
+      if(meta&&meta.cast) qs.push('cast='+encodeURIComponent(meta.cast));
+      if(meta&&meta.programTitle) qs.push('programTitle='+encodeURIComponent(meta.programTitle));
+      if(meta&&meta.scope) qs.push('scope='+encodeURIComponent(meta.scope));
+      return base+encodeURIComponent(src)+(qs.length?('&'+qs.join('&')):'');
+    }
+
+    function ensureRetryStrategy(){
+      if(retryStrategy) return retryStrategy;
+      var rc=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.retryController;
+      if(!rc||typeof rc.create!=='function') return null;
+      retryStrategy=rc.create({
+        state:_reco,
+        maxRetries:5,
+        getSeq:function(){ return playSeq; },
+        startFn:function(playUrl, seq){ if(playUrl){ start(playUrl, seq); } },
+        logFn:function(msg){ logStatus(msg); },
+        setTimer:function(fn,ms){ return setTimeout(fn,ms); },
+        clearTimer:function(id){ clearTimeout(id); }
+      });
+      return retryStrategy;
+    }
+
+    function onAutoplayBlocked(playInvoker){
+      autoplayAwaitClick=true;
+      var core=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.coreController;
+      if(core&&typeof core.bindOneShotUserPlay==='function'){
+        core.bindOneShotUserPlay(function(){
+          autoplayAwaitClick=false;
+          playInvoker&&playInvoker();
+        });
+        return;
+      }
+      document.addEventListener('click',function(){
+        autoplayAwaitClick=false;
+        playInvoker&&playInvoker();
+      },{once:true});
     }
 
     function resetReco(){
-      _reco.n=0;
-      if(_reco.t){clearTimeout(_reco.t);_reco.t=null}
+      var rs=ensureRetryStrategy();
+      if(rs&&typeof rs.reset==='function'){ rs.reset(); }
+      else{
+        _reco.n=0;
+        if(_reco.t){clearTimeout(_reco.t);_reco.t=null}
+      }
       if(_reco.stall){clearTimeout(_reco.stall);_reco.stall=null}
     }
 
     function scheduleReco(playUrl){
+      var rs=ensureRetryStrategy();
+      if(rs&&typeof rs.schedule==='function'){ rs.schedule(playUrl); return; }
+      if(_reco.seq!==playSeq) return;
       if(_reco.n>=5) return;
       var d=Math.min(15000,Math.round(1000*Math.pow(1.8,_reco.n)));
       _reco.n++;
       if(_reco.t) clearTimeout(_reco.t);
+      var seq=playSeq;
       _reco.t=setTimeout(function(){
-        if(playUrl){ start(playUrl) }
+        if(playUrl){ start(playUrl, seq) }
       },d);
       logStatus('计划重试第 '+_reco.n+' 次，'+d+'ms 后');
     }
@@ -917,94 +1142,113 @@
         v._hls=null;
       }
       if(v){
+        try{ v.pause&&v.pause(); }catch(e){}
+        v.onstalled=null;
+        v.onwaiting=null;
         v.removeAttribute('src');
         v.load();
       }
     }
 
     function renderSourceList(){
-      if(!sourcePanel) return;
-      sourcePanel.innerHTML='';
-      sources.forEach(function(s,idx){
-        var row=document.createElement('div');
-        row.className='source-row'+(idx===currentSourceIndex?' active':'');
-        var dot=document.createElement('span');
-        dot.className='source-tag';
-        row.appendChild(dot);
-        var text=document.createElement('span');
-        text.textContent=s.label;
-        row.appendChild(text);
-        row.addEventListener('click',function(e){
-          e.stopPropagation();
-          hideSourcePanel();
-          selectSource(idx,true);
-        });
-        sourcePanel.appendChild(row);
-      });
+      var c=ensureSourceWiringController();
+      if(c&&typeof c.renderSourceList==='function'){
+        if(c.renderSourceList()) return;
+      }
+      return;
     }
 
     function ensureSourceUi(){
+      var c=ensureSourceWiringController();
+      if(c&&typeof c.ensureSourceUi==='function'){
+        if(c.ensureSourceUi()) return;
+      }
       if(rawUrl) return;
-      if(sourceBtn && sourcePanel) return;
+      if(sourceBtn) return;
       var root=qierPlayer&&qierPlayer.el;
       if(!root) return;
       var volume=root.querySelector('.qier-player_controller_volume');
       if(!volume) return;
       var row=volume.parentElement;
       if(!row) return;
-      liveBtn=document.createElement('button');
-      liveBtn.id='liveBtn';
-      liveDot=document.createElement('span');
-      liveDot.id='liveBtn_dot';
-      liveLabelEl=document.createElement('span');
-      liveBtn.appendChild(liveDot);
-      liveBtn.appendChild(liveLabelEl);
-      updateLiveBadge();
-
       sourceBtn=document.createElement('button');
       sourceBtn.id='sourceBtn';
       var srcIcon=document.createElement('i');
       srcIcon.className='bi bi-diagram-3';
       sourceBtn.appendChild(srcIcon);
-      sourceBtn.title='选择线路';
-      sourceLabelEl=document.createElement('span'); // hidden label holder (for title updates)
-      sourceLabelEl.style.display='none';
-      sourceBtn.appendChild(sourceLabelEl);
-      sourceBtn.addEventListener('mouseenter',function(e){
-        e.stopPropagation();
-        showSourcePanel();
-      });
-      sourceBtn.addEventListener('mouseleave',function(){
-        setTimeout(function(){
-          if(!sourcePanel) return;
-          if(!sourcePanel.matches(':hover') && !sourceBtn.matches(':hover')){
-            hideSourcePanel();
-          }
-        },80);
-      });
+      sourceBtn.title='线路模块不可用';
+      sourceBtn.disabled=true;
       row.insertBefore(sourceBtn, volume);
-      row.insertBefore(liveBtn, sourceBtn);
-      sourcePanel=document.createElement('div');
-      sourcePanel.id='sourcePanel';
-      sourcePanel.className='qier-player_popover_panel';
-      sourcePanel.addEventListener('mouseleave',function(){
-        hideSourcePanel();
-      });
-      sourceBtn.appendChild(sourcePanel);
-      renderSourceList();
+      sourcePanel=null;
     }
 
     function showSourcePanel(){
-      if(!sourcePanel || !sourceBtn) return;
-      sourcePanel.style.display='block';
+      var c=ensureSourceWiringController();
+      if(c&&typeof c.showSourcePanel==='function'){
+        if(c.showSourcePanel()) return;
+      }
+      return;
     }
 
     function hideSourcePanel(){
-      if(!sourcePanel) return;
-      sourcePanel.style.display='none';
+      var c=ensureSourceWiringController();
+      if(c&&typeof c.hideSourcePanel==='function'){
+        if(c.hideSourcePanel()) return;
+      }
+      return;
+    }
+
+    function loadLogoNow(im){
+      if(!im || im._logoLoaded) return;
+      var src=im.getAttribute('data-src')||'';
+      if(!src) return;
+      im._logoLoaded=true;
+      im.src=src;
+    }
+
+    function flushLogoLoads(){
+      if(playPriority) return;
+      if(logoLoadTimer) return;
+      logoLoadTimer=setTimeout(function(){
+        logoLoadTimer=null;
+        var batch=logoPending.splice(0,6);
+        batch.forEach(function(im){ loadLogoNow(im); });
+        if(logoPending.length>0) flushLogoLoads();
+      },0);
+    }
+
+    function ensureLogoObserver(){
+      if(logoObserver) return logoObserver;
+      if('IntersectionObserver' in window){
+        var rootEl=document.getElementById('channelScroll')||null;
+        logoObserver=new IntersectionObserver(function(entries){
+          entries.forEach(function(en){
+            if(!en.isIntersecting) return;
+            var im=en.target;
+            if(playPriority){
+              logoPending.push(im);
+            }else{
+              loadLogoNow(im);
+            }
+            if(logoObserver) logoObserver.unobserve(im);
+          });
+        },{root:rootEl,threshold:0.05});
+      }
+      return logoObserver;
+    }
+
+    function setPlayPriority(active){
+      playPriority=!!active;
+      if(playPriority){
+        logoPending.length=0;
+        if(logoLoadTimer){ clearTimeout(logoLoadTimer); logoLoadTimer=null; }
+      }
+      if(!playPriority) flushLogoLoads();
     }
 
     function showInfo(){
+      var c=ensureUiOverlayController();
+      if(c&&typeof c.showInfo==='function'){ c.showInfo(); return; }
       if(!infoOverlay) return;
       infoOverlay.classList.remove('is-hidden');
       if(infoTimer) clearTimeout(infoTimer);
@@ -1014,49 +1258,74 @@
     }
 
     function hideUi(){
-      if(uiCompact) return;
-      if(isHoveringUi){
-        resetUiTimer();
-        return;
-      }
-      if(channelLayer) channelLayer.classList.add('collapsed');
-      if(epgLayer) epgLayer.classList.add('hidden');
+      var c=ensureUiOverlayController();
+      if(c&&typeof c.hideUi==='function'){ c.hideUi(); return; }
       lastHideTs=Date.now();
+      return;
     }
 
     function showUi(){
-      if(uiCompact) return;
-      if(channelLayer) channelLayer.classList.remove('collapsed');
-      if(epgLayer) epgLayer.classList.remove('hidden');
-      resetUiTimer();
+      var c=ensureUiOverlayController();
+      if(c&&typeof c.showUi==='function'){ c.showUi(); return; }
+      return;
     }
 
     function resetUiTimer(){
-      if(uiCompact) return;
-      if(uiTimer) clearTimeout(uiTimer);
-      uiTimer=setTimeout(hideUi,UI_HIDE_MS);
+      var c=ensureUiOverlayController();
+      if(c&&typeof c.resetUiTimer==='function'){ c.resetUiTimer(); return; }
+      return;
     }
 
-    if(closeBtn && !uiCompact){
-      closeBtn.onclick=function(){
-        hideUi();
-      };
-    }
-    if(!uiCompact){
-      document.addEventListener('mousemove',function(){
-        if(Date.now()-lastHideTs<800) return;
-        showUi();
-      });
-      document.addEventListener('touchstart',function(){
-        if(Date.now()-lastHideTs<800) return;
-        showUi();
-      });
-    }
-    document.addEventListener('mousemove',function(){showInfo()});
-    document.addEventListener('touchstart',function(){showInfo()});
+    (function initUiWiring(){
+      var c=ensureUiWiringController();
+      if(c&&typeof c.bindAll==='function'){
+        c.bindAll();
+        return;
+      }
+      if(themeToggleBtn) themeToggleBtn.title='UI 装配模块不可用';
+      if(epgSel) epgSel.title='EPG 装配模块不可用';
+      if(epgRefresh) epgRefresh.title='EPG 装配模块不可用';
+      if(searchInput) searchInput.placeholder='搜索模块不可用';
+      document.addEventListener('mousemove',function(){showInfo()});
+      document.addEventListener('touchstart',function(){showInfo()});
+    })();
     showInfo();
 
     function normalizeName(v){ return String(v||'').trim().replace(/\s+/g,''); }
+    function is4kStream(s){
+      var r=String((s&&s.resolution)||'').trim().toLowerCase();
+      if(r==='3840x2160'||r==='4096x2160') return true;
+      var nm=String((s&&(s.tvgName||s.name))||'').toUpperCase();
+      return /(?:^|[\s\-_])4K(?:$|[\s\-_])/.test(nm)||/2160P/.test(nm);
+    }
+    function baseChannelName(s){
+      var raw=String((s&&(s.tvgName||s.name))||'').trim();
+      var next=raw.replace(/\s+/g,' ').replace(/(?:\s*[-_])?\s*(4K|2160P)\s*$/i,'').trim();
+      return next||raw;
+    }
+    function exportChannelName(s){
+      var base=baseChannelName(s);
+      if(is4kStream(s)) return /4K$/i.test(base)?base:(base+' 4K');
+      return base;
+    }
+    function inferGroupByName(nm,fallback){
+      var name=String(nm||'');
+      if(/CCTV/i.test(name)) return '央视频道';
+      if(/卫视/.test(name)) return '卫视频道';
+      if(/(凤凰|翡翠|本港台|港台|TVB|明珠)/i.test(name)) return '港台频道';
+      if(/(少儿|卡通|动漫)/.test(name)) return '少儿频道';
+      if(/(购物|导购)/.test(name)) return '购物频道';
+      return fallback||'未分类频道';
+    }
+    function streamDisplayGroup(s){
+      var raw=String((s&&s.groupTitle)||'').trim();
+      if(is4kStream(s)) return '4K频道';
+      if(/4K/.test(raw)) return inferGroupByName(exportChannelName(s),'卫视频道');
+      return raw||inferGroupByName(exportChannelName(s),'未分类频道');
+    }
+    function streamDisplayKey(s){
+      return normalizeName(exportChannelName(s))+'|'+(is4kStream(s)?'4k':'normal');
+    }
     function areaOf(r){
       var m=String(r||'').trim().match(/^(\d+)\s*x\s*(\d+)$/i);
       if(!m) return 0;
@@ -1107,7 +1376,7 @@
       if(v==='av1') return 'AV1';
       return v.toUpperCase();
     }
-    function channelKeyFromStream(s){ return normalizeName(s.tvgName||s.name||''); }
+    function channelKeyFromStream(s){ return streamDisplayKey(s); }
     function describeSource(it){
       if(!it) return '';
       var isMc=isMulticastStream(it);
@@ -1129,14 +1398,14 @@
     }
     function matchSearch(s,q){
       if(!q) return true;
-      var a=(String(s.name||'')+' '+String(s.tvgName||'')+' '+String(s.tvgId||'')+' '+String(s.groupTitle||'')).toLowerCase();
+      var a=(exportChannelName(s)+' '+String(s.name||'')+' '+String(s.tvgName||'')+' '+String(s.tvgId||'')+' '+streamDisplayGroup(s)).toLowerCase();
       return a.indexOf(q.toLowerCase())>=0;
     }
     function groupByName(list){
       var map={};
       list.forEach(function(s){
-        var key=normalizeName(s.tvgName||s.name||'');
-        if(!map[key]) map[key]={name:(s.tvgName||s.name||'未命名频道'),key:key,logo:s.logo||'',items:[]};
+        var key=streamDisplayKey(s);
+        if(!map[key]) map[key]={name:(exportChannelName(s)||'未命名频道'),key:key,logo:s.logo||'',items:[]};
         map[key].items.push(s);
       });
       return map;
@@ -1144,7 +1413,7 @@
     function classifyChannelEntry(entry){
       var nm=String(entry&&entry.name||'');
       var first=entry&&entry.items&&entry.items[0]||{};
-      var grp=String(first.groupTitle||'');
+      var grp=streamDisplayGroup(first);
       if(isCctvName(nm)){
         var num=cctvNumberFrom(nm);
         if(num===null||isNaN(num)) num=999;
@@ -1156,8 +1425,9 @@
       return {cat:2,num:0,group:grp,name:nm};
     }
     function selectCategoryForStream(s){
-      if(s.groupTitle){
-        selectedCat='group:'+String(s.groupTitle);
+      var g=streamDisplayGroup(s);
+      if(g){
+        selectedCat='group:'+g;
       }else{
         selectedCat='all';
       }
@@ -1213,179 +1483,105 @@
     }
 
     var autoplayAwaitClick=false;
-    function start(playUrl){
+    function start(playUrl, seq){
       if(!playUrl){
         logStatus('没有播放地址');
         return;
       }
+      if(!seq){
+        playSeq++;
+        seq=playSeq;
+      }else{
+        if(seq!==playSeq) return;
+      }
+      setPlayPriority(true);
       if(!v){
         mountQier();
       }
       destroyPlayer();
       resetReco();
+      var rs=ensureRetryStrategy();
+      if(rs&&typeof rs.setSeq==='function'){ rs.setSeq(seq); } else { _reco.seq=seq; }
       logStatus('准备播放: '+playUrl);
-      var isM3u8=/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1;
+      var sk=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.startKernel;
+      var isM3u8=(sk&&typeof sk.isM3u8Url==='function')?sk.isM3u8Url(rawUrl):(/\.m3u8(\?|$)/i.test(rawUrl)||rawUrl.indexOf('m3u8')>-1);
       if(isM3u8){
         try{
-          var c=(current&&String(current.codec||'').toLowerCase())||'';
-          if(c==='hevc' && !hevcHlsSwitchOnce){
-            var alts=sourcesForStream(current).filter(function(x){
-              var u=String(x.multicastUrl||'').trim();
-              return u && !/\.m3u8(\?|$)/i.test(u);
-            });
-            if(alts.length>0){
-              hevcHlsSwitchOnce=true;
-              logStatus('检测到HEVC HLS，优先切换非HLS源');
-              startLiveFor(alts[0]);
-              return;
-            }
+          var hevcResult=(sk&&typeof sk.handleHevcSwitch==='function')
+            ?sk.handleHevcSwitch(current,sourcesForStream(current),current,currentReplayProgram)
+            :{shouldSwitch:false,altSource:null};
+          if(hevcResult.shouldSwitch&&hevcResult.altSource){
+            hevcHlsSwitchOnce=true;
+            logStatus('检测到HEVC HLS，优先切换非HLS源');
+            startLiveFor(hevcResult.altSource);
+            return;
           }
         }catch(e){}
       }
       if(isM3u8){
         if(!window.Hls){
-          ensureHls().then(function(){ start(playUrl); });
+          ensureHls().then(function(){ start(playUrl, seq); });
           return;
         }
         if(window.Hls&&Hls.isSupported()){
-          var h=new Hls({
-            lowLatencyMode:false,
-            capLevelToPlayerSize:true,
-            backBufferLength:30,
-            liveSyncDurationCount:3,
-            liveMaxLatencyDurationCount:8,
-            maxBufferLength:20,
-            maxBufferHole:1,
-            nudgeOffset:0.1,
-            nudgeMaxRetry:5,
-            fragLoadingMaxRetry:3,
-            levelLoadingMaxRetry:3,
-            manifestLoadingMaxRetry:3,
-            fragLoadingRetryDelay:1000,
-            levelLoadingRetryDelay:1000,
-            manifestLoadingRetryDelay:1000
-          });
+          var h=(sk&&typeof sk.createHls==='function')?sk.createHls(Hls):new Hls({lowLatencyMode:false,capLevelToPlayerSize:true,backBufferLength:30,liveSyncDurationCount:3,liveMaxLatencyDurationCount:8,maxBufferLength:20,maxBufferHole:1,nudgeOffset:0.1,nudgeMaxRetry:5,fragLoadingMaxRetry:3,levelLoadingMaxRetry:3,manifestLoadingMaxRetry:3,fragLoadingRetryDelay:1000,levelLoadingRetryDelay:1000,manifestLoadingRetryDelay:1000});
           currentPlayer=h;
           v._hls=h;
-          h.on(Hls.Events.MEDIA_ATTACHED,function(){resetReco();logStatus('HLS 已绑定媒体')});
-          h.on(Hls.Events.LEVEL_UPDATED,function(){resetReco()});
-          h.on(Hls.Events.ERROR,function(_,data){
-            if(!data||!data.fatal) return;
-            logStatus('HLS fatal error: '+data.type);
-            if(data.type===Hls.ErrorTypes.NETWORK_ERROR){scheduleReco(playUrl)}
-            else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){
-              try{h.recoverMediaError()}catch(e){scheduleReco(playUrl)}
-            }else{
-              scheduleReco(playUrl);
-            }
-          });
-          v.addEventListener('playing',resetReco,{once:true,passive:true});
-          v.addEventListener('loadeddata',function(){logStatus('已加载数据')},{once:true,passive:true});
+          if(sk&&typeof sk.bindHlsCoreEvents==='function'){
+            sk.bindHlsCoreEvents(h,{resetReco:resetReco,logStatus:logStatus});
+          }
+          if(sk&&typeof sk.createHlsErrorHandler==='function'){
+            h.on(Hls.Events.ERROR,sk.createHlsErrorHandler(seq,playSeq,function(){scheduleReco(playUrl);},logStatus));
+          }
           h.loadSource(playUrl);
           h.attachMedia(v);
-          if(v){
-            try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
-            var _p=v.play&&v.play();
-            if(_p&&_p.catch){
-              _p.catch(function(e){
-                logStatus('play 调用失败: '+e);
-                if(String(e).indexOf('NotAllowedError')!==-1){
-                  autoplayAwaitClick=true;
-                  document.addEventListener('click',function(){
-                    autoplayAwaitClick=false;
-                    try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
-                    v.play&&v.play().catch(function(){});
-                  },{once:true});
-                }
-              });
-            }
+          if(sk&&typeof sk.bindVideoPlayEvents==='function'){
+            sk.bindVideoPlayEvents(v,seq,playSeq,{resetReco:resetReco,setPlayPriority:setPlayPriority,logStatus:logStatus});
+          }
+          if(sk&&typeof sk.initVideoPlayAttempt==='function'){
+            sk.initVideoPlayAttempt(v,null,{
+              onAutoplayBlocked:function(){ onAutoplayBlocked(function(){ try{ v.muted=false; v.removeAttribute('muted'); }catch(e){} v.play&&v.play().catch(function(){}); }); },
+              onError:function(e){ logStatus('play 调用失败: '+e); },
+              logStatus:logStatus
+            });
           }
           logStatus('开始 HLS 播放');
           return;
         }
-        v.src=playUrl;
-        v.onstalled=function(){
-          if(_reco.stall) clearTimeout(_reco.stall);
-          _reco.stall=setTimeout(function(){
-            v.load();
-            v.play&&v.play().catch(function(){});
-          },15000);
-        };
-        v.onwaiting=v.onstalled;
-        if(v){
-          try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
-          var _p0=v.play&&v.play();
-          if(_p0&&_p0.catch){
-            _p0.catch(function(e){
-              logStatus('原生 HLS 播放失败: '+e);
-              if(String(e).indexOf('NotAllowedError')!==-1){
-                autoplayAwaitClick=true;
-                document.addEventListener('click',function(){
-                  autoplayAwaitClick=false;
-                  try{ v.muted=false; v.removeAttribute('muted'); }catch(e){}
-                  v.play&&v.play().catch(function(){});
-                },{once:true});
-              }
-            });
-          }
+        if(sk&&typeof sk.startNativeHls==='function'){
+          sk.startNativeHls(v,playUrl,seq,playSeq,{
+            _reco:_reco,
+            initVideoPlayAttempt:sk.initVideoPlayAttempt,
+            onAutoplayBlocked:function(){ onAutoplayBlocked(function(){ try{ v.muted=false; v.removeAttribute('muted'); }catch(e){} v.play&&v.play().catch(function(){}); }); },
+            setPlayPriority:setPlayPriority,
+            logStatus:logStatus
+          });
         }
-        logStatus('使用原生 HLS 播放');
         return;
       }
       if(!window.mpegts){
-        ensureMpegts().then(function(){ start(playUrl); });
+        ensureMpegts().then(function(){ start(playUrl, seq); });
         return;
       }
-      if(!window.mpegts||!mpegts.isSupported()||!mpegts.getFeatureList().mseLivePlayback){
-        v.src=playUrl;
-        v.play().catch(function(e){logStatus('直接播放 TS 失败: '+e)});
-        logStatus('环境不支持 mpegts.js，尝试直接播放');
+      var canMpegts=sk&&typeof sk.canUseMpegts==='function'?sk.canUseMpegts(window.mpegts):(window.mpegts&&mpegts.isSupported()&&mpegts.getFeatureList().mseLivePlayback);
+      if(!canMpegts){
+        if(sk&&typeof sk.playDirectTs==='function'){
+          sk.playDirectTs(v,playUrl,logStatus);
+        }
         return;
       }
-      if(mpegts.LoggingControl){
-        try{
-          mpegts.LoggingControl.enableDebug=false;
-          mpegts.LoggingControl.enableVerbose=false;
-        }catch(e){}
-      }
-      var mediaDataSource={type:'mse',isLive:true,url:playUrl,liveBufferLatencyChasing:true};
-      var config={
-        isLive:true,
-        enableStashBuffer:true,
-        stashInitialSize:256*1024,
-        liveBufferLatencyChasing:true,
-        liveBufferLatencyMaxLatency:1.2,
-        liveBufferLatencyMinRemain:0.3,
-        autoCleanupSourceBuffer:true,
-        autoCleanupMaxBackwardDuration:120,
-        autoCleanupMinBackwardDuration:60,
-        fixAudioTimestampGap:true,
-        lazyLoad:false
-      };
+      if(sk&&typeof sk.applyMpegtsLogging==='function'){ sk.applyMpegtsLogging(mpegts); }
+      var profile=sk&&typeof sk.createMpegtsProfile==='function'?sk.createMpegtsProfile(playUrl):null;
       try{
-        var player=mpegts.createPlayer(mediaDataSource,config);
-        currentPlayer=player;
-        player.attachMediaElement(v);
-        player.load();
-        var _pp = player.play && player.play();
-        if(_pp && _pp.catch){
-          _pp.catch(function(e){
-            if(String(e).indexOf('NotAllowedError')!==-1){
-              autoplayAwaitClick=true;
-              document.addEventListener('click',function(){
-                autoplayAwaitClick=false;
-                player.play&&player.play();
-              },{once:true});
-            }
+        if(sk&&typeof sk.startMpegtsPlayer==='function'){
+          currentPlayer=sk.startMpegtsPlayer(mpegts,v,profile,seq,playSeq,autoplayAwaitClick,{
+            onAutoplayBlocked:function(){ onAutoplayBlocked(function(){ currentPlayer&&currentPlayer.play&&currentPlayer.play(); }); },
+            setPlayPriority:setPlayPriority,
+            createMpegtsErrorHandler:sk.createMpegtsErrorHandler,
+            scheduleReco:function(){scheduleReco(playUrl);},
+            logStatus:logStatus
           });
         }
-        player.on(mpegts.Events.ERROR,function(type,detail){
-          logStatus('mpegts error: '+type);
-          if(!autoplayAwaitClick){
-            scheduleReco(playUrl);
-          }
-        });
-        logStatus('开始 mpegts.js 播放');
       }catch(e){
         logStatus('创建 mpegts player 失败: '+e);
       }
@@ -1404,14 +1600,7 @@
         updateProgramProgressLabel();
       }
       try{
-        var nm = String((current&&current.tvgName)|| (current&&current.name) || '');
-        var ss = {
-          name: nm,
-          multicastUrl: String((current&&current.multicastUrl)||''),
-          resolution: String((current&&current.resolution)||''),
-          frameRate: String((current&&current.frameRate)||'')
-        };
-        if(nm){ localStorage.setItem('lastSource', JSON.stringify(ss)); }
+        rememberLastSourceSnapshot(current||{});
       }catch(e){}
       renderSourceList();
       if(play){
@@ -1490,29 +1679,99 @@
       }
     }
 
+    function isExternalScope(){
+      return getScope()==='external';
+    }
+
+    function buildPlayerLogPayload(input){
+      var p=input||{};
+      return {
+        name:String(p.name||''),
+        tvgName:String(p.tvgName||''),
+        mode:String(p.mode||''),
+        cast:String(p.cast||''),
+        scope:String(p.scope||''),
+        programTitle:String(p.programTitle||''),
+        url:String(p.url||'')
+      };
+    }
+
+    function getCatchupService(){
+      return window.IptvCore&&window.IptvCore.player?window.IptvCore.player.catchup:null;
+    }
+    function getPlayUrlResolver(){
+      return window.IptvCore&&window.IptvCore.player?window.IptvCore.player.playUrlResolver:null;
+    }
+    function getReplayOptions(scopeVal, resolver){
+      var catchupSvc = getCatchupService();
+      if(catchupSvc && typeof catchupSvc.buildReplayPlayerOptions === 'function'){
+        return catchupSvc.buildReplayPlayerOptions(scopeVal, resolver);
+      }
+      return { scope: scopeVal, resolver: resolver };
+    }
+
+    function rememberLastSourceSnapshot(stream){
+      var s=stream||{};
+      var nm=String(s.tvgName||s.name||'');
+      if(!nm) return;
+      var ss={
+        name:nm,
+        multicastUrl:String(s.multicastUrl||''),
+        resolution:String(s.resolution||''),
+        frameRate:String(s.frameRate||'')
+      };
+      localStorage.setItem('lastSource', JSON.stringify(ss));
+    }
+
+    function buildEpgProgramsQuery(params){
+      var p=params||{};
+      var epgSvc=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.epgService;
+      if(epgSvc&&typeof epgSvc.buildProgramsQuery==='function'){
+        return epgSvc.buildProgramsQuery(p);
+      }
+      var q=new URLSearchParams();
+      q.set('scope',String(p.scope||'internal'));
+      q.set('channelId',String(p.channelId||''));
+      q.set('channelName',String(p.channelName||''));
+      q.set('date',String(p.date||''));
+      if(p.epgId) q.set('epgId',String(p.epgId));
+      if(p.force) q.set('force','1');
+      q.set('t',String(Date.now()));
+      return q.toString();
+    }
+
     function channelKey(s){
       return String((s&&s.tvgName)||s&&s.name||'').trim().replace(/\s+/g,'');
     }
 
-    function playable(u){
-      return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
+    function hasReplaySupport(s){
+      var cb=String((s&&s.catchupBase)||'').trim();
+      if(cb) return true;
+      var hp=String((s&&s.httpParam)||'');
+      return /(?:^|[&?])fcc=/.test(hp);
+    }
+
+    function compareSourceQuality(a,b){
+      var ar=areaOf(a&&a.resolution),br=areaOf(b&&b.resolution);
+      if(ar!==br) return br-ar;
+      var af=parseFloat(a&&a.frameRate)||0,bf=parseFloat(b&&b.frameRate)||0;
+      return bf-af;
     }
 
     function sourcesForStream(s){
       if(!s) return [];
-      var key=channelKey(s);
+      var key=streamDisplayKey(s);
       var list=streams.filter(function(x){
-        return channelKey(x)===key && playable(String(x.multicastUrl||''));
+        return streamDisplayKey(x)===key && isPlayable(x);
       });
       list.sort(function(a,b){
+        var aR=hasReplaySupport(a)?1:0,bR=hasReplaySupport(b)?1:0;
+        if(aR!==bR) return bR-aR;
         var aM=isMulticastStream(a)?1:0,bM=isMulticastStream(b)?1:0;
-        if(aM!==bM) return bM-aM;
+        if(aM!==bM) return aM-bM;
         var ab=bitRateValue(a.bitRate),bb=bitRateValue(b.bitRate);
         if(ab!==bb) return bb-ab;
-        var ar=areaOf(a.resolution),br=areaOf(b.resolution);
-        if(ar!==br) return br-ar;
-        var af=parseFloat(a.frameRate)||0,bf=parseFloat(b.frameRate)||0;
-        return bf-af;
+        return compareSourceQuality(a,b);
       });
       return list;
     }
@@ -1534,12 +1793,27 @@
       }
     }
 
+    function reportPlayerLog(payload){
+      var catchupSvc=getCatchupService();
+      if(catchupSvc&&typeof catchupSvc.reportPlayerLogWithFallback==='function'){
+        catchupSvc.reportPlayerLogWithFallback(payload);
+        return;
+      }
+      if(catchupSvc&&typeof catchupSvc.reportReplayLog==='function'){
+        catchupSvc.reportReplayLog(payload);
+        return;
+      }
+      try{
+        apiJson('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload||{})}).catch(function(){});
+      }catch(e){}
+    }
+
     function startLiveFor(s){
       current=s;
       currentReplayProgram=null;
       currentLiveProgram=null;
-      if(titleEl) titleEl.textContent=s.name||s.tvgName||'IPTV 播放';
-      if(subEl) subEl.textContent=s.tvgName||s.name||'';
+      if(titleEl) titleEl.textContent=exportChannelName(s)||s.name||s.tvgName||'IPTV 播放';
+      if(subEl) subEl.textContent=streamDisplayGroup(s)||s.tvgName||s.name||'';
       var logoC=s.logo;
       var alt=logoUrlForSized(s.tvgName||s.name||'',{h:48,fit:'contain',fmt:'webp'});
       if(alt) logoC=alt;
@@ -1560,13 +1834,7 @@
       try{
         var rememberName = s.tvgName || s.name || '';
         if(rememberName){ localStorage.setItem('lastChannelName', rememberName); }
-        var ss = {
-          name: rememberName,
-          multicastUrl: String(s.multicastUrl||''),
-          resolution: String(s.resolution||''),
-          frameRate: String(s.frameRate||'')
-        };
-        if(rememberName){ localStorage.setItem('lastSource', JSON.stringify(ss)); }
+        rememberLastSourceSnapshot(s||{});
       }catch(e){}
       if(sources.length>0){
         var idx=(currentSourceIndex>=0)?currentSourceIndex:0;
@@ -1576,19 +1844,19 @@
       buildDateTabs();
       loadEpgForStream(s);
       selectCategoryForStream(s);
-      var k=normalizeName(s.tvgName||s.name||'');
+      var k=streamDisplayKey(s);
       expandAndFocusChannel(k);
       try{
         var cast=isMulticastStream(s)?'组播':'单播';
-        var sc=getScope()==='external'?'external':'internal';
-        fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        var livePayload=buildPlayerLogPayload({
           name:s.name||s.tvgName||'',
           tvgName:s.tvgName||'',
           mode:'直播',
           cast:cast,
-          scope:sc,
+          scope:getScope(),
           programTitle:(channelNowTitleByKey[k]||'')
-        })}).catch(function(){});
+        });
+        reportPlayerLog(livePayload);
       }catch(e){}
     }
 
@@ -1602,23 +1870,35 @@
       var s=stream||current||{};
       var chId=s.tvgId||s.tvgName||s.name||tvgId||title||'';
       var chName=s.tvgName||s.name||tvgName||title||'';
+      var dayStart=d.getTime();
+      var scopeVal=getScope();
+      var selectedEpgId=(epgSel&&epgSel.value)||epgId;
+      var epgSvc=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.epgService;
+      if(epgSvc&&typeof epgSvc.fetchPrograms==='function'&&typeof epgSvc.mergeProgramsForDay==='function'){
+        Promise.all([
+          epgSvc.fetchPrograms({ scope:scopeVal, channelId:chId, channelName:chName, date:y+'-'+m+'-'+dd, epgId:selectedEpgId, force:opts&&opts.force }),
+          epgSvc.fetchPrograms({ scope:scopeVal, channelId:chId, channelName:chName, date:py+'-'+pm+'-'+pdd, epgId:selectedEpgId, force:opts&&opts.force })
+        ]).then(function(res){
+          var list=epgSvc.mergeProgramsForDay(res[0],res[1],dayStart);
+          renderEpgList(list,stream);
+        });
+        return;
+      }
       var baseParams=function(dateStr){
-        var p=new URLSearchParams();
-        p.set('scope',getScope());
-        p.set('channelId',chId);
-        p.set('channelName',chName);
-        p.set('date',dateStr);
-        if(epgId||(epgSel&&epgSel.value)) p.set('epgId',(epgSel&&epgSel.value)||epgId);
-        if(opts&&opts.force) p.set('force','1');
-        p.set('t',String(Date.now()));
-        return p.toString();
+        return buildEpgProgramsQuery({
+          scope:scopeVal,
+          channelId:chId,
+          channelName:chName,
+          date:dateStr,
+          epgId:selectedEpgId,
+          force:opts&&opts.force
+        });
       };
-      var p1=fetch('/api/epg/programs?'+baseParams(y+'-'+m+'-'+dd)).then(function(r){return r.json()}).catch(function(){return{};});
-      var p2=fetch('/api/epg/programs?'+baseParams(py+'-'+pm+'-'+pdd)).then(function(r){return r.json()}).catch(function(){return{};});
+      var p1=apiJson('/api/epg/programs?'+baseParams(y+'-'+m+'-'+dd)).catch(function(){return{};});
+      var p2=apiJson('/api/epg/programs?'+baseParams(py+'-'+pm+'-'+pdd)).catch(function(){return{};});
       Promise.all([p1,p2]).then(function(res){
         var curr=Array.isArray(res[0].programs)?res[0].programs:[];
         var prev=Array.isArray(res[1].programs)?res[1].programs:[];
-        var dayStart=d.getTime();
         var dayEnd=dayStart+86400000;
         var fromPrev=prev.filter(function(p){return p.endMs>dayStart;});
         var fromCurr=curr.filter(function(p){return p.startMs<dayEnd;});
@@ -1636,215 +1916,155 @@
     }
 
     function doReplay(s,p){
+      var clickKey=String((s&&((s.tvgName||s.name)||''))+'|'+(p&&p.startMs||'')+'|'+(p&&p.endMs||''));
+      var nowTs=Date.now();
+      if(clickKey && clickKey===lastReplayClickKey && (nowTs-lastReplayClickTs)<800){
+        return;
+      }
+      lastReplayClickKey=clickKey;
+      lastReplayClickTs=nowTs;
+      replayRequestSeq++;
+      var reqSeq=replayRequestSeq;
+      var replayCandidate=(sourcesForStream(s)||[]).find(function(x){return hasReplaySupport(x);})||s;
+      s=replayCandidate||s;
       currentReplayProgram=p;
       updateProgramProgressLabel();
-      var qsObj=new URLSearchParams();
-      qsObj.set('scope',getScope());
-      qsObj.set('fmt','ku9');
-      qsObj.set('proto','http');
-      qsObj.set('name',s.name||'');
-      qsObj.set('tvgName',s.tvgName||'');
-      qsObj.set('resolution',s.resolution||'');
-      qsObj.set('frameRate',s.frameRate||'');
-      qsObj.set('multicastUrl',s.multicastUrl||'');
-      qsObj.set('catchupBase',s.catchupBase||'');
-      qsObj.set('startMs',p.startMs);
-      qsObj.set('endMs',p.endMs);
-      function resolveReplaySmart(raw){
-        var isM3u8=/\.m3u8(\?|$)/i.test(raw)||raw.toLowerCase().indexOf('m3u8')>-1;
-        if(isM3u8){
-          return Promise.resolve('/api/proxy/hls?url='+encodeURIComponent(raw));
-        }
-        var hlsProbe='/api/proxy/hls?url='+encodeURIComponent(raw);
-        return fetch(hlsProbe, {method:'GET'}).then(function(resp){
-          return resp.text().then(function(t){
-            var ct=(resp.headers.get('content-type')||'').toLowerCase();
-            var head=t.slice(0,32);
-            if(resp.ok && (ct.indexOf('application/vnd.apple.mpegurl')>-1 || head.indexOf('#EXTM3U')===0 || t.indexOf('#EXTM3U')>-1)){
-              return hlsProbe;
-            }
-            return '/api/proxy/stream?url='+encodeURIComponent(raw);
-          });
-        }).catch(function(){
-          return '/api/proxy/stream?url='+encodeURIComponent(raw);
-        });
-      }
-      fetch('/api/catchup/play?'+qsObj.toString()).then(function(r){return r.json()}).then(function(x){
-        if(x&&x.success&&x.url){
-          var raw=x.url||'';
-          if(raw.indexOf('$')!==-1){ raw=raw.split('$')[0]; }
-          resolveReplaySmart(raw).then(function(playUrl){
-            rawUrl=raw;
+      var scopeVal=getScope();
+      var resolver = getPlayUrlResolver();
+      var replayOptions = getReplayOptions(scopeVal, resolver);
+      if(catchupSvc && typeof catchupSvc.executeReplay === 'function'){
+        catchupSvc.executeReplay(s, p, { scope:scopeVal, resolver:resolver }, {
+          onSuccess:function(replayState, replayCtx){
+            if(reqSeq!==replayRequestSeq) return;
+            rawUrl=replayCtx.raw;
             if(subEl) subEl.textContent=p.title||'';
             if(liveBadge) liveBadge.classList.add('d-none');
             if(replayBadge) replayBadge.classList.remove('d-none');
             isLive=false;
             updateLiveBadge();
             showInfo();
-            try{
-              var sc3=getScope()==='external'?'external':'internal';
-              fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-                name:s.name||s.tvgName||'',
-                tvgName:s.tvgName||'',
-                mode:'回放',
-                cast:'单播',
-                scope:sc3,
-                programTitle:p.title||'',
-                url:raw
-              })}).catch(function(){});
-            }catch(e){}
-            start(playUrl);
+            reportPlayerLog(replayState.logPayload);
+            start(replayCtx.playUrl);
+          },
+          onFailure:function(msg){
+            if(reqSeq!==replayRequestSeq) return;
+            alert(msg);
+          },
+          onError:function(msg){
+            if(reqSeq!==replayRequestSeq) return;
+            alert(msg);
+          }
+        });
+      }else{
+        var req = catchupSvc && typeof catchupSvc.requestReplayWithEntryFallback === 'function'
+          ? catchupSvc.requestReplayWithEntryFallback(s, p, replayOptions)
+          : apiJson('/api/catchup/play?'+new URLSearchParams({
+              scope:scopeVal,
+              fmt:(s&&s.catchupFormat)?String(s.catchupFormat):'default',
+              proto:((String(s&&s.catchupBase||s&&s.multicastUrl||'').split(':')[0]||'').toLowerCase()==='rtsp')?'rtsp':'http',
+              name:s.name||'',
+              tvgName:s.tvgName||'',
+              resolution:s.resolution||'',
+              frameRate:s.frameRate||'',
+              multicastUrl:(s.sourceMulticastUrl||s.multicastUrl||''),
+              catchupBase:s.catchupBase||'',
+              startMs:p.startMs,
+              endMs:p.endMs
+            }).toString());
+        req.then(function(x){
+          if(reqSeq!==replayRequestSeq) return;
+          var outcomeFn=catchupSvc && typeof catchupSvc.resolveReplayOutcomeWithEntryFallback === 'function'
+            ? catchupSvc.resolveReplayOutcomeWithEntryFallback
+            : function(resp,err,ss,pp,oo){ return Promise.resolve({ ok:false, message:catchupSvc&&typeof catchupSvc.getReplayFailureMessage==='function'?catchupSvc.getReplayFailureMessage(resp,err):'无法获取回放地址' }); };
+          outcomeFn(x, null, s, p, replayOptions).then(function(outcome){
+            if(reqSeq!==replayRequestSeq) return;
+            if(!outcome||!outcome.ok){
+              alert(catchupSvc&&typeof catchupSvc.resolveReplayAlertWithFallback==='function'?catchupSvc.resolveReplayAlertWithFallback(outcome, x, null):(outcome&&outcome.message||'无法获取回放地址'));
+              return;
+            }
+            var replayState=outcome.replayState;
+            rawUrl=replayState.replayCtx.raw;
+            if(subEl) subEl.textContent=p.title||'';
+            if(liveBadge) liveBadge.classList.add('d-none');
+            if(replayBadge) replayBadge.classList.remove('d-none');
+            isLive=false;
+            updateLiveBadge();
+            showInfo();
+            reportPlayerLog(replayState.logPayload);
+            start(replayState.replayCtx.playUrl);
           });
-        }else{
-          alert('无法获取回放地址');
-        }
-      }).catch(function(e){
-        alert('回放请求失败: '+e);
-      });
+        }).catch(function(e){
+          if(reqSeq!==replayRequestSeq) return;
+          alert(catchupSvc&&typeof catchupSvc.getReplayFailureMessage==='function'?catchupSvc.getReplayFailureMessage(null, e):('回放请求失败: '+e));
+        });
+      }
     }
 
     function renderEpgList(list,s){
       if(!epgList||!epgHint) return;
-      epgList.innerHTML='';
-      if(!Array.isArray(list)||list.length===0){
-        try{
-          var d = new Date(selectedDate||Date.now());
-          d.setHours(0,0,0,0);
-          var ph=[];
-          for(var h=0;h<24;h++){
-            var st=new Date(d); st.setHours(h,0,0,0);
-            var et=new Date(d); et.setHours(h+1,0,0,0);
-            ph.push({ title:'精彩节目', startMs: st.getTime(), endMs: et.getTime() });
-          }
-          list = ph;
-          epgHint.textContent='';
-        }catch(e){
-          epgHint.textContent='暂无节目单';
-          return;
-        }
-      }
-      epgHint.textContent='';
-      var now=Date.now();
-      var foundLive=false;
-      list.forEach(function(p){
-        var it=document.createElement('button');
-        it.type='button';
-        it.className='list-group-item list-group-item-action bg-transparent epg-item d-flex justify-content-between align-items-center';
-        var tm=new Date(p.startMs),em=new Date(p.endMs);
-        var t=String(tm.getHours()).padStart(2,'0')+':'+String(tm.getMinutes()).padStart(2,'0')+' - '+String(em.getHours()).padStart(2,'0')+':'+String(em.getMinutes()).padStart(2,'0');
-        var left=document.createElement('div');
-        left.innerHTML='<div class="small muted">'+t+'</div><div>'+ (p.title||'无标题') +'</div>';
-        var right=document.createElement('div');
-        var isLiveNow=p.startMs<=now && p.endMs>now;
-        var isPast=p.endMs<=now;
-        if(isLiveNow){
-          right.innerHTML='<span class="badge badge-live rounded-pill px-2 py-1">LIVE</span>';
-          it.classList.add('active-epg');
-          foundLive=true;
-          currentLiveTitle=p.title||'';
-        currentLiveProgram=p;
-          var keyForNow=null;
-          if(s){keyForNow=channelKeyFromStream(s);}
-          else if(current){keyForNow=channelKeyFromStream(current);}
-          if(keyForNow){channelNowTitleByKey[keyForNow]=p.title||'';}
-          if(subEl && replayBadge && replayBadge.classList.contains('d-none')){
-            subEl.textContent=p.title||'';
-          }
-          showInfo();
-        updateProgramProgressLabel();
-        }else if(!isPast){
-          right.innerHTML='<span class="badge bg-secondary">待播</span>';
-        }else{
-          if(currentReplayProgram && p.startMs===currentReplayProgram.startMs && p.title===currentReplayProgram.title){
-            right.innerHTML='<span class="badge badge-replay rounded-pill px-2 py-1">正在回放</span>';
-            it.classList.add('active-epg');
-          }else{
-            right.innerHTML='<span class="badge bg-success">回看</span>';
-          }
-        }
-        it.appendChild(left);
-        it.appendChild(right);
-        it.onclick=function(){
-          if(isLiveNow){
-            currentReplayProgram=null;
-          currentLiveProgram=p;
-          updateProgramProgressLabel();
-            startLiveFor(s||current);
-            renderEpgList(list,s||current);
-          }else if(!isPast){
-          }else{
-            doReplay(s||current,p);
-            renderEpgList(list,s||current);
-          }
+      var nowTs=Date.now();
+      var buildEpgRenderContext=function(){
+        return {
+          epgRenderer:window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.epgRenderer,
+          epgList:epgList,
+          epgHint:epgHint,
+          list:list,
+          selectedDate:selectedDate,
+          now:nowTs,
+          currentReplayProgram:currentReplayProgram,
+          stream:s||null,
+          getCurrentStream:function(){ return current; },
+          setCurrentReplayProgram:function(v){ currentReplayProgram=v||null; },
+          setCurrentLiveProgram:function(v){ currentLiveProgram=v||null; },
+          setCurrentLiveTitle:function(v){ currentLiveTitle=String(v||''); },
+          getCurrentLiveProgram:function(){ return currentLiveProgram; },
+          channelKeyFromStream:function(v){ return channelKeyFromStream(v); },
+          channelNowTitleByKey:channelNowTitleByKey,
+          replayBadge:replayBadge,
+          subEl:subEl,
+          showInfo:function(){ showInfo(); },
+          updateProgramProgressLabel:function(){ updateProgramProgressLabel(); },
+          startLiveFor:function(v){ if(v) startLiveFor(v); },
+          doReplay:function(v,p){ if(v&&p) doReplay(v,p); },
+          rerender:function(nextList,nextStream){ renderEpgList(nextList,nextStream); },
+          isMulticastStream:function(v){ return isMulticastStream(v); },
+          getScope:function(){ return getScope(); },
+          apiJson:function(url,opt){ return apiJson(url,opt); }
         };
-        epgList.appendChild(it);
-      });
-      if(foundLive){
-        setTimeout(function(){
-          var act=epgList.querySelector('.active-epg');
-          if(act) act.scrollIntoView({behavior:'smooth',block:'center'});
-        },100);
-        try{
-          if(current && currentLiveProgram && currentLiveProgram.title){
-            var k2=channelKeyFromStream(current);
-            var cast2=isMulticastStream(current)?'组播':'单播';
-            var sc2=getScope()==='external'?'external':'internal';
-            fetch('/api/player/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-              name:current.name||current.tvgName||'',
-              tvgName:current.tvgName||'',
-              mode:'直播',
-              cast:cast2,
-              scope:sc2,
-              programTitle:currentLiveProgram.title||''
-            })}).catch(function(){});
-          }
-        }catch(e){}
+      };
+      var epgOrc=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.epgOrchestrator;
+      if(epgOrc&&typeof epgOrc.renderList==='function'){
+        var handled=epgOrc.renderList(buildEpgRenderContext());
+        if(handled) return;
       }
+      var epgFb=window.IptvCore&&window.IptvCore.player&&window.IptvCore.player.epgFallbackRenderer;
+      if(epgFb&&typeof epgFb.renderList==='function'){
+        var fbHandled=epgFb.renderList(buildEpgRenderContext());
+        if(fbHandled) return;
+      }
+      epgList.innerHTML='';
+      epgHint.textContent='节目单渲染模块不可用';
+      return;
     }
 
     function buildDateTabs(){
+      var c=ensureEpgWiringController();
+      if(c&&typeof c.buildDateTabs==='function'){
+        if(c.buildDateTabs()) return;
+      }
       if(!epgDateTabs) return;
       epgDateTabs.innerHTML='';
-      var today=new Date();
-      today.setHours(0,0,0,0);
-      var items=[];
-      for(var i=-3;i<=3;i++){
-        var d=new Date(today);
-        d.setDate(today.getDate()+i);
-        items.push(d);
-      }
-      items.forEach(function(d){
-        var mm=String(d.getMonth()+1).padStart(2,'0');
-        var dd=String(d.getDate()).padStart(2,'0');
-        var w=['日','一','二','三','四','五','六'][d.getDay()];
-        var sd=new Date(selectedDate);
-        sd.setHours(0,0,0,0);
-        var isSel=d.getTime()===sd.getTime();
-        var btnEl=document.createElement('button');
-        btnEl.className='nav-link py-0 px-2 small text-nowrap'+(isSel?' active':'');
-        btnEl.textContent=(d.getTime()===today.getTime()?'今日':'周'+w)+' '+mm+'/'+dd;
-        btnEl.onclick=function(){
-          selectedDate=new Date(d);
-          buildDateTabs();
-          if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
-        };
-        var li=document.createElement('li');
-        li.className='nav-item';
-        li.appendChild(btnEl);
-        epgDateTabs.appendChild(li);
-        if(isSel){
-          setTimeout(function(){
-            li.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-          },100);
-        }
-      });
+      var li=document.createElement('li');
+      li.className='nav-item';
+      li.innerHTML='<span class="nav-link py-0 px-2 small text-nowrap disabled">日期导航模块不可用</span>';
+      epgDateTabs.appendChild(li);
     }
 
     function buildCatTabs(){
       if(!catTabs) return;
       var map={};
       streams.forEach(function(s){
-        var g=String(s.groupTitle||'').trim();
+        var g=streamDisplayGroup(s);
         if(g) map[g]=true;
       });
       var groups=Object.keys(map).sort(function(a,b){
@@ -1925,13 +2145,14 @@
         var y=d.getFullYear();
         var m=String(d.getMonth()+1).padStart(2,'0');
         var dd=String(d.getDate()).padStart(2,'0');
-        var params=new URLSearchParams();
-        params.set('scope',getScope());
-        params.set('channelId',chId);
-        params.set('channelName',chName);
-        params.set('date',y+'-'+m+'-'+dd);
-        if(epgId||(epgSel&&epgSel.value)) params.set('epgId',(epgSel&&epgSel.value)||epgId);
-        fetch('/api/epg/programs?'+params.toString()).then(function(r){return r.json()}).then(function(j){
+        var query=buildEpgProgramsQuery({
+          scope:getScope(),
+          channelId:chId,
+          channelName:chName,
+          date:y+'-'+m+'-'+dd,
+          epgId:(epgSel&&epgSel.value)||epgId
+        });
+        apiJson('/api/epg/programs?'+query).then(function(j){
           var list=Array.isArray(j&&j.programs)?j.programs:[];
           var now=Date.now();
           var cur=null;
@@ -1973,7 +2194,7 @@
         if(selectedCat==='all') return true;
         if(/^group:/.test(selectedCat)){
           var g=selectedCat.slice(6);
-          return String(s.groupTitle||'')===g;
+          return streamDisplayGroup(s)===g;
         }
         return true;
       });
@@ -1999,18 +2220,14 @@
           var entry=entries[i];
           (function(entry,idx){
         var sourcesForEntry=entry.items.filter(function(s){
-          var u=String(s.multicastUrl||'').trim();
-          return /^https?:\/\//i.test(u)||/^(rtp|udp):\/\//i.test(u);
+          return isPlayable(s);
         });
         if(sourcesForEntry.length===0) return;
         sourcesForEntry.sort(function(a,b){
-          var areaA=areaOf(a.resolution),areaB=areaOf(b.resolution);
-          if(areaA!==areaB) return areaB-areaA;
-          var fpsA=parseFloat(a.frameRate)||0,fpsB=parseFloat(b.frameRate)||0;
-          return fpsB-fpsA;
+          return compareSourceQuality(a,b);
         });
         var item=document.createElement('div');
-        var isAct=current&&normalizeName(current.tvgName||current.name||'')===entry.key;
+        var isAct=current&&streamDisplayKey(current)===entry.key;
         item.className='list-group-item border-0 channel-item'+(isAct?' active':'');
         item.setAttribute('data-key',entry.key);
         var head=document.createElement('div');
@@ -2024,13 +2241,8 @@
         var textWrap=document.createElement('div');
         textWrap.className='flex-grow-1 overflow-hidden';
 
-        var groupTitle=(sourcesForEntry[0]&&sourcesForEntry[0].groupTitle)||'';
-        var hasReplay=entry.items.some(function(s){
-          var cb=String(s.catchupBase||'').trim();
-          if(cb) return true;
-          var hp=String(s.httpParam||'');
-          return /(?:^|[&?])fcc=/.test(hp);
-        });
+        var groupTitle=streamDisplayGroup(sourcesForEntry[0]||{});
+        var hasReplay=entry.items.some(function(s){ return hasReplaySupport(s); });
 
         var titleDiv=document.createElement('div');
         titleDiv.className='channel-title d-flex align-items-center gap-1';
@@ -2075,13 +2287,20 @@
         (function(){
           var src=logoUrlForSized(entry.name||entry.key||'',{w:72,h:40,fit:'contain',fmt:'webp'});
           im.onerror=function(){ this.onerror=null; this.src='/iptv.png'; };
-          im.src=src||'/iptv.png';
+          im.setAttribute('data-src',src||'');
+          im.src='/iptv.png';
         })();
         im.className='logo-img channel-logo-right';
         try{im.loading='lazy';}catch(e){}
         try{im.decoding='async';}catch(e){}
         try{im.fetchPriority='low';}catch(e){}
         im.width=72; im.height=40;
+        var logoObs=ensureLogoObserver();
+        if(logoObs){
+          logoObs.observe(im);
+        }else if(!playPriority){
+          loadLogoNow(im);
+        }
         rightWrap.appendChild(im);
         head.appendChild(rightWrap);
 
@@ -2103,15 +2322,15 @@
 
     function getSettings(){
       if(settingsCache) return Promise.resolve(settingsCache);
-      return fetch('/api/settings').then(function(r){return r.json()}).then(function(j){
+      return apiJson('/api/settings').then(function(j){
         settingsCache=(j&&j.settings)||{};
         return settingsCache;
       }).catch(function(){return {};});
     }
     function loadLogoTemplate(){
-      return fetch('/api/config/logo-templates').then(function(r){return r.json()}).then(function(j){
+      return apiJson('/api/config/logo-templates').then(function(j){
         var list=Array.isArray(j&&j.templatesObj)?j.templatesObj:[];
-        var useExt=(localStorage.getItem('useExternal')==='true');
+        var useExt=isExternalScope();
         var pick=null;
         if(useExt){
           pick=list.find(function(x){return x&&x.category==='外网台标';})||null;
@@ -2133,10 +2352,46 @@
       var nm=String(name||'').trim();
       if(!nm) return '';
       var scope=isExternalHost()?'external':getScope();
+      if(scope==='external') return '';
       return '/api/logo?name='+encodeURIComponent(nm)+'&scope='+scope;
     }
 
     function loadStreams(){
+      function mapExportStreams(lst,st,useExt){
+        var proxyList=[];
+        try{ proxyList=JSON.parse(localStorage.getItem('proxyList')||'[]'); }catch(e){ proxyList=[]; }
+        if((!proxyList||proxyList.length===0)&&st&&Array.isArray(st.proxyList)) proxyList=st.proxyList;
+        var proxyItem=(proxyList||[]).find(function(x){ return x&&x.type==='单播代理'; })||null;
+        var proxyBase=proxyItem&&proxyItem.url?String(proxyItem.url).trim():'';
+        return lst.map(function(it){
+          var httpUrl=it.httpUrl||'';
+          if(httpUrl.indexOf('$')!==-1){ httpUrl=httpUrl.split('$')[0]; }
+          var srcMulticast=String(it.multicastUrl||'').trim();
+          var srcScheme=srcMulticast.split(':')[0].toLowerCase();
+          var isMulticastSrc=!!it.udpxyUrl||srcScheme==='rtp'||srcScheme==='udp'||/\/rtp\//i.test(srcMulticast)||/\/rtp\//i.test(httpUrl);
+          if(useExt&&httpUrl&&!isMulticastSrc){
+            var __pu=window.IptvCore&&window.IptvCore.shared;
+            httpUrl=__pu?__pu.applyProxyMode(httpUrl,proxyBase,currentReplayProxyModeLocal(),__pu.detectUrlScheme(httpUrl,'http')):applyUnicastProxyModeLocal(httpUrl,proxyBase,currentReplayProxyModeLocal(),detectUrlSchemeLocal(httpUrl,'http'));
+          }
+          return {
+            name:it.name||it.tvgName||'',
+            tvgName:it.tvgName||it.name||'',
+            tvgId:it.tvgId||'',
+            logo:logoUrlFor(it.tvgName||it.name||''),
+            groupTitle:it.groupTitle||'',
+            resolution:it.resolution||'',
+            frameRate:it.frameRate||'',
+            codec:it.codec||'',
+            multicastUrl:httpUrl,
+            sourceMulticastUrl:srcMulticast,
+            udpxyUrl:'',
+            catchupFormat:it.catchupFormat||'',
+            catchupBase:it.catchupBase||'',
+            httpParam:it.httpParam||'',
+            isAvailable:!!it.isAvailable
+          };
+        }).filter(function(x){return x.multicastUrl;});
+      }
       function defaultStart(list){
         if(current||rawUrl) return;
         try{
@@ -2171,69 +2426,52 @@
         }catch(e){}
         return;
       }
-      var useExt=(localStorage.getItem('useExternal')==='true');
-      if(useExt){
-        Promise.all([getSettings(),loadLogoTemplate()]).then(function(arr){
-          var st=arr[0]||{};
-          var qs='?status=all&scope=external';
-          if(st&&st.enableToken&&st.securityToken){ qs+='&token='+encodeURIComponent(st.securityToken); }
-          return fetch('/api/export/json'+qs).then(function(r){
-            if(r.status===403){return {success:false,streams:[]};}
-            return r.json();
-          }).then(function(j){
-            var lst=Array.isArray(j&&j.streams)?j.streams:[];
-            var mapped=lst.map(function(it){
-              var httpUrl=it.httpUrl||'';
-              if(httpUrl.indexOf('$')!==-1){ httpUrl=httpUrl.split('$')[0]; }
-              return {
-                name:it.name||it.tvgName||'',
-                tvgName:it.tvgName||it.name||'',
-                tvgId:it.tvgId||'',
-                logo:logoUrlFor(it.tvgName||it.name||''),
-                groupTitle:it.groupTitle||'',
-                resolution:it.resolution||'',
-                frameRate:it.frameRate||'',
-                codec:it.codec||'',
-                multicastUrl:httpUrl,
-                udpxyUrl:'',
-                catchupBase:it.catchupBase||'',
-                httpParam:it.httpParam||'',
-                isAvailable:!!it.isAvailable
-              };
-            }).filter(function(x){return x.multicastUrl;});
-            streams=mapped;
-            buildCatTabs();
-            renderChannels();
-            var pre=tvgName||title;
-            if(pre && !rawUrl && !current){
-              var p=mapped.filter(function(x){return (x.tvgName||x.name||'')===pre;});
-              if(p.length>0) startLiveFor(p[0]); else defaultStart(mapped);
-            }else{
-              defaultStart(mapped);
-            }
-          }).catch(function(){});
-        });
-      }else{
-        fetch('/api/streams').then(function(r){return r.json()}).then(function(j){
-          var list=Array.isArray(j&&j.streams)?j.streams:[];
-          streams=list;
+      var useExt=isExternalScope();
+      Promise.all([getSettings(),loadLogoTemplate(),ensureReplayProxyModeLoaded()]).then(function(arr){
+        var st=arr[0]||{};
+        var sc=useExt?'external':'internal';
+        var qs='?status=all&scope='+encodeURIComponent(sc);
+        var headers={};
+        if(st&&st.enableToken&&st.securityToken){ headers['x-export-token']=String(st.securityToken); }
+        return apiRequest('/api/export/json'+qs,{headers:headers}).then(function(r){
+          if(r&&r.status===403){return {success:false,streams:[]};}
+          return r&&r.data?r.data:{};
+        }).then(function(j){
+          var lst=Array.isArray(j&&j.streams)?j.streams:[];
+          var mapped=mapExportStreams(lst,st,useExt);
+          if(mapped.length===0 && !useExt){
+            return apiJson('/api/streams').then(function(j2){
+              var list=Array.isArray(j2&&j2.streams)?j2.streams:[];
+              streams=list;
+              buildCatTabs();
+              renderChannels();
+              var pre=tvgName||title;
+              if(pre && !rawUrl && !current){
+                var p=list.filter(function(x){return (x.tvgName||x.name||'')===pre;});
+                if(p.length>0) startLiveFor(p[0]); else defaultStart(list);
+              }else{
+                defaultStart(list);
+              }
+            });
+          }
+          streams=mapped;
           buildCatTabs();
           renderChannels();
           var pre=tvgName||title;
           if(pre && !rawUrl && !current){
-            var p=list.filter(function(x){return (x.tvgName||x.name||'')===pre;});
-            if(p.length>0) startLiveFor(p[0]); else defaultStart(list);
+            var p=mapped.filter(function(x){return (x.tvgName||x.name||'')===pre;});
+            if(p.length>0) startLiveFor(p[0]); else defaultStart(mapped);
           }else{
-            defaultStart(list);
+            defaultStart(mapped);
           }
         }).catch(function(){});
-      }
+      });
     }
 
     function loadEpgSources(){
       if(!epgSel) return;
       epgSel.innerHTML='<option value="">自动</option>';
-      fetch('/api/config/epg-sources').then(function(r){return r.json()}).then(function(j){
+      apiJson('/api/config/epg-sources').then(function(j){
         if(j && j.success && Array.isArray(j.sources)){
           epgSources=j.sources;
           j.sources.forEach(function(s){
@@ -2245,29 +2483,6 @@
           if(epgId) epgSel.value=epgId;
         }
       }).catch(function(){});
-    }
-
-    if(epgSel){
-      epgSel.onchange=function(){
-        if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
-      };
-    }
-    if(epgRefresh){
-      epgRefresh.onclick=function(){
-        if(current) fetchAndRenderEpg(current,{force:true}); else fetchAndRenderEpg(null,{force:true});
-      };
-    }
-    // 输入框节流，减少频繁渲染
-    function debounce(fn,wait){
-      var t=null;
-      return function(){
-        var ctx=this,args=arguments;
-        if(t) clearTimeout(t);
-        t=setTimeout(function(){fn.apply(ctx,args)},wait);
-      };
-    }
-    if(searchInput){
-      searchInput.oninput=debounce(renderChannels,200);
     }
 
     function applyDirectLiveContext(){

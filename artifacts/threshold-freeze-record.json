@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-03-20T13:52:29.412Z",
+  "frozenBy": "auto-gate",
+  "frozenReason": "W1-T4 门禁阈值评审口径冻结，base=recommended=applied 收敛，calibrationReady=true，maxDrift=2，history-ready",
+  "thresholdCalibration": {
+    "strategy": "dynamic-calibration",
+    "minRuns": 8,
+    "alpha": 0.6,
+    "maxDrift": 2,
+    "ready": true,
+    "base": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "recommended": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "applied": {
+      "serviceCritical": 0,
+      "smokeCritical": 0,
+      "contractHigh": 1,
+      "contractMedium": 0
+    },
+    "reason": "history-ready"
+  },
+  "totalRunsAtFreeze": 13,
+  "consecutivePasses": 13,
+  "passRate": 1,
+  "alertCount": 0,
+  "frozen": true
+}

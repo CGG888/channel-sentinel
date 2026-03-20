@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-03-20T13:52:29.412Z",
+  "acceptancePass": true,
+  "score": {
+    "passRate": 1,
+    "summaryOk": true,
+    "severity": "info",
+    "severityOk": true,
+    "contractFails": 0,
+    "artifactsOk": true,
+    "openIncidents": 0,
+    "p1RiskDomains": 0
+  },
+  "gate": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "groupedFailures": {}
+  },
+  "notify": {
+    "severity": "info",
+    "governanceLevel": "P3",
+    "governanceDecision": "pass"
+  },
+  "trend": {
+    "totalRuns": 13,
+    "windowRuns": 13,
+    "calibrationReady": true,
+    "calibrationReason": "history-ready"
+  },
+  "ops": {
+    "openIncidents": 0,
+    "lowFrequencyRiskDomains": 0,
+    "lowFrequencyP1": 0,
+    "lowFrequencyP2": 0,
+    "lowFrequencyP3": 0
+  },
+  "artifacts": {
+    "required": [
+      "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-summary.json",
+      "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-trend.json",
+      "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-notify.json",
+      "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\service-gate-governance.json",
+      "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\ops-domain-sop.json",
+      "C:\\Users\\超哥哥\\Documents\\GitHub\\Iptv-Checker\\artifacts\\ops-low-frequency-governance.json"
+    ],
+    "missing": []
+  },
+  "closureChecklist": [
+    "重跑 gate full 链路并确认 passedRate >= 99%",
+    "确认 severity 非 critical/high 且 contract 失败数为 0",
+    "确认 ops-domain-sop 与 low-frequency-governance 产物齐全",
+    "归档收官验收报告与季度治理制度"
+  ]
+}
