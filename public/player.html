@@ -1916,6 +1916,7 @@
     }
 
     function doReplay(s,p){
+      var catchupSvc=getCatchupService();
       var clickKey=String((s&&((s.tvgName||s.name)||''))+'|'+(p&&p.startMs||'')+'|'+(p&&p.endMs||''));
       var nowTs=Date.now();
       if(clickKey && clickKey===lastReplayClickKey && (nowTs-lastReplayClickTs)<800){
