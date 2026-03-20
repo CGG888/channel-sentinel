@@ -71,7 +71,6 @@
       <div class="channel-header-title">频道</div>
       <div class="channel-actions">
         <button id="themeToggleBtn" class="channel-theme-btn">浅色</button>
-        <button id="closeSidebarBtn" class="channel-close-btn">×</button>
       </div>
     </div>
     <div class="channel-search-wrap">
@@ -139,6 +138,7 @@
     var replayBadge=document.getElementById('replayBadge');
     var channelLayer=document.getElementById('channelLayer');
     var epgLayer=document.getElementById('epgLayer');
+    var playerLayer=document.getElementById('playerLayer');
     var closeBtn=document.getElementById('closeSidebarBtn');
     var infoOverlay=document.querySelector('.player-info-overlay');
     var uiTimer=null;
@@ -258,6 +258,7 @@
         themeToggleBtn:themeToggleBtn,
         channelLayer:channelLayer,
         epgLayer:epgLayer,
+        playerLayer:playerLayer,
         closeBtn:closeBtn,
         epgSel:epgSel,
         epgRefresh:epgRefresh,
@@ -271,6 +272,8 @@
         showUi:function(){ showUi(); },
         hideUi:function(){ hideUi(); },
         showInfo:function(){ showInfo(); },
+        showEpg:function(){ var c=ensureUiOverlayController(); if(c&&typeof c.showEpg==='function') c.showEpg(); },
+        hideEpg:function(){ var c=ensureUiOverlayController(); if(c&&typeof c.hideEpg==='function') c.hideEpg(); },
         onEpgChange:function(){
           if(current) loadEpgForStream(current); else fetchAndRenderEpg(null);
         },
@@ -711,6 +714,36 @@
       sourcePanel=null;
     }
 
+    function ensureChannelListToggleUi(){
+      var btn=document.getElementById('channelListToggleBtn');
+      if(btn) return;
+      var root=qierPlayer&&qierPlayer.el;
+      if(!root) return;
+      // 查找音量按钮，其父元素即为控制器按钮行
+      var vol=root.querySelector('.qier-player_controller_volume');
+      var row=vol&&vol.parentElement;
+      if(!row) return;
+      // 查找控制器行的所有子元素，找到最后一个（应为全屏按钮）
+      var children=row.querySelectorAll(':scope > *');
+      var lastBtn=children.length>0?children[children.length-1]:null;
+      btn=document.createElement('button');
+      btn.id='channelListToggleBtn';
+      btn.className='qier-player_tooltip';
+      btn.setAttribute('data-tip','切换频道列表');
+      btn.innerHTML='<i class="qier-player_icon" style="width:24px;height:24px;color:rgba(255,255,255,.8)"><svg viewBox="0 0 16 16" width="24" height="24" fill="currentColor"><path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h8v2H2v-2z"/></svg></i>';
+      btn.style.cssText='position:relative;width:36px;height:100%;padding:6px;cursor:pointer;color:rgba(255,255,255,.8);background:transparent;border:none;flex-shrink:0;pointer-events:auto;';
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        toggleChannelList();
+      });
+      // 插入到最后一个按钮之后（全屏按钮右侧）
+      if(lastBtn&&lastBtn.nextSibling){
+        row.insertBefore(btn,lastBtn.nextSibling);
+      }else{
+        row.appendChild(btn);
+      }
+    }
+
     function showSourcePanel(){
       var c=ensureSourceWiringController();
       if(c&&typeof c.showSourcePanel==='function'){
@@ -818,6 +851,29 @@
       document.addEventListener('mousemove',function(){showInfo()});
       document.addEventListener('touchstart',function(){showInfo()});
     })();
+
+    // EPG 初始显示 3 秒后自动隐藏（延迟调用确保 controller 已初始化）
+    (function(){
+      function trySchedule(){
+        var c=ensureUiOverlayController();
+        if(c&&typeof c.scheduleInitialEpgHide==='function'){
+          c.scheduleInitialEpgHide();
+        }else{
+          setTimeout(trySchedule, 50);
+        }
+      }
+      setTimeout(trySchedule, 100);
+    })();
+
+    function toggleChannelList(){
+      if(!channelLayer) return;
+      if(channelLayer.classList.contains('collapsed')){
+        channelLayer.classList.remove('collapsed');
+      }else{
+        channelLayer.classList.add('collapsed');
+      }
+    }
+
     showInfo();
 
     function normalizeName(v){ return String(v||'').trim().replace(/\s+/g,''); }
@@ -1008,6 +1064,7 @@
         });
       }
       ensureSourceUi();
+      ensureChannelListToggleUi();
       ensureProgressProgramUi();
     }
 
@@ -1714,6 +1771,7 @@
       buildDateTabs();
       loadEpgSources();
       loadStreams();
+      ensureChannelListToggleUi();
     }
 
     function renderChannels(){

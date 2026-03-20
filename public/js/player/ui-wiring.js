@@ -21,6 +21,7 @@
         const themeToggleBtn = opts.themeToggleBtn || null;
         const channelLayer = opts.channelLayer || null;
         const epgLayer = opts.epgLayer || null;
+        const playerLayer = opts.playerLayer || null;
         const closeBtn = opts.closeBtn || null;
         const epgSel = opts.epgSel || null;
         const epgRefresh = opts.epgRefresh || null;
@@ -33,6 +34,8 @@
         const showUi = typeof opts.showUi === 'function' ? opts.showUi : function () {};
         const hideUi = typeof opts.hideUi === 'function' ? opts.hideUi : function () {};
         const showInfo = typeof opts.showInfo === 'function' ? opts.showInfo : function () {};
+        const showEpg = typeof opts.showEpg === 'function' ? opts.showEpg : function () {};
+        const hideEpg = typeof opts.hideEpg === 'function' ? opts.hideEpg : function () {};
         const onEpgChange = typeof opts.onEpgChange === 'function' ? opts.onEpgChange : function () {};
         const onEpgRefresh = typeof opts.onEpgRefresh === 'function' ? opts.onEpgRefresh : function () {};
         const onSearchInput = typeof opts.onSearchInput === 'function' ? opts.onSearchInput : function () {};
@@ -77,21 +80,37 @@
 
         function bindOverlay() {
             bindHover(channelLayer);
-            bindHover(epgLayer);
+            // EPG: mouseenter 显示，mouseleave 隐藏
+            // opacity:0 不影响鼠标事件（元素仍参与命中测试），mouseenter/mouseleave 正常触发
+            if (epgLayer) {
+                epgLayer.addEventListener('mouseenter', function () { showEpg(); });
+                epgLayer.addEventListener('mouseleave', function () { hideEpg(); });
+            }
             if (closeBtn && !uiCompact) {
                 closeBtn.onclick = function () {
                     hideUi();
                 };
             }
             if (!uiCompact) {
-                document.addEventListener('mousemove', function () {
-                    if (shouldIgnoreRecentHide()) return;
-                    showUi();
-                });
-                document.addEventListener('touchstart', function () {
-                    if (shouldIgnoreRecentHide()) return;
-                    showUi();
-                });
+                if (playerLayer) {
+                    playerLayer.addEventListener('mousemove', function () {
+                        if (shouldIgnoreRecentHide()) return;
+                        showUi();
+                    });
+                    playerLayer.addEventListener('touchstart', function () {
+                        if (shouldIgnoreRecentHide()) return;
+                        showUi();
+                    });
+                } else {
+                    document.addEventListener('mousemove', function () {
+                        if (shouldIgnoreRecentHide()) return;
+                        showUi();
+                    });
+                    document.addEventListener('touchstart', function () {
+                        if (shouldIgnoreRecentHide()) return;
+                        showUi();
+                    });
+                }
             }
             document.addEventListener('mousemove', function () { showInfo(); });
             document.addEventListener('touchstart', function () { showInfo(); });

@@ -254,20 +254,16 @@ body {
   left: 20px;
   width: 300px;
   bottom: var(--epg-gap);
-  z-index: 4;
-  background: rgba(10, 12, 24, 0.32);
-  backdrop-filter: blur(10px);
+  z-index: 6;
+  background: rgba(10, 12, 24, 0.85);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, .08);
   display: flex;
   flex-direction: column;
-  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 #epgLayer.hidden {
   opacity: 0;
-  pointer-events: none;
-  transform: translateX(-20px);
 }
 
 /* ---- Channel Layer — Dark Theme ---- */

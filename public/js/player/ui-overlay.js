@@ -19,8 +19,12 @@
         const infoOverlay = opts.infoOverlay || null;
         const uiHideMs = Number(opts.uiHideMs || 3000);
         const infoHideMs = Number(opts.infoHideMs || 10000);
+        const epgAutoHideMs = Number(opts.epgAutoHideMs || 3000);
         const clearTimer = typeof opts.clearTimer === 'function' ? opts.clearTimer : clearTimeout;
         const setTimer = typeof opts.setTimer === 'function' ? opts.setTimer : setTimeout;
+
+        let isEpgVisible = true; // 初始为显示状态
+        let initialEpgHidden = false;
 
         function showInfo() {
             if (!infoOverlay) return;
@@ -33,22 +37,37 @@
             setInfoTimer(timer);
         }
 
+        function showEpg() {
+            if (!epgLayer) return;
+            epgLayer.classList.remove('hidden');
+        }
+
+        function hideEpg() {
+            if (!epgLayer) return;
+            epgLayer.classList.add('hidden');
+        }
+
         function hideUi() {
             if (getUiCompact()) return;
             if (getHovering()) {
                 resetUiTimer();
                 return;
             }
-            if (channelLayer) channelLayer.classList.add('collapsed');
-            if (epgLayer) epgLayer.classList.add('hidden');
             setLastHideTs(Date.now());
         }
 
         function showUi() {
             if (getUiCompact()) return;
-            if (channelLayer) channelLayer.classList.remove('collapsed');
-            if (epgLayer) epgLayer.classList.remove('hidden');
             resetUiTimer();
+        }
+
+        function toggleChannelLayer() {
+            if (!channelLayer) return;
+            if (channelLayer.classList.contains('collapsed')) {
+                channelLayer.classList.remove('collapsed');
+            } else {
+                channelLayer.classList.add('collapsed');
+            }
         }
 
         function resetUiTimer() {
@@ -74,6 +93,19 @@
             return (Date.now() - getLastHideTs()) < 800;
         }
 
-        return { showInfo, hideUi, showUi, resetUiTimer, onHoverStart, onHoverEnd, shouldIgnoreRecentHide };
+        // EPG 自动隐藏（3秒后执行一次）
+        function scheduleInitialEpgHide() {
+            if (initialEpgHidden) return;
+            initialEpgHidden = true;
+            setTimer(function () {
+                hideEpg();
+            }, epgAutoHideMs);
+        }
+
+        return {
+            showInfo, showEpg, hideEpg, hideUi, showUi, resetUiTimer,
+            onHoverStart, onHoverEnd, shouldIgnoreRecentHide,
+            scheduleInitialEpgHide
+        };
     };
 })();
