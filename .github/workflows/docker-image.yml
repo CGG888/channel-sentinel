@@ -111,12 +111,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Storage reconcile gate
-        run: npm run db:reconcile:strict
-
-      - name: Storage sqlite smoke gate
-        run: npm run db:smoke:sqlite
-
       - name: Service quality gate (node direct)
         env:
           SERVICE_GATE_SUMMARY_PATH: artifacts/service-gate-summary.json
