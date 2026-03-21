@@ -30,6 +30,7 @@
     <script src="/js/results/webdav-manager.js"></script>
     <script src="/js/results/persist-manager.js"></script>
     <script src="/js/results/replay-rules-center.js"></script>
+    <script src="/js/results/replay-rules-community.js"></script>
     <script src="/js/results/catchup-service.js"></script>
     <script src="/js/results/settings/fcc-settings.js"></script>
     <script src="/js/results/settings/group-settings.js"></script>
@@ -37,6 +38,7 @@
     <script src="/js/results/settings/proxy-settings.js"></script>
     <script src="/js/results/settings/epg-settings.js"></script>
     <script src="/js/results/settings/app-settings.js"></script>
+    <script src="/js/results/settings/cdn-settings.js"></script>
 <script src="/vendor/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
       (async function () {
@@ -2643,11 +2645,21 @@ function openReplayRulesModal() {
     document.body.appendChild(modal);
   }
   m.attachModal(modal);
+  // 附加社区功能
+  const comm = window.IptvCore && window.IptvCore.results && window.IptvCore.results.community;
+  if (comm && typeof comm.attachToReplayRulesModal === 'function') {
+    comm.attachToReplayRulesModal(modal);
+  }
 }
 async function __initResults(){
   if (window.__resultsInitDone || window.__resultsInitStarted) return;
   window.__resultsInitStarted = true;
   try {
+    // 处理 GitHub OAuth 回调
+    const comm = window.IptvCore && window.IptvCore.results && window.IptvCore.results.community;
+    if (comm && typeof comm.handleGithubCallback === 'function') {
+      await comm.handleGithubCallback();
+    }
     const logoTplInputEl = document.getElementById('logoTplInput');
     if (logoTplInputEl) logoTplInputEl.value = window.IptvCore.settings.logo.getTemplate();
     const syncFccBtn = document.getElementById('syncFccBtn');

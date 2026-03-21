@@ -11,6 +11,7 @@ const storageMode = require('../storage/mode');
 const storage = require('../storage');
 const logger = require('../core/logger');
 const replayRules = require('../services/replay-rules');
+const replayRulesRemote = require('../services/replay-rules-remote');
 const opsObservability = require('../services/ops-observability');
 const { wrapAsync } = require('../middleware/governance');
 const DATA_DIR = path.join(__dirname, '../../data');
@@ -454,6 +455,44 @@ route('post', '/system/update', async (req, res) => {
         return apiSuccess(res, { message: '更新成功，请手动重启服务生效！\n' + stdout });
     } catch (e) {
         return apiFail(res, '更新失败：' + e.message, 500);
+    }
+});
+
+// 远程规则更新接口
+route('get', '/replay-rules/check-update', async (req, res) => {
+    try {
+        const result = await replayRulesRemote.checkForUpdate();
+        return apiSuccess(res, result);
+    } catch (e) {
+        return apiFail(res, e.message || 'check update failed', 500);
+    }
+});
+
+route('post', '/replay-rules/apply-remote', async (req, res) => {
+    try {
+        const version = String((req.body && req.body.version) || '').trim();
+        if (!version) {
+            return apiFail(res, 'version is required', 400);
+        }
+        const result = await replayRulesRemote.applyRemoteRules(version);
+        if (result.success) {
+            return apiSuccess(res, result);
+        }
+        return apiFail(res, result.message || 'apply failed', 400);
+    } catch (e) {
+        return apiFail(res, e.message || 'apply remote rules failed', 500);
+    }
+});
+
+route('get', '/replay-rules/library', async (req, res) => {
+    try {
+        const result = await replayRulesRemote.getRulesLibrary();
+        if (result.success) {
+            return apiSuccess(res, result.library);
+        }
+        return apiFail(res, result.message || 'get library failed', 500);
+    } catch (e) {
+        return apiFail(res, e.message || 'get library failed', 500);
     }
 });
 

@@ -109,7 +109,14 @@ class ConfigManager {
                 webdavInsecure: false,
                 storageMode: 'sqlite',
                 logLevel: 'info',
-                logKeepDays: 7
+                logKeepDays: 7,
+                // GitHub OAuth 相关
+                github_access_token: '',
+                github_username: '',
+                github_linked: false,
+                github_linked_at: null,
+                oauth_state: '',
+                oauth_redirect_uri: ''
             }),
             logoTemplates: this.readJsonFile('logo_templates.json', {
                 templates: [],

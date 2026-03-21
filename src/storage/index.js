@@ -490,6 +490,37 @@ class SqliteStorage {
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        // 回放规则贡献记录表
+        await this.run(`
+            CREATE TABLE IF NOT EXISTS replay_rule_contributions (
+                id TEXT PRIMARY KEY,
+                user TEXT,
+                github_username TEXT,
+                province TEXT,
+                operator TEXT,
+                city TEXT,
+                m3u_line TEXT,
+                description TEXT,
+                github_issue_number INTEGER DEFAULT 100,
+                github_comment_id TEXT,
+                github_comment_url TEXT,
+                status TEXT DEFAULT 'pending',
+                processed_at TEXT,
+                rule_version TEXT,
+                rule_id TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        // 回放规则版本表
+        await this.run(`
+            CREATE TABLE IF NOT EXISTS replay_rule_versions (
+                version TEXT PRIMARY KEY,
+                published_at TEXT,
+                changelog TEXT,
+                total_rules INTEGER DEFAULT 0,
+                github_pr_url TEXT
+            );
+        `);
     }
 
     async close() {
@@ -928,6 +959,101 @@ class SqliteStorage {
             await this.run('ROLLBACK;');
             throw e;
         }
+    }
+
+    // ========== 回放规则贡献相关方法 ==========
+
+    /**
+     * 添加规则贡献记录
+     */
+    addContribution(contribution) {
+        return this.enqueue(async () => {
+            const {
+                id,
+                user,
+                github_username,
+                province,
+                operator,
+                city,
+                m3u_line,
+                description,
+                github_comment_id,
+                github_comment_url
+            } = contribution;
+            await this.run(`
+                INSERT INTO replay_rule_contributions (
+                    id, user, github_username, province, operator, city,
+                    m3u_line, description, github_comment_id, github_comment_url,
+                    status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))
+            `, [id, user, github_username, province, operator, city,
+                m3u_line, description, github_comment_id, github_comment_url]);
+        }, 'config');
+    }
+
+    /**
+     * 更新贡献记录状态
+     */
+    updateContributionStatus(id, status, ruleVersion, ruleId) {
+        return this.enqueue(async () => {
+            await this.run(`
+                UPDATE replay_rule_contributions
+                SET status = ?, processed_at = datetime('now'),
+                    rule_version = ?, rule_id = ?
+                WHERE id = ?
+            `, [status, ruleVersion, ruleId, id]);
+        }, 'config');
+    }
+
+    /**
+     * 获取用户的贡献记录
+     */
+    getContributions(user) {
+        return this.enqueue(async () => {
+            const rows = await this.all(`
+                SELECT * FROM replay_rule_contributions
+                WHERE user = ? ORDER BY created_at DESC
+            `, [user]);
+            return rows || [];
+        }, 'config');
+    }
+
+    /**
+     * 获取单条贡献记录
+     */
+    getContribution(id) {
+        return this.enqueue(async () => {
+            const row = await this.get(`
+                SELECT * FROM replay_rule_contributions WHERE id = ?
+            `, [id]);
+            return row;
+        }, 'config');
+    }
+
+    /**
+     * 获取规则版本列表
+     */
+    getRuleVersions() {
+        return this.enqueue(async () => {
+            const rows = await this.all(`
+                SELECT * FROM replay_rule_versions ORDER BY published_at DESC
+            `);
+            return rows || [];
+        }, 'config');
+    }
+
+    /**
+     * 添加规则版本
+     */
+    addRuleVersion(version) {
+        return this.enqueue(async () => {
+            const { version: ver, published_at, changelog, total_rules, github_pr_url } = version;
+            await this.run(`
+                INSERT OR REPLACE INTO replay_rule_versions (
+                    version, published_at, changelog, total_rules, github_pr_url
+                ) VALUES (?, ?, ?, ?, ?)
+            `, [ver, published_at, changelog, total_rules, github_pr_url]);
+        }, 'config');
     }
 }
 

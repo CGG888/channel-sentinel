@@ -353,6 +353,27 @@ function deleteCurrentUdpxy() {
 }
 // 页面加载时：初始化服务器选择与只读地址
 window.addEventListener('DOMContentLoaded', function() {
+    // 处理 GitHub OAuth 回调
+    (function handleGithubCallback() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('github_callback') === '1') {
+            const state = params.get('state');
+            // 调用后端回调接口
+            apiJson('/api/auth/github/callback?state=' + encodeURIComponent(state || '')).then(j => {
+                if (j && j.success) {
+                    alert('GitHub 账号关联成功！');
+                } else {
+                    alert('GitHub 账号关联失败: ' + (j && j.message || '未知错误'));
+                }
+                // 清除 URL 参数并跳转回 results
+                window.location.href = '/results';
+            }).catch(e => {
+                alert('GitHub 账号关联失败: ' + e.message);
+                window.location.href = '/results';
+            });
+            return;
+        }
+    })();
     // 从后端恢复设置到本地缓存（分组、Logo模板、FCC服务器）
     apiJson('/api/settings').then(j => {
         if (j.success && j.settings) {
