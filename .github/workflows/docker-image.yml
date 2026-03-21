@@ -96,11 +96,21 @@ jobs:
           else
             RAW="v${{ steps.pkg.outputs.version }}"
           fi
+          # 清理空格和常见前缀
           RAW="$(echo "$RAW" | tr -d '[:space:]')"
           RAW="${RAW#tag=}"
           RAW="${RAW#refs/tags/}"
-          echo "tag=$RAW" >> "$GITHUB_OUTPUT"
-          echo "strip=${RAW#v}" >> "$GITHUB_OUTPUT"
+          # 提取纯版本号（去除 v 前缀和任何前导点）
+          STRIP="${RAW#v}"
+          STRIP="${STRIP#.}"
+          # 确保版本号格式正确（数字开头）
+          if [[ "$STRIP" =~ ^[0-9] ]]; then
+            echo "tag=$RAW" >> "$GITHUB_OUTPUT"
+            echo "strip=$STRIP" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v2.0.0" >> "$GITHUB_OUTPUT"
+            echo "strip=2.0.0" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
