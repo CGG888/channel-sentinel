@@ -202,7 +202,7 @@ async function applyAppSettingsPatch(patch = {}) {
 // Logo模板配置
 route('get', '/config/logo-templates', async (req, res) => {
     const defId = 'ltpl-default';
-    const cfgRaw = readJson(CFG_LOGO, { templates: [{ id: defId, name: '默认模板', url: 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png' }], currentId: defId });
+    const cfgRaw = readJson(CFG_LOGO, { templates: [{ id: defId, name: '默认模板', url: '' }], currentId: defId });
     const cfg = await configReader.loadLogoTemplatesFallback(cfgRaw);
     const listRaw = Array.isArray(cfg.templates) ? cfg.templates : [];
     const listObj = listRaw.map(t => {
@@ -276,7 +276,7 @@ route('get', '/logo', async (req, res) => {
         const scope = String(req.query.scope || 'internal').toLowerCase();
         if (!nmRaw) return res.status(400).send('missing name');
         
-        const cfg = readJson(CFG_LOGO, { templates: [{ id: 'ltpl-default', name: '默认模板', url: 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png', category: '内网台标' }], currentId: 'ltpl-default' });
+        const cfg = readJson(CFG_LOGO, { templates: [{ id: 'ltpl-default', name: '默认模板', url: '', category: '内网台标' }], currentId: 'ltpl-default' });
         const listRaw = Array.isArray(cfg.templates) ? cfg.templates : [];
         const listObj = listRaw.map(t => {
             if (typeof t === 'string') return { id: 'ltpl-' + Math.random().toString(36).slice(2) + Date.now().toString(36), name: '未命名模板', url: t, category: '内网台标' };
@@ -300,7 +300,7 @@ route('get', '/logo', async (req, res) => {
         if (!tpl) {
             const currId = typeof cfg.currentId === 'string' ? cfg.currentId : '';
             const currItem = listObj.find(x => x.id === currId) || listObj[0] || null;
-            tpl = currItem ? currItem.url : 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png';
+            tpl = currItem ? currItem.url : '';
         }
         
         const nm = encodeURIComponent(nmRaw);

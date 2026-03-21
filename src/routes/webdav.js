@@ -48,7 +48,7 @@ async function getSettings() {
     const proxyServers = await configReader.loadProxyServersFallback(proxyRuntime);
     const logoCurrentId = String(appSettings.logoTemplateCurrentId || logoTemplates.currentId || '');
     const currentLogo = (logoTemplates.templates || []).find(t => String(t && t.id ? t.id : '') === logoCurrentId) || (logoTemplates.templates || [])[0] || null;
-    const logoTemplate = currentLogo && currentLogo.url ? currentLogo.url : (appSettings.logoTemplate || 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png');
+    const logoTemplate = currentLogo && currentLogo.url ? currentLogo.url : (appSettings.logoTemplate || '');
     return {
         globalFcc: appSettings.globalFcc || '',
         fccServers: Array.isArray(fccServers.servers) ? fccServers.servers : [],

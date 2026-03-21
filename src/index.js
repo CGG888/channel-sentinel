@@ -33,7 +33,7 @@ let multicastList = [];
 let settings = {
     globalFcc: '',
     fccServers: [],
-    logoTemplate: 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png',
+    logoTemplate: '',
     groupTitles: ['默认'],
     externalUrl: '',
     internalUrl: '',

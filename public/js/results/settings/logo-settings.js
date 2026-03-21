@@ -42,7 +42,7 @@
         }
         const item = list.find(x => x.id === id);
         if (item && item.url) return item.url;
-        return localStorage.getItem('logoTemplate') || 'http://12.12.12.177:9443/lcmyhome/TVlive/raw/branch/main/LOGO/{name}.png';
+        return localStorage.getItem('logoTemplate') || '';
     };
 
     logo.saveTemplate = async function(tpl) {

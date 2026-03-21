@@ -98,8 +98,8 @@ class ConfigManager {
             appSettings: this.readJsonFile('app_settings.json', {
                 useInternal: true,
                 useExternal: false,
-                internalUrl: 'http://12.12.12.118:3000',
-                externalUrl: 'https://hnhw.mtoo.vip:8444',
+                internalUrl: '',
+                externalUrl: '',
                 securityToken: '',
                 enableToken: false,
                 webdavUrl: '',
