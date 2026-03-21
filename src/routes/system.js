@@ -103,40 +103,83 @@ route('post', '/system/storage-repair', async (req, res) => {
     }
 });
 
-route('post', '/system/storage-sync', async (req, res) => {
-    const direction = String((req.body && req.body.direction) || '').trim().toLowerCase();
-    if (!['json_to_sqlite', 'sqlite_to_json', 'dual_reconcile'].includes(direction)) {
-        return apiFail(res, 'direction必须为 json_to_sqlite / sqlite_to_json / dual_reconcile', 400);
+route('post', '/system/import-legacy', async (req, res) => {
+    const sourceDir = String((req.body && req.body.sourceDir) || '').trim();
+    const targetDir = sourceDir || DATA_DIR;
+
+    // 验证目录存在
+    if (!fs.existsSync(targetDir)) {
+        return apiFail(res, '数据目录不存在：' + targetDir, 400);
     }
-    try {
-        await storage.init(config.getAllConfigs());
-        if (direction === 'json_to_sqlite' || direction === 'dual_reconcile') {
-            await storage.syncAll(config.getAllConfigs());
-        }
-        if (direction === 'sqlite_to_json' || direction === 'dual_reconcile') {
-            const sqliteStreams = await streamsReader.readStreamsFromSqlite();
-            if (Array.isArray(sqliteStreams) && sqliteStreams.length > 0) {
-                const streamsCfg = config.getConfig('streams') || { streams: [], settings: {} };
-                const payload = {
-                    streams: sqliteStreams,
-                    settings: streamsCfg.settings || {}
-                };
-                if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-                fs.writeFileSync(STREAMS_FILE, JSON.stringify(payload, null, 2), 'utf-8');
-                config.updateConfig('streams', payload);
+
+    // 读取旧 JSON 文件
+    function readJson(name, fallback) {
+        const f = path.join(targetDir, name);
+        try {
+            if (fs.existsSync(f)) {
+                return JSON.parse(fs.readFileSync(f, 'utf-8'));
             }
+        } catch (e) {
+            req.log.warn(`读取旧数据文件失败 ${name}: ${e.message}`);
         }
-        const streams = (config.getConfig('streams') || {}).streams || [];
-        const after = await streamsReader.reconcileStreamsWithMemory(streams);
+        return fallback;
+    }
+
+    const streamsData = readJson('streams.json', null);
+    const streamsCount = Array.isArray(streamsData && streamsData.streams) ? streamsData.streams.length : 0;
+
+    if (streamsCount === 0) {
+        return apiFail(res, '未找到可导入的频道数据（streams.json 为空或不存在）', 400);
+    }
+
+    try {
+        // 构建迁移配置对象，字段映射与 ConfigManager 格式一致
+        const configs = {
+            streams: streamsData || { streams: [], settings: {} },
+            appSettings: readJson('app_settings.json', {}),
+            logoTemplates: readJson('logo_templates.json', { templates: [], currentId: '' }),
+            fccServers: readJson('fcc_servers.json', { servers: [], currentId: '' }),
+            udpxyServers: readJson('udpxy_servers.json', { servers: [], currentId: '' }),
+            groupTitles: readJson('group_titles.json', { titles: [] }),
+            groupRules: readJson('group_rules.json', { rules: [] }),
+            epgSources: readJson('epg_sources.json', { sources: [] }),
+            proxyServers: readJson('proxy_servers.json', { list: [] }),
+            users: readJson('users.json', { username: 'admin', passwordHash: '' })
+        };
+
+        await storage.init(configs);
+
+        // 清理 streams 中的冗余 raw 字段（SQLite 无此列）
+        if (configs.streams && Array.isArray(configs.streams.streams)) {
+            configs.streams.streams.forEach(s => {
+                if (s.raw) delete s.raw;
+            });
+        }
+
+        await storage.syncAll(configs);
+
+        const after = await streamsReader.reconcileStreamsWithMemory(
+            (config.getConfig('streams') || {}).streams || []
+        );
+
         return apiSuccess(res, {
-            direction,
-            readMode: streamsReader.getReadMode(),
-            writeMode: storageMode.getStorageMode(),
+            sourceDir: targetDir,
+            imported: {
+                streams: streamsCount,
+                appSettings: Object.keys(configs.appSettings).length,
+                logoTemplates: (configs.logoTemplates && configs.logoTemplates.templates || []).length,
+                fccServers: (configs.fccServers && configs.fccServers.servers || []).length,
+                udpxyServers: (configs.udpxyServers && configs.udpxyServers.servers || []).length,
+                groupTitles: (configs.groupTitles && configs.groupTitles.titles || []).length,
+                groupRules: (configs.groupRules && configs.groupRules.rules || []).length,
+                epgSources: (configs.epgSources && configs.epgSources.sources || []).length,
+                proxyServers: (configs.proxyServers && configs.proxyServers.list || []).length
+            },
             reconcile: after
         });
     } catch (e) {
-        req.log.error(`存储同步失败: ${e.message}`);
-        return apiFail(res, '存储同步失败', 500, { detail: e.message });
+        req.log.error(`旧数据导入失败: ${e.message}`);
+        return apiFail(res, '导入失败：' + e.message, 500);
     }
 });
 

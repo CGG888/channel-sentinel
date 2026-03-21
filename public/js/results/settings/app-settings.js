@@ -65,17 +65,7 @@
                 const block = document.createElement('div');
                 block.id = 'appSettingsDataWrapR';
                 block.className = 'mb-3 p-3 border rounded';
-                block.innerHTML = '<div class="small text-muted mb-2">数据管理</div><div class="d-flex flex-wrap align-items-center gap-2"><select class="form-select form-select-sm" id="appSettingsVersionsSelectR" style="max-width:320px;min-width:220px;"></select><button class="btn btn-outline-success btn-sm" id="appSettingsSaveVersionR"><i class="bi bi-hdd-fill me-1"></i>保存</button><button class="btn btn-outline-primary btn-sm" id="appSettingsLoadVersionR"><i class="bi bi-folder2-open me-1"></i>加载</button><button class="btn btn-outline-danger btn-sm" id="appSettingsDeleteVersionR"><i class="bi bi-trash-fill me-1"></i>删除</button><button class="btn btn-outline-secondary btn-sm" id="appSettingsRefreshVersionR"><i class="bi bi-arrow-repeat me-1"></i>刷新</button></div>';
-                body.insertBefore(block, body.children[1] || null);
-            }
-        }
-        if (!document.getElementById('appSettingsSyncWrapR')) {
-            const body = modal.querySelector('.modal-body');
-            if (body) {
-                const block = document.createElement('div');
-                block.id = 'appSettingsSyncWrapR';
-                block.className = 'mb-3 p-2 border rounded';
-                block.innerHTML = '<div class="small text-muted mb-2">数据同步与备份</div><div class="d-flex flex-wrap gap-2"><button class="btn btn-outline-secondary btn-sm" id="syncJsonToSqliteR">JSON → SQLite</button><button class="btn btn-outline-secondary btn-sm" id="syncSqliteToJsonR">SQLite → JSON</button><button class="btn btn-outline-secondary btn-sm" id="sqliteBackupR">备份SQLite</button></div>';
+                block.innerHTML = '<div class="small text-muted mb-2">数据管理</div><div class="d-flex flex-wrap align-items-center gap-2"><select class="form-select form-select-sm" id="appSettingsVersionsSelectR" style="max-width:320px;min-width:220px;"></select><button class="btn btn-outline-success btn-sm" id="appSettingsSaveVersionR"><i class="bi bi-hdd-fill me-1"></i>保存</button><button class="btn btn-outline-primary btn-sm" id="appSettingsLoadVersionR"><i class="bi bi-folder2-open me-1"></i>加载</button><button class="btn btn-outline-danger btn-sm" id="appSettingsDeleteVersionR"><i class="bi bi-trash-fill me-1"></i>删除</button><button class="btn btn-outline-secondary btn-sm" id="appSettingsRefreshVersionR"><i class="bi bi-arrow-repeat me-1"></i>刷新</button></div><div class="d-flex flex-wrap align-items-center gap-2 mt-2"><button class="btn btn-warning btn-sm" id="appSettingsImportLegacyR"><i class="bi bi-arrow-down-circle me-1"></i>旧数据导入</button><input class="form-control form-control-sm" id="appSettingsLegacyDirR" placeholder="留空使用当前 data 目录，或输入旧版 data 路径" style="max-width:340px;"></div><div class="small text-muted mt-1">旧数据导入：将旧版本 JSON 数据批量导入 SQLite，幂等执行。</div>';
                 body.insertBefore(block, body.children[1] || null);
             }
         }
@@ -89,9 +79,6 @@
                 body.insertBefore(block, body.children[1] || null);
             }
         }
-        const syncJsonToSqliteBtn = document.getElementById('syncJsonToSqliteR');
-        const syncSqliteToJsonBtn = document.getElementById('syncSqliteToJsonR');
-        const sqliteBackupBtn = document.getElementById('sqliteBackupR');
         const logLevelSel = document.getElementById('appSettingsLogLevelR');
         const applyLogLevelBtn = document.getElementById('appSettingsApplyLogLevelR');
         function applyLogLevelSelectToneR(selectEl) {
@@ -212,45 +199,29 @@
             const qm = (m && m.success && m.queueMetrics) ? m.queueMetrics : (st.queueMetrics || null);
             if (window.showCenterConfirm) window.showCenterConfirm(`当前模式：读 ${st.readMode || '-'} / 写 ${st.writeMode || '-'}；频道 JSON ${c1} / SQLite ${c2}${queueText(qm)}`);
         };
-        if (syncJsonToSqliteBtn) syncJsonToSqliteBtn.onclick = async function() {
+        if (document.getElementById('appSettingsImportLegacyR')) document.getElementById('appSettingsImportLegacyR').onclick = async function() {
+            const dirInput = document.getElementById('appSettingsLegacyDirR');
+            const sourceDir = dirInput ? (dirInput.value || '').trim() : '';
+            if (!sourceDir && !window.confirm('将导入当前 data 目录中的 JSON 数据到 SQLite，是否继续？')) return;
+            if (sourceDir && !window.confirm('将从以下目录导入旧数据到 SQLite：\n' + sourceDir + '\n\n是否继续？')) return;
             try {
-                const j = await apiJson('/api/system/storage-sync', { method: 'POST', body: { direction: 'json_to_sqlite' } });
+                const j = await apiJson('/api/system/import-legacy', { method: 'POST', body: { sourceDir } });
                 if (!j.success) {
-                    if (window.showCenterConfirm) window.showCenterConfirm('同步失败：' + (j.message || '未知错误'), null, true);
+                    if (window.showCenterConfirm) window.showCenterConfirm('导入失败：' + (j.message || '未知错误'), null, true);
                     return;
                 }
-                const c1 = (j.reconcile && j.reconcile.memory && j.reconcile.memory.count) || 0;
-                const c2 = (j.reconcile && j.reconcile.sqlite && j.reconcile.sqlite.count) || 0;
-                if (window.showCenterConfirm) window.showCenterConfirm(`同步完成：JSON ${c1} -> SQLite ${c2}`);
+                const imp = j.imported || {};
+                const parts = [];
+                if (imp.streams != null) parts.push('频道 ' + imp.streams + ' 条');
+                if (imp.fccServers != null) parts.push('FCC ' + imp.fccServers + ' 条');
+                if (imp.udpxyServers != null) parts.push('UDPXy ' + imp.udpxyServers + ' 条');
+                if (imp.groupTitles != null) parts.push('分组 ' + imp.groupTitles + ' 条');
+                if (imp.epgSources != null) parts.push('EPG ' + imp.epgSources + ' 条');
+                if (imp.logoTemplates != null) parts.push('台标 ' + imp.logoTemplates + ' 条');
+                if (imp.proxyServers != null) parts.push('代理 ' + imp.proxyServers + ' 条');
+                if (window.showCenterConfirm) window.showCenterConfirm('导入完成：' + (parts.join('、') || '无数据'), null, true);
             } catch(e) {
-                if (window.showCenterConfirm) window.showCenterConfirm('同步失败：网络异常', null, true);
-            }
-        };
-        if (syncSqliteToJsonBtn) syncSqliteToJsonBtn.onclick = async function() {
-            if (!window.confirm('仅在应急回滚时使用 SQLite → JSON，同步后会覆盖 JSON 版本，是否继续？')) return;
-            try {
-                const j = await apiJson('/api/system/storage-sync', { method: 'POST', body: { direction: 'sqlite_to_json' } });
-                if (!j.success) {
-                    if (window.showCenterConfirm) window.showCenterConfirm('同步失败：' + (j.message || '未知错误'), null, true);
-                    return;
-                }
-                const c1 = (j.reconcile && j.reconcile.memory && j.reconcile.memory.count) || 0;
-                const c2 = (j.reconcile && j.reconcile.sqlite && j.reconcile.sqlite.count) || 0;
-                if (window.showCenterConfirm) window.showCenterConfirm(`同步完成：SQLite ${c2} -> JSON ${c1}`);
-            } catch(e) {
-                if (window.showCenterConfirm) window.showCenterConfirm('同步失败：网络异常', null, true);
-            }
-        };
-        if (sqliteBackupBtn) sqliteBackupBtn.onclick = async function() {
-            try {
-                const j = await apiJson('/api/persist/sqlite-backup', { method: 'POST' });
-                if (!j.success) {
-                    if (window.showCenterConfirm) window.showCenterConfirm('备份失败：' + (j.message || '未知错误'), null, true);
-                    return;
-                }
-                if (window.showCenterConfirm) window.showCenterConfirm('SQLite备份成功：' + (j.file || ''));
-            } catch(e) {
-                if (window.showCenterConfirm) window.showCenterConfirm('备份失败：网络异常', null, true);
+                if (window.showCenterConfirm) window.showCenterConfirm('导入失败：网络异常', null, true);
             }
         };
         if (saveBtn) saveBtn.onclick = async function() {
