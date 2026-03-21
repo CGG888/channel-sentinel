@@ -1,7 +1,7 @@
 services:
-  iptv-checker:
-    image: cgg888/iptv-checker:latest
-    container_name: iptv-checker
+  channel-sentinel:
+    image: cgg888/channel-sentinel:latest
+    container_name: channel-sentinel
     network_mode: "host"
     environment:
       - NODE_ENV=production

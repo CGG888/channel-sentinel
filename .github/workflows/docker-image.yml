@@ -33,7 +33,7 @@ on:
 env:
   REGISTRY: ghcr.io
   # 强制使用小写镜像名
-  IMAGE_NAME: ${{ github.repository_owner }}/iptv-checker
+  IMAGE_NAME: ${{ github.repository_owner }}/channel-sentinel
 
 jobs:
   build-and-push:
@@ -309,7 +309,7 @@ jobs:
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
           {
-            echo "# IPTV Checker"
+            echo "# Channel Sentinel"
             echo
             echo "Tag: $TAG"
             echo
@@ -326,7 +326,7 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
-          repository: ${{ env.DOCKERHUB_USERNAME }}/iptv-checker
+          repository: ${{ env.DOCKERHUB_USERNAME }}/channel-sentinel
           readme-filepath: dockerhub_desc.md
 
       - name: Login to Docker Hub
@@ -350,7 +350,7 @@ jobs:
           fi
           GH_OWNER_LC=$(echo "$GH_OWNER" | tr '[:upper:]' '[:lower:]')
           DH_OWNER_LC=$(echo "$DH_OWNER" | tr '[:upper:]' '[:lower:]')
-          IMAGE=iptv-checker
+          IMAGE=channel-sentinel
           SRC1=ghcr.io/$GH_OWNER_LC/$IMAGE:$TAG
           SRC2=ghcr.io/$GH_OWNER_LC/$IMAGE:$STRIP
           DST1=$DH_OWNER_LC/$IMAGE:$TAG
@@ -383,3 +383,22 @@ jobs:
           done
           docker tag "$SRC2" "$DST2"
           docker push "$DST2"
+
+          # Sync latest tag to Docker Hub (only when on default branch)
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            SRC_LATEST=ghcr.io/$GH_OWNER_LC/$IMAGE:latest
+            DST_LATEST=$DH_OWNER_LC/$IMAGE:latest
+            echo "Syncing $SRC_LATEST -> $DST_LATEST"
+            n=0
+            until [ $n -ge 40 ]
+            do
+              if docker pull "$SRC_LATEST"; then
+                break
+              fi
+              n=$((n+1))
+              echo "Retry $n for $SRC_LATEST..."
+              sleep 15
+            done
+            docker tag "$SRC_LATEST" "$DST_LATEST"
+            docker push "$DST_LATEST"
+          fi

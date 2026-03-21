@@ -26,8 +26,8 @@ jobs:
         shell: bash
         env:
           OWNER: CGG888
-          REPO: Iptv-Checker
-          PKG: iptv-checker
+          REPO: Channel-Sentinel
+          PKG: channel-sentinel
         run: |
           set +e
           set +o pipefail

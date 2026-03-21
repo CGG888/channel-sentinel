@@ -1,7 +1,7 @@
 services:
-  iptv-checker-dev:
+  channel-sentinel-dev:
     build: .
-    container_name: iptv-checker-dev
+    container_name: channel-sentinel-dev
     network_mode: "host"
     environment:
       - NODE_ENV=development

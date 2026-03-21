@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title> 检测结果 - IPTV Checker</title>
-<link rel="icon" type="image/png" href="/iptv.png">
+<title>频道哨兵 | Channel Sentinel</title>
+<link rel="icon" type="image/png" href="/Sentinel.png">
 <script>
   document.documentElement.classList.add('auth-pending');
 </script>
@@ -50,7 +50,7 @@
 </head>
 <body data-nav-page="results" data-nav-settings="results">
 <div id="topNavMount"></div>
-<div class="container mt-4" style="max-width:1200px;">
+<div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4 title-center-wrap">
         <h1 class="mb-0 d-flex align-items-center gap-2 title-center page-title">
             <span>组播单播检测结果</span>
@@ -3063,12 +3063,12 @@ document.addEventListener('DOMContentLoaded', function(){
         async function flagUpdateIfAny(currVersion){
             try{
                 const endpoints=[
-                    'https://gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                    'https://hk.gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                    'https://cdn.gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                    'https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                    'https://mirror.ghproxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                    'https://ghapi.hacxy.workers.dev/repos/cgg888/iptv-checker/releases/latest'
+                    'https://gh-proxy.com/https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                    'https://hk.gh-proxy.com/https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                    'https://cdn.gh-proxy.com/https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                    'https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                    'https://mirror.ghproxy.com/https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                    'https://ghapi.hacxy.workers.dev/repos/cgg888/channel-sentinel/releases/latest'
                 ];
                 const controller=new AbortController();
                 const to=(ms)=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms));
@@ -3117,10 +3117,10 @@ document.addEventListener('DOMContentLoaded', function(){
             
             // 多 CDN/镜像顺序尝试（优先使用 gh-proxy 系列）
             const endpoints = [
-                'https://gh-proxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                'https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                'https://mirror.ghproxy.com/https://api.github.com/repos/cgg888/iptv-checker/releases/latest',
-                'https://ghapi.hacxy.workers.dev/repos/cgg888/iptv-checker/releases/latest'
+                'https://gh-proxy.com/https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                'https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                'https://mirror.ghproxy.com/https://api.github.com/repos/cgg888/channel-sentinel/releases/latest',
+                'https://ghapi.hacxy.workers.dev/repos/cgg888/channel-sentinel/releases/latest'
             ];
             
             let data = null, err = null;
@@ -3239,18 +3239,18 @@ document.addEventListener('DOMContentLoaded', function(){
                 <div class="modal-header border-0 pb-0 pt-4 px-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
                     <h5 class="modal-title fw-bold text-dark d-flex align-items-center">
                         <span class="bg-white p-2 rounded-circle shadow-sm me-2 d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
-                            <img src="/iptv.png" alt="IPTV" style="height:22px;width:auto;">
+                            <img src="/Sentinel.png" alt="频道哨兵" style="height:22px;width:auto;">
                         </span>
-                        关于 IPTV Checker
+                        关于 频道哨兵
                     </h5>
                     <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                
+
                 <div class="modal-body p-4 bg-light bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
                     <!-- 项目简介卡片 -->
                     <div class="bg-white p-3 rounded-3 shadow-sm mb-3">
                         <p class="text-secondary small mb-0" style="line-height: 1.6;">
-                            IPTV Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播/单播流检测与管理工具，
+                            频道哨兵（Channel Sentinel）是一款基于 Node.js + Express + ffprobe 的 IPTV 组播/单播流检测与管理工具，
                             提供现代化 Web 界面与生态导出，支持单播/组播批量检测、EPG 与回看、独立播放器（内/外网模式）、
                             台标模板（内/外网区分）、多格式导出（M3U/TXT/JSON、TVBox、Xtream）、安全登录与令牌保护等能力，
                             适用于运营网与实验环境的频道维护、线路切换与对接。

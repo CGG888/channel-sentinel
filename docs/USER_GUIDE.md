@@ -1,4 +1,4 @@
-# IPTV Checker 使用说明
+# 频道哨兵 Channel Sentinel 使用说明
 
 本说明仅覆盖软件界面中的菜单与按钮操作，帮助你快速上手完成检测、管理与导出。
 
@@ -113,6 +113,6 @@
 
 ## 常见问题
 - 数据未保存到宿主机 data：确保生产 Docker 仅映射 /app/data，宿主机目录可写；必要时在 compose 中设置 `user: "1000:1000"`
-- Windows 卷挂载异常：避免中文路径，建议仓库位于英文路径（如 `C:\Work\iptv-checker`）
+- Windows 卷挂载异常：避免中文路径，建议仓库位于英文路径（如 `C:\Work\channel-sentinel`）
 - Docker 更新：版本弹窗将给出镜像更新指引（拉取最新镜像并重启）
 

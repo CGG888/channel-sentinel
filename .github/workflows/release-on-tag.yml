@@ -250,7 +250,7 @@ jobs:
             OWNER="${{ github.repository_owner }}"
           fi
           OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
-          IMAGE=iptv-checker
+          IMAGE=channel-sentinel
           SRC1=ghcr.io/$OWNER_LC/$IMAGE:$TAG
           SRC2=ghcr.io/$OWNER_LC/$IMAGE:$STRIP
           DST1=$OWNER_LC/$IMAGE:$TAG

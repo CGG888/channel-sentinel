@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title> 播放器 - IPTV Checker</title>
-  <link rel="icon" type="image/png" href="/iptv.png">
+  <title>频道哨兵 | Channel Sentinel</title>
+  <link rel="icon" type="image/png" href="/Sentinel.png">
   <script>
     document.documentElement.classList.add('auth-pending');
   </script>
@@ -335,12 +335,12 @@
       if((useExternal||externalHost) && logoImg){
         var nm=tvgName||title||'';
         var src=logoUrlForSized(nm,{h:48,fit:'contain',fmt:'webp'});
-        logoImg.onerror=function(){ this.onerror=null; this.src='/iptv.png'; this.classList.remove('d-none'); };
-        logoImg.src = src || '/iptv.png';
+        logoImg.onerror=function(){ this.onerror=null; this.src='/Sentinel.png'; this.classList.remove('d-none'); };
+        logoImg.src = src || '/Sentinel.png';
         logoImg.classList.remove('d-none');
       }else if(logo && logoImg){
-        logoImg.onerror=function(){ this.onerror=null; this.src='/iptv.png'; this.classList.remove('d-none'); };
-        logoImg.src=logo || '/iptv.png'; 
+        logoImg.onerror=function(){ this.onerror=null; this.src='/Sentinel.png'; this.classList.remove('d-none'); };
+        logoImg.src=logo || '/Sentinel.png'; 
         logoImg.classList.remove('d-none');
       }
     })();
@@ -1441,8 +1441,8 @@
       var alt=logoUrlForSized(s.tvgName||s.name||'',{h:48,fit:'contain',fmt:'webp'});
       if(alt) logoC=alt;
       if(logoImg){
-        logoImg.onerror=function(){ this.onerror=null; this.src='/iptv.png'; this.classList.remove('d-none'); };
-        logoImg.src = logoC || '/iptv.png';
+        logoImg.onerror=function(){ this.onerror=null; this.src='/Sentinel.png'; this.classList.remove('d-none'); };
+        logoImg.src = logoC || '/Sentinel.png';
         logoImg.classList.remove('d-none');
       }
       if(liveBadge) liveBadge.classList.remove('d-none');
@@ -1911,9 +1911,9 @@
         var im=document.createElement('img');
         (function(){
           var src=logoUrlForSized(entry.name||entry.key||'',{w:72,h:40,fit:'contain',fmt:'webp'});
-          im.onerror=function(){ this.onerror=null; this.src='/iptv.png'; };
+          im.onerror=function(){ this.onerror=null; this.src='/Sentinel.png'; };
           im.setAttribute('data-src',src||'');
-          im.src='/iptv.png';
+          im.src='/Sentinel.png';
         })();
         im.className='logo-img channel-logo-right';
         try{im.loading='lazy';}catch(e){}
@@ -2128,7 +2128,7 @@
           tvgId: tvgId || '',
           logo: (function(){
             var alt = logoUrlForSized(nm,{h:48,fit:'contain',fmt:'webp'});
-            return logo || alt || '/iptv.png';
+            return logo || alt || '/Sentinel.png';
           })()
         };
         loadEpgForStream(sObj);

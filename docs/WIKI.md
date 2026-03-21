@@ -1,6 +1,6 @@
-# IPTV Checker 使用指南（Wiki）
+# 频道哨兵 Channel Sentinel 使用指南（Wiki）
 
-> 目标：让第一次接触 IPTV Checker 的用户“看得懂、用得上、能排错”。本页涵盖快速上手、核心概念、页面导览、配置说明、播放与回看、导出与对接、版本与更新、安全管理、常见问题与排障。
+> 目标：让第一次接触频道哨兵的用户”看得懂、用得上、能排错”。本页涵盖快速上手、核心概念、页面导览、配置说明、播放与回看、导出与对接、版本与更新、安全管理、常见问题与排障。
 
 ---
 
@@ -26,14 +26,14 @@
 
 1) Docker（推荐生产）  
 - 拉取镜像并运行（host 网络）：  
-  `docker run -d --network host --name iptv-checker -e TZ=Asia/Shanghai -e PORT=${IPTV_PORT:-3000} -v $(pwd)/data:/app/data ghcr.io/cgg888/iptv-checker:latest`
+  `docker run -d --network host --name channel-sentinel -e TZ=Asia/Shanghai -e PORT=${IPTV_PORT:-3000} -v $(pwd)/data:/app/data ghcr.io/cgg888/channel-sentinel:latest`
 - docker-compose 示例：
 
   ```yaml
   services:
-    iptv-checker:
-      image: ghcr.io/cgg888/iptv-checker:latest
-      container_name: iptv-checker
+    channel-sentinel:
+      image: ghcr.io/cgg888/channel-sentinel:latest
+      container_name: channel-sentinel
       network_mode: host
       environment:
         - TZ=Asia/Shanghai
@@ -75,8 +75,8 @@
 - 协议支持：RTP（经由 UDPXY/rtp2httpd 转 HTTP 播放）、HTTP/HLS、部分带回看参数的时间格式。
 
 网络拓扑示例：  
-- 纯内网：机顶盒/浏览器 → UDPXY/rtp2httpd → IPTV Checker（导出接口供第三方播放）。  
-- 外网访问：客户端 → 反向代理(Nginx) → IPTV Checker → 外网代理/回看源（组播经“外网组播代理”）。  
+- 纯内网：机顶盒/浏览器 → UDPXY/rtp2httpd → 频道哨兵（导出接口供第三方播放）。
+- 外网访问：客户端 → 反向代理(Nginx) → 频道哨兵 → 外网代理/回看源（组播经”外网组播代理”）。  
 
 ---
 
@@ -399,7 +399,7 @@ location / {
 - 数据校验：  
   - 在“接口弹窗”中预览导出链接，并抽样进行 HEAD/GET 校验。  
 - 更新切换：  
-  - 回退到旧版本：`git fetch --tags && git checkout -B release tags/vX.Y.Z && systemctl restart iptv-checker`（或重启容器）。
+  - 回退到旧版本：`git fetch --tags && git checkout -B release tags/vX.Y.Z && systemctl restart channel-sentinel`（或重启容器）。
  - 性能：  
   - 批量检测建议分批导入；  
   - 容器部署时尽量靠近 UDPXY/回看源，降低网络抖动；  
