@@ -155,8 +155,12 @@
                 const changelog = Array.isArray(v.changelog) && v.changelog.length > 0
                     ? '<div class="text-muted small">' + escapeHtml(v.changelog.slice(0, 2).join(', ')) + '</div>'
                     : '';
+                const ruleCount = v.total_rules || 0;
+                const baseCount = v.base_rules_count || 0;
+                const timeCount = v.time_formats_count || 0;
                 html += '<div class="list-group-item d-flex justify-content-between align-items-start px-0 py-2">';
                 html += '<div class="me-auto">' + badge + '<strong>' + escapeHtml(v.version || '') + '</strong>' + changelog;
+                html += '<div class="text-muted small">规则: ' + ruleCount + ' (基础:' + baseCount + ' 时间:' + timeCount + ')</div>';
                 if (appliedAt) html += '<div class="text-muted small">应用时间: ' + appliedAt + '</div>';
                 html += '</div>';
                 if (!isLocal && typeof onApply === 'function') {

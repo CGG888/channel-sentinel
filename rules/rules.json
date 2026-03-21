@@ -6,8 +6,8 @@
       "published_at": "2026-03-17",
       "changelog": [
         "Initial release",
-        "湖南电信回放基础规则",
-        "15种时间格式支持"
+        "回放基础规则",
+        "时间占位符规则"
       ],
       "total_rules": 2,
       "base_rules_count": 2,
