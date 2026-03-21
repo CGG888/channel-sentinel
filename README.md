@@ -552,6 +552,11 @@ sudo systemctl status channel-sentinel --no-pager
   - 服务门禁质量 gate 稳定运行（7 类服务测试 + 4 类合同测试），13 次连续通过
   - calibrationReady=true，门禁阈值已冻结，门禁趋势看板与最终验收报告已更新
 
+- **旧版数据迁移**
+  - 新增旧版（v1.x）JSON 数据一键导入 SQLite 功能（设置 → 应用设置 → 旧数据导入）
+  - 支持指定旧版 data 目录，迁移频道、FCC、UDPXy、分组、EPG、台标、代理等全部配置
+  - 详情见 [使用指南 - 旧版数据导入](./docs/WIKI.md#85-旧版数据导入-sqlite)
+
 ### v1.3.6 (2026-03-21)
   CSS 架构重构与播放器移动端优化
 
