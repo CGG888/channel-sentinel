@@ -1,5 +1,5 @@
 # 构建阶段
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /build
 
@@ -20,7 +20,7 @@ RUN npm ci --omit=dev --no-optional || npm install --omit=dev --no-optional
 COPY . .
 
 # 最终阶段
-FROM node:18-alpine
+FROM node:22-alpine
 
 # 安装 ffmpeg, tini, git 和 CA 证书（用于 HTTPS 外网访问）
 # --no-cache 避免缓存占用空间
@@ -34,6 +34,10 @@ COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/src ./src
 COPY --from=builder /build/public ./public
 COPY --from=builder /build/docs ./docs
+
+# 针对 sharp 模块特别处理：在 Alpine 环境使用 musl 平台标志重新安装
+# 这会覆盖 builder 阶段安装的 sharp，确保兼容性
+RUN npm install --os=linux --libc=musl --cpu=x64 sharp || npm install sharp
 
 # 创建数据目录并设置权限
 RUN mkdir -p /app/data && chown -R node:node /app
