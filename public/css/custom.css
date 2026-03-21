@@ -4,6 +4,38 @@
    已删除 ~120 行死代码（Bootstrap 原始值覆盖，被 shadcn-ui.css 覆盖）
    ============================================================ */
 
+/* ---- 统计卡片（index.html 主页统计区域使用） ---- */
+.stat-card {
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.2s;
+    height: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-title {
+    font-size: 1rem;
+    color: #6c757d;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Specific Stat Colors */
+.stat-card.stat-total .stat-value { color: #6f42c1; }
+.stat-card.stat-online .stat-value { color: #28a745; }
+.stat-card.stat-offline .stat-value { color: #dc3545; }
+
 /* ---- 地址单播字体（index.html 使用） ---- */
 .addr-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;

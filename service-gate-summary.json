@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-20T17:50:05.113Z",
+  "generatedAt": "2026-03-21T04:16:23.614Z",
   "total": 7,
   "passed": 7,
   "failed": 0,
@@ -9,8 +9,8 @@
       "name": "stream-service-tests",
       "category": "service",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/stream-service-tests.js",
-      "startedAt": "2026-03-20T17:50:04.255Z",
-      "endedAt": "2026-03-20T17:50:04.315Z",
+      "startedAt": "2026-03-21T04:16:22.776Z",
+      "endedAt": "2026-03-21T04:16:22.833Z",
       "exitCode": 0,
       "ok": true
     },
@@ -18,8 +18,8 @@
       "name": "auth-service-tests",
       "category": "service",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/auth-service-tests.js",
-      "startedAt": "2026-03-20T17:50:04.315Z",
-      "endedAt": "2026-03-20T17:50:04.473Z",
+      "startedAt": "2026-03-21T04:16:22.833Z",
+      "endedAt": "2026-03-21T04:16:22.988Z",
       "exitCode": 0,
       "ok": true
     },
@@ -27,8 +27,8 @@
       "name": "http-smoke-strict",
       "category": "smoke",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/http-smoke.js --strict",
-      "startedAt": "2026-03-20T17:50:04.473Z",
-      "endedAt": "2026-03-20T17:50:04.586Z",
+      "startedAt": "2026-03-21T04:16:22.988Z",
+      "endedAt": "2026-03-21T04:16:23.097Z",
       "exitCode": 0,
       "ok": true
     },
@@ -36,8 +36,8 @@
       "name": "player-auth-contract-tests",
       "category": "contract",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/player-auth-contract-tests.js",
-      "startedAt": "2026-03-20T17:50:04.586Z",
-      "endedAt": "2026-03-20T17:50:04.702Z",
+      "startedAt": "2026-03-21T04:16:23.097Z",
+      "endedAt": "2026-03-21T04:16:23.204Z",
       "exitCode": 0,
       "ok": true
     },
@@ -45,8 +45,8 @@
       "name": "export-proxy-contract-tests",
       "category": "contract",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/export-proxy-contract-tests.js",
-      "startedAt": "2026-03-20T17:50:04.702Z",
-      "endedAt": "2026-03-20T17:50:04.887Z",
+      "startedAt": "2026-03-21T04:16:23.204Z",
+      "endedAt": "2026-03-21T04:16:23.390Z",
       "exitCode": 0,
       "ok": true
     },
@@ -54,8 +54,8 @@
       "name": "system-authz-contract-tests",
       "category": "contract",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/system-authz-contract-tests.js",
-      "startedAt": "2026-03-20T17:50:04.887Z",
-      "endedAt": "2026-03-20T17:50:05.000Z",
+      "startedAt": "2026-03-21T04:16:23.390Z",
+      "endedAt": "2026-03-21T04:16:23.502Z",
       "exitCode": 0,
       "ok": true
     },
@@ -63,8 +63,8 @@
       "name": "ops-governance-contract-tests",
       "category": "contract",
       "command": "C:\\Program Files\\nodejs\\node.exe src/utils/ops-governance-contract-tests.js",
-      "startedAt": "2026-03-20T17:50:05.000Z",
-      "endedAt": "2026-03-20T17:50:05.113Z",
+      "startedAt": "2026-03-21T04:16:23.502Z",
+      "endedAt": "2026-03-21T04:16:23.614Z",
       "exitCode": 0,
       "ok": true
     }

@@ -66,6 +66,13 @@
       </div>
     </div>
   </div>
+  <!-- 移动端抽屉切换按钮（桌面端隐藏） -->
+  <!-- 移动端抽屉容器：内部滚动 -->
+  <div id="mobileDrawerWrap">
+    <div id="mobileDrawerTabs">
+      <button id="tabChannelBtn" class="drawer-tab-btn active" type="button">频道</button>
+      <button id="tabEpgBtn" class="drawer-tab-btn" type="button">节目单</button>
+    </div>
   <div id="channelLayer">
     <div class="channel-header">
       <div class="channel-header-title">频道</div>
@@ -99,6 +106,7 @@
       <div id="epgHint" class="p-3 small text-white-50 text-center"></div>
     </div>
   </div>
+  </div><!-- /mobileDrawerWrap -->
   <script src="/vendor/qier-player/index.min.js"></script>
   <script src="/js/theme-manager.js"></script>
   <script>
@@ -396,9 +404,11 @@
       if(!channelLayer) return;
       if(isChannelDark){
         channelLayer.classList.add('dark');
+        if(epgLayer) epgLayer.classList.add('dark');
         if(themeToggleBtn) themeToggleBtn.textContent='深色';
       }else{
         channelLayer.classList.remove('dark');
+        if(epgLayer) epgLayer.classList.remove('dark');
         if(themeToggleBtn) themeToggleBtn.textContent='浅色';
       }
     }
@@ -857,12 +867,39 @@
       function trySchedule(){
         var c=ensureUiOverlayController();
         if(c&&typeof c.scheduleInitialEpgHide==='function'){
-          c.scheduleInitialEpgHide();
+          c.scheduleInitialEpgHide(window.innerWidth < 768);
         }else{
           setTimeout(trySchedule, 50);
         }
       }
       setTimeout(trySchedule, 100);
+    })();
+
+    // 移动端抽屉 Tab 切换
+    (function(){
+      var tabChannelBtn=document.getElementById('tabChannelBtn');
+      var tabEpgBtn=document.getElementById('tabEpgBtn');
+      if(!tabChannelBtn || !tabEpgBtn) return;
+      function switchToChannel(){
+        tabChannelBtn.classList.add('active');
+        tabEpgBtn.classList.remove('active');
+        channelLayer.classList.add('mobile-drawer-active');
+        epgLayer.classList.remove('mobile-drawer-active');
+        channelLayer.style.opacity='';
+        channelLayer.classList.remove('hidden');
+      }
+      function switchToEpg(){
+        tabEpgBtn.classList.add('active');
+        tabChannelBtn.classList.remove('active');
+        epgLayer.classList.add('mobile-drawer-active');
+        channelLayer.classList.remove('mobile-drawer-active');
+        epgLayer.style.opacity='';
+        epgLayer.classList.remove('hidden');
+      }
+      tabChannelBtn.addEventListener('click',switchToChannel);
+      tabEpgBtn.addEventListener('click',switchToEpg);
+      // 默认显示频道
+      switchToChannel();
     })();
 
     function toggleChannelList(){

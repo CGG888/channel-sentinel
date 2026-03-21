@@ -266,6 +266,54 @@ body {
   opacity: 0;
 }
 
+/* EPG 浅色主题 */
+#epgLayer:not(.dark) {
+  background: rgba(249, 250, 251, 0.95);
+  color: #1f2937;
+  border-color: rgba(0, 0, 0, .08);
+}
+
+#epgLayer:not(.dark) .border-secondary {
+  border-color: #e5e7eb !important;
+}
+
+#epgLayer:not(.dark) .text-white-50 {
+  color: #6b7280 !important;
+}
+
+#epgLayer:not(.dark) #epgDateTabs .nav-link {
+  color: #6b7280;
+}
+
+#epgLayer:not(.dark) #epgDateTabs .nav-link.active {
+  background-color: #6f42c1;
+  color: #fff;
+}
+
+#epgLayer:not(.dark) #epgSourceSel {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border-color: #d1d5db;
+}
+
+#epgLayer:not(.dark) #epgRefreshBtn {
+  color: #6b7280;
+}
+
+#epgLayer:not(.dark) #epgHint {
+  color: #9ca3af;
+}
+
+#epgLayer:not(.dark) .list-group-item {
+  background: transparent;
+  color: #1f2937;
+  border-color: #e5e7eb;
+}
+
+#epgLayer:not(.dark) .list-group-item:hover {
+  background: rgba(0, 0, 0, .05);
+}
+
 /* ---- Channel Layer — Dark Theme ---- */
 #channelLayer.dark {
   background: #020617;
@@ -613,4 +661,137 @@ body {
   height: 6px;
   border-radius: 50%;
   background: #22c55e;
+}
+
+/* ============================================================
+   移动端布局 (max-width: 768px)
+   布局: 播放器在上，频道和节目单通过 Tab 切换显示
+   ============================================================ */
+/* 桌面端隐藏移动端 Tab 按钮 */
+#mobileDrawerTabs {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* 移动端：body 改为纵向布局，100dvh 解决地址栏导致的 100vh 偏差 */
+  body {
+    position: relative;
+    min-height: 100dvh;
+    overflow: hidden;
+    flex-direction: column;
+  }
+
+  /* 移动端 Tab 切换按钮：默认隐藏，在媒体查询内显示 */
+  #mobileDrawerTabs {
+    display: flex !important;
+    flex-shrink: 0;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8f9fa;
+  }
+
+  .drawer-tab-btn {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .drawer-tab-btn.active {
+    color: #6f42c1;
+    border-bottom-color: #6f42c1;
+  }
+
+  /* 移动端 Tab 和抽屉容器：占据剩余高度，内部滚动 */
+  #mobileDrawerWrap {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: 40vh;  /* 为固定定位的播放器留出空间 */
+    position: relative;
+    z-index: 10;
+  }
+
+  /* 移动端 Tab 切换按钮：在抽屉容器上方 */
+  #mobileDrawerTabs {
+    display: flex !important;
+    flex-shrink: 0;
+    position: fixed;    /* 固定定位，独立于 flex 文档流 */
+    top: 40vh;          /* 直接放在播放器下方 */
+    left: 0;
+    width: 100%;
+    z-index: 100;        /* 高于播放器 */
+  }
+
+  /* 播放器区域：固定定位，不受 flex reflow 影响，播放/非播放状态高度始终一致 */
+  #playerLayer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 40vh;
+    z-index: 10;         /* 低于抽屉 Tab 按钮 */
+    overflow: hidden;
+  }
+
+  /* 移动端：隐藏抽屉内部重复的标题行，节省垂直空间（Tab 按钮已标识，不需重复标题） */
+  #channelLayer .channel-header,
+  #epgLayer > div:first-child {
+    display: none !important;
+  }
+
+  /* 频道列表和 EPG：移动端固定定位，彻底消除 flex reflow */
+  #channelLayer,
+  #epgLayer {
+    position: fixed;
+    top: calc(40vh + 38px);  /* 播放器高度 + Tab 按钮高度 */
+    left: 0;
+    width: 100%;
+    height: calc(60vh - 38px);
+    z-index: 10;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    border: none;
+    display: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 频道抽屉显示时 */
+  #channelLayer.mobile-drawer-active {
+    display: flex !important;
+  }
+
+  /* EPG 抽屉显示时 */
+  #epgLayer.mobile-drawer-active {
+    display: flex !important;
+  }
+
+  /* 暗色主题下移动端 */
+  #channelLayer.dark {
+    background: #020617;
+  }
+
+  #epgLayer.dark {
+    background: #020617;
+  }
+
+  /* 移动端：.hidden 强制 visibility 隐藏，不影响桌面端 */
+  #epgLayer.hidden {
+    visibility: hidden;
+  }
+
+  /* 移动端：隐藏播放器信息浮窗，节省显示空间 */
+  .player-info-overlay {
+    display: none;
+  }
 }

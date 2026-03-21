@@ -93,10 +93,12 @@
             return (Date.now() - getLastHideTs()) < 800;
         }
 
-        // EPG 自动隐藏（3秒后执行一次）
-        function scheduleInitialEpgHide() {
+        // EPG 自动隐藏（3秒后执行一次，仅桌面端）
+        function scheduleInitialEpgHide(isMobile) {
             if (initialEpgHidden) return;
             initialEpgHidden = true;
+            // 手机端不自动隐藏，抽屉始终显示
+            if (isMobile) return;
             setTimer(function () {
                 hideEpg();
             }, epgAutoHideMs);
