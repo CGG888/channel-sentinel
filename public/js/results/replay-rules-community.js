@@ -306,7 +306,7 @@
             '</div>' +
             '</div>';
 
-        modalBody.appendChild(section);
+        modalBody.insertBefore(section, modalBody.firstChild);
 
         // 渲染 GitHub 状态
         const githubStatusEl = document.getElementById('communityGithubStatus');

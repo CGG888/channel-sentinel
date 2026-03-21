@@ -3,7 +3,7 @@
     "rules_version": "2026.03.17-base-contract-v2",
     "engine_min_version": "1.0.0",
     "engine_max_version": "2.x",
-    "updated_at": "2026-03-17T00:00:00+08:00",
+    "updated_at": "2026-03-21T00:00:00+08:00",
     "schema_version": "1.0.0",
     "description": "回放基础地址规则（默认采用单播直播地址，规则仅处理差异场景）",
     "notes": [
@@ -20,6 +20,13 @@
           "补充 schema_version 与 changelog 契约字段",
           "明确 defaults 优先级与失败行为",
           "为统一规则中心接入保留兼容字段"
+        ]
+      },
+      {
+        "version": "2026.03.21",
+        "date": "2026-03-21",
+        "changes": [
+          "新增广东电信RTSP回放规则"
         ]
       }
     ]
@@ -46,7 +53,7 @@
       "region": {
         "province": "湖南",
         "city": "*",
-        "operator": "电信"
+        "operator": "电信http"
       },
       "match": {
         "stream_type": "unicast",
@@ -75,6 +82,45 @@
         {
           "input": "http://124.232.231.172:8089/000000002000/201500000219/index.m3u8?zte_offset=30&ispcode=2&starttime=",
           "output": "http://124.232.231.172:8089/000000002000/201500000219/index.m3u8"
+        }
+      ]
+    },
+    {
+      "id": "gd-ct-rtsp-unicast-v1",
+      "enabled": true,
+      "priority": 100,
+      "scope": "internal",
+      "region": {
+        "province": "广东",
+        "city": "*",
+        "operator": "电信rtsp（测试）"
+      },
+      "match": {
+        "stream_type": "unicast",
+        "protocols": [
+          "rtsp"
+        ],
+        "host_regex": ".*",
+        "path_regex": "^/live/.+/.+\\.m3u8$"
+      },
+      "transform": {
+        "base_from": "live_url",
+        "query_mode": "drop_all",
+        "query_whitelist": [],
+        "query_blacklist": [
+          "starttime",
+          "endtime",
+          "begin",
+          "end",
+          "playseek",
+          "npt"
+        ],
+        "output_template": "{live_base}"
+      },
+      "examples": [
+        {
+          "input": "rtsp://58.253.78.142:554/live/1/10960009342103630629.m3u8?starttime=",
+          "output": "rtsp://58.253.78.142:554/live/1/10960009342103630629.m3u8"
         }
       ]
     }

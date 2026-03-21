@@ -85,13 +85,12 @@
             const block = document.createElement('div');
             block.id = 'replayRulesDetailBlockR';
             block.className = 'mt-2';
-            block.innerHTML = '<div class="row g-2"><div class="col-12"><label class="form-label small mb-1">规则详情（当前选择）</label><textarea class="form-control form-control-sm" id="replayRulesFormatDetailR" rows="4" readonly></textarea></div><div class="col-12"><label class="form-label small mb-1">回放地址预览（基址 + 时间参数）</label><textarea class="form-control form-control-sm" id="replayRulesPreviewUrlR" rows="3" readonly></textarea></div><div class="col-12"><label class="form-label small mb-1">全部时间占位符（按类型）</label><textarea class="form-control form-control-sm" id="replayRulesAllPlaceholderR" rows="6" readonly></textarea></div></div>';
+            block.innerHTML = '<div class="row g-2"><div class="col-12"><label class="form-label small mb-1">规则详情（当前选择）</label><textarea class="form-control form-control-sm" id="replayRulesFormatDetailR" rows="4" readonly></textarea></div><div class="col-12"><label class="form-label small mb-1">回放地址预览（基址 + 时间参数）</label><textarea class="form-control form-control-sm" id="replayRulesPreviewUrlR" rows="3" readonly></textarea></div></div>';
             hostCardBody.appendChild(block);
         };
         ensureRuleDetailPanels();
         const formatDetailEl = document.getElementById('replayRulesFormatDetailR');
         const previewUrlEl = document.getElementById('replayRulesPreviewUrlR');
-        const allPlaceholderEl = document.getElementById('replayRulesAllPlaceholderR');
         const renderHits = function(rows) {
             if (!hitsBody) return;
             const list = Array.isArray(rows) ? rows : [];
@@ -126,15 +125,6 @@
                 : {};
             const keys = Array.isArray(byFmt.placeholders) ? byFmt.placeholders : [];
             const view = all;
-            if (allPlaceholderEl) {
-                const grouped = { variable: [], runtime_alias: [], pattern_alias: [] };
-                view.forEach(function(p) {
-                    const kind = String(p.kind || 'variable');
-                    if (!grouped[kind]) grouped[kind] = [];
-                    grouped[kind].push((keys.includes(String(p.key || '')) ? '★ ' : '  ') + String(p.key || '') + ' => ' + String(p.value || ''));
-                });
-                allPlaceholderEl.value = ['[variable]', ...(grouped.variable || []), '', '[runtime_alias]', ...(grouped.runtime_alias || []), '', '[pattern_alias]', ...(grouped.pattern_alias || [])].join('\n').trim();
-            }
             placeholderTokenSel.innerHTML = '';
             if (!view.length) {
                 const opt = document.createElement('option');
@@ -150,7 +140,7 @@
                 opt.setAttribute('data-value', String(p.value || ''));
                 opt.setAttribute('data-kind', String(p.kind || ''));
                 const usedMark = keys.includes(String(p.key || '')) ? '★' : ' ';
-                opt.textContent = usedMark + ' ' + String(p.key || '') + ' [' + String(p.kind || '-') + ']';
+                opt.textContent = usedMark + ' ' + String(p.key || '') + ' => ' + String(p.value || '') + ' [' + String(p.kind || '-') + ']';
                 placeholderTokenSel.appendChild(opt);
             });
             const first = placeholderTokenSel.options[0];
