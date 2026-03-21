@@ -171,7 +171,7 @@ app.use('/docs', express.static(path.join(__dirname, '../docs')));
 // favicon
 app.get('/favicon.ico', async (req, res) => {
     try {
-        const iconPath = path.join(__dirname, '../public/iptv.png');
+        const iconPath = path.join(__dirname, '../public/Sentinel.png');
         await require('fs').promises.access(iconPath);
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');

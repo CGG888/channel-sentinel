@@ -60,7 +60,7 @@ SOFTWARE.
 - 导出丰富：TXT/M3U/JSON 以及 TVBox/猫影视 JSON、Xtream Codes JSON
 - 接口集合：一键生成“播放器直连接口链接”，支持状态/范围/协议/回看格式参数
 - 安全鉴权：登录保护（含播放器页）、外网导出可加 Token，验证码防爆破
-- 版本与数据：版本快照管理，data 目录集中配置（代理、UDPXY、FCC、模板、分组等）
+- 版本与数据：SQLite 主数据库 + 版本快照管理，data 目录集中配置（代理、UDPXY、FCC、模板、分组等）
 
 ### 支持的回看格式与规则
 - 格式：iso8601、ku9、mytv、npt、rtsp_range、playseek、startend14、beginend14、unix_s、unix_ms
@@ -144,7 +144,7 @@ SOFTWARE.
 channel-sentinel/
 ├── src/                          # 后端源码
 │   ├── index.js                  # Express 应用入口
-│   ├── config/                   # 配置加载（data 目录 JSON 文件读写）
+│   ├── config/                   # 配置管理（统一封装）
 │   │   └── index.js              # 配置读写统一封装
 │   ├── core/                     # 核心业务模块
 │   │   ├── auth/                 # 认证（会话、验证码）
@@ -158,7 +158,7 @@ channel-sentinel/
 │   │   ├── epg.js                # EPG 代理
 │   │   ├── export.js             # 导出（M3U/TXT/JSON/TVBox/Xtream）
 │   │   ├── logs.js               # 日志查询
-│   │   ├── persist.js            # 版本/备份（SQLite + JSON）
+│   │   ├── persist.js            # 版本/备份（SQLite）
 │   │   ├── player.js             # 播放器路由
 │   │   ├── proxy.js              # HLS/UDPXY 代理
 │   │   ├── stream.js             # 组播/单播检测
@@ -173,11 +173,11 @@ channel-sentinel/
 │   │   ├── replay-rules-state.js  # 规则命中状态追踪
 │   │   ├── module-health.js      # 模块健康度
 │   │   └── ops-observability.js   # 运维可观测性
-│   ├── storage/                  # 存储层（SQLite + JSON 文件）
+│   ├── storage/                  # 存储层（SQLite 为主，JSON 为应急备份）
 │   │   ├── index.js              # SQLite 连接与初始化
-│   │   ├── config-reader.js      # data 目录 JSON 配置读写
+│   │   ├── config-reader.js      # SQLite 配置表读写
 │   │   ├── mode.js               # 读写模式（sqlite / json）封装
-│   │   └── streams-reader.js     # 频道数据读写
+│   │   └── streams-reader.js     # SQLite 频道数据读写
 │   └── utils/                    # 工具（门禁测试、运维脚本）
 │       ├── service-quality-gate.js
 │       ├── run-service-gate-with-server.js
@@ -246,16 +246,15 @@ channel-sentinel/
 ├── data/                         # 数据目录（运行时读写）
 │   ├── channel_sentinel.db       # SQLite 主数据库
 │   ├── channel_sentinel-*.db     # SQLite 历史备份
-│   ├── streams.json              # 历史兼容（仅迁移用）
-│   ├── streams-*.json            # JSON 版本快照
-│   ├── logo_templates.json       # 台标模板
-│   ├── fcc_servers.json          # FCC 列表
-│   ├── udpxy_servers.json        # UDPXY/rtp2httpd 列表
-│   ├── group_titles.json         # 分组标题
-│   ├── group_rules.json          # 分组规则
-│   ├── epg_sources.json          # EPG 源
-│   ├── proxy_servers.json        # 代理列表
-│   └── app_settings.json         # 应用设置
+│   ├── streams-*.json            # JSON 版本快照（应急回滚用）
+│   ├── logo_templates.json       # 台标模板（导出兼容）
+│   ├── fcc_servers.json          # FCC 列表（导出兼容）
+│   ├── udpxy_servers.json        # UDPXY/rtp2httpd 列表（导出兼容）
+│   ├── group_titles.json         # 分组标题（导出兼容）
+│   ├── group_rules.json          # 分组规则（导出兼容）
+│   ├── epg_sources.json          # EPG 源（导出兼容）
+│   ├── proxy_servers.json        # 代理列表（导出兼容）
+│   └── app_settings.json         # 应用设置（导出兼容）
 │
 ├── replay_base_rules.json        # 回放基址规则
 ├── time_placeholder_rules.json   # 时间占位符规则
@@ -465,30 +464,37 @@ sudo systemctl status channel-sentinel --no-pager
 
 ## 版本管理
 
-- 当前默认为 SQLite 主模式（readMode=sqlite / writeMode=sqlite）
+- 当前为 SQLite 主模式（readMode=sqlite / writeMode=sqlite）
 - 前端操作：首页与结果页均提供备份能力
   - 保存：落盘 SQLite 并生成带时间戳的数据库备份（channel_sentinel-YYYYMMDD-HHMMSS.db）
   - 加载：通过 SQLite 备份恢复数据
   - 列表：展示 SQLite 备份列表
-- SQLite 主模式下建议接口
+- 建议接口
   - /api/persist/save、/api/persist/backups、/api/persist/load-backup（type=sqlite）、/api/persist/sqlite-backup
-- JSON 版本接口（/api/persist/list、/api/persist/load-version、/api/persist/delete-version、/api/persist/load）仅建议在 JSON 模式使用
 
 
 ## 数据文件说明（/data）
 
-- channel_sentinel.db 主数据库（SQLite）
-- streams.json 历史兼容文件（仅应急/迁移）
-- logo_templates.json 台标模板（兼容导出）
-- fcc_servers.json FCC 列表（兼容导出）
-- udpxy_servers.json rtp2httpd/udpxy 列表（兼容导出）
-- group_titles.json 分组标题（存对象 name/color）
-- group_rules.json 分组规则（name、matchers）
-- epg_sources.json EPG 源（name、url、scope）
-- proxy_servers.json 代理列表（type、url）
-- app_settings.json 应用设置（内/外网、基址、当前选中项）
-- streams-YYYYMMDD-HHMMSS.json 历史版本
-- channel_sentinel-YYYYMMDD-HHMMSS.db SQLite 历史备份
+### SQLite 数据库
+
+| 表名 | 说明 |
+|------|------|
+| `streams` | 频道数据（名称、URL、状态、分组、台标、回看参数等） |
+| `app_settings` | 应用设置（内外网地址、Token、WebDAV 配置等） |
+| `fcc_servers` | FCC 时移服务器 |
+| `udpxy_servers` | UDPXY / rtp2httpd 服务器 |
+| `group_titles` | 频道分组名称与颜色 |
+| `group_rules` | 自动分组匹配规则 |
+| `epg_sources` | EPG 节目单数据源 |
+| `logo_templates` | 台标 URL 模板 |
+| `proxy_servers` | 组播/单播代理服务器 |
+| `users` | 用户账号 |
+| `snapshots` | 版本快照记录 |
+
+### 版本快照文件
+
+- `channel_sentinel.db` — SQLite 主数据库
+- `channel_sentinel-YYYYMMDD-HHMMSS.db` — 带时间戳的数据库备份
 
 ## 安全与限制
 

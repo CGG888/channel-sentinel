@@ -264,31 +264,40 @@ http://proxy.example/rtp/239.1.1.1:1234?fcc=10.0.0.1:9999
 
 ## 8. 版本与数据持久化
 
-- 保存版本：生成 `streams.json` 与 `streams-YYYYMMDD-HHMMSS.json` 快照。  
-- 加载/删除/列表：在首页或结果页完成版本管理操作。  
-- 启动行为：若无 `streams.json`，自动加载 `/data` 中最新的时间戳版本。  
-- 数据文件（/data）简介：  
-  - `streams.json` 当前数据；`streams-*.json` 历史版本；  
-  - `logo_templates.json` 模板；`udpxy_servers.json`、`proxy_servers.json`、`fcc_servers.json`；  
-  - `group_titles.json`、`group_rules.json`；`epg_sources.json`；`app_settings.json`。
-- 备份与恢复：  
-  - 备份：归档整个 `./data` 目录；  
+- 主数据库：SQLite（`channel_sentinel.db`），存储所有配置与频道数据。
+- 保存版本：生成 `channel_sentinel-YYYYMMDD-HHMMSS.db` 数据库备份（首页/结果页操作）。
+- 启动行为：若 SQLite 为空，自动从 JSON 文件迁移（见 8.5 旧版数据导入）。
+- SQLite 数据表：
+  - `streams` — 频道数据（名称、URL、状态、分组、台标、回看参数等）
+  - `app_settings` — 应用设置（内外网地址、Token、WebDAV 配置等）
+  - `fcc_servers` — FCC 时移服务器
+  - `udpxy_servers` — UDPXY / rtp2httpd 服务器
+  - `group_titles` — 频道分组名称与颜色
+  - `group_rules` — 自动分组匹配规则
+  - `epg_sources` — EPG 节目单数据源
+  - `logo_templates` — 台标 URL 模板
+  - `proxy_servers` — 组播/单播代理服务器
+  - `users` — 用户账号
+  - `snapshots` — 版本快照记录
+- 备份与恢复：
+  - 本地备份：归档整个 `./data` 目录；
+  - WebDAV 远程备份：通过”设置 → 应用设置”中的 WebDAV 功能备份；
   - 恢复：停止服务 → 覆盖 `./data` → 启动服务。
 
 ### WebDAV 远程备份/恢复
 
-- 开启条件：在“应用设置”中配置 WebDAV（地址、用户名、密码、根目录、证书校验）。  
-- 备份接口：`POST /api/webdav/backup`  
-  - 行为：自动创建按年月日/时分的层级目录（MKCOL 容错 405 视为已存在），上传配置与 streams 快照。  
-  - 严格校验：若未成功上传任何文件，将返回失败并在“WebDAV”模块日志记录原因。  
-  - 响应：`{ success, folder, uploaded }`。  
-- 列表接口：`POST /api/webdav/list`  
-  - 行为：枚举根目录下的备份文件（使用 PROPFIND 扫描），用于恢复面板选择。  
-- 恢复接口：`POST /api/webdav/restore`（参数：`folder`）  
-  - 行为：从选定目录下载各配置文件写回 `/data`，逐文件记录成功/失败与异常。  
-  - 失败与兜底：网络或权限异常时会清晰记录，必要时保留旧文件不覆盖。  
-- 使用建议：  
-  - 优先在闲时执行备份；网络抖动时可重试。  
+- 开启条件：在”应用设置”中配置 WebDAV（地址、用户名、密码、根目录、证书校验）。
+- 备份接口：`POST /api/webdav/backup`
+  - 行为：自动创建按年月日/时分的层级目录（MKCOL 容错 405 视为已存在），上传 SQLite 数据库备份文件。
+  - 严格校验：若未成功上传任何文件，将返回失败并在”WebDAV”模块日志记录原因。
+  - 响应：`{ success, folder, uploaded }`。
+- 列表接口：`POST /api/webdav/list`
+  - 行为：枚举根目录下的备份文件（使用 PROPFIND 扫描），用于恢复面板选择。
+- 恢复接口：`POST /api/webdav/restore`（参数：`folder`）
+  - 行为：从选定目录下载各配置文件写回 `/data`，逐文件记录成功/失败与异常。
+  - 失败与兜底：网络或权限异常时会清晰记录，必要时保留旧文件不覆盖。
+- 使用建议：
+  - 优先在闲时执行备份；网络抖动时可重试。
   - 对外 WebDAV 建议启用 HTTPS 与专用账户；根目录保留只读/只写分区更安全。
 
 ---
@@ -342,7 +351,7 @@ http://proxy.example/rtp/239.1.1.1:1234?fcc=10.0.0.1:9999
 - 页脚“当前版本”右侧在检测到新版本时出现红色闪烁圆点。  
 - “关于/更新”弹窗：显示当前版本与最新发布的版本号及说明。  
 - 本地源码安装（非 Docker）：  
-  - 点击“立即更新”→ 自动设置远程为 `https://github.com/CGG888/Iptv-Checker.git` → 拉取 tags；  
+  - 点击”立即更新”→ 自动设置远程为 `https://github.com/cgg888/channel-sentinel.git` → 拉取 tags；  
   - 自动切换到“最新发布”对应 tag（创建/更新本地 `release` 分支指向该 tag 提交）；  
   - 若本地存在未跟踪/未提交文件，会先自动 `git stash push -u` 备份再切换；  
   - 成功后提示“请手动重启服务生效”。  

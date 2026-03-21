@@ -305,7 +305,7 @@
                 const svg = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect rx="12" ry="12" width="64" height="64" fill="#2563eb"/><rect x="10" y="16" width="44" height="28" rx="4" fill="#ffffff"/><rect x="14" y="20" width="36" height="20" rx="2" fill="#e2e8f0"/><rect x="22" y="48" width="20" height="6" rx="3" fill="#1e293b"/></svg>');
                 logo.src = svg;
             };
-            logo.src = '/iptv.png';
+            logo.src = '/Sentinel.png';
         }
         const t = document.getElementById('detectSummaryTime');
         if (t) t.textContent = new Date().toLocaleString();

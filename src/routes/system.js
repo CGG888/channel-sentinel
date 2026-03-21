@@ -347,7 +347,7 @@ route('post', '/system/update', async (req, res) => {
     });
     
     const targetTag = String((req.body && req.body.targetTag) || '').trim();
-    const remoteUrl = 'https://github.com/CGG888/Iptv-Checker.git';
+    const remoteUrl = 'https://github.com/cgg888/channel-sentinel.git';
     
     try {
         await run('git --version');
@@ -369,7 +369,7 @@ route('post', '/system/update', async (req, res) => {
         
         if (!cur) {
             await run(`git remote add origin ${remoteUrl}`);
-        } else if (cur.indexOf('CGG888/Iptv-Checker') === -1) {
+        } else if (cur.indexOf('cgg888/channel-sentinel') === -1) {
             await run(`git remote set-url origin ${remoteUrl}`);
         }
         

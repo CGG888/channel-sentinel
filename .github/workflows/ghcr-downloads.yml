@@ -26,7 +26,7 @@ jobs:
         shell: bash
         env:
           OWNER: CGG888
-          REPO: Channel-Sentinel
+          REPO: channel-sentinel
           PKG: channel-sentinel
         run: |
           set +e
