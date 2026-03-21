@@ -518,6 +518,40 @@ sudo systemctl status channel-sentinel --no-pager
 
 ## 版本历史
 
+### v2.0.0 (2026-03-21)
+  全面品牌重塑与移动端播放器布局优化
+
+- **全面品牌重塑**
+  - 项目名称从 "IPTV Checker" 更名为 "频道哨兵 Channel Sentinel"
+  - package.json：name → `channel-sentinel`，description → `Channel Monitoring & Status Guardian Platform`，version → `2.0.0`
+  - 所有 HTML 页面标题统一为 `频道哨兵 | Channel Sentinel`
+  - 所有页面 favicon 从 `/iptv.png` 更换为 `/Sentinel.png`
+  - 导航栏品牌文字、Logo 同步更新
+  - GitHub 仓库链接从 `cgg888/iptv-checker` 更改为 `cgg888/channel-sentinel`
+  - Docker 镜像从 `cgg888/iptv-checker` 更改为 `cgg888/channel-sentinel`（GHCR + Docker Hub）
+  - CI/CD 工作流（docker-image.yml、release-on-tag.yml、ghcr-downloads.yml）全面同步新品牌
+  - docs/WIKI.md、docs/USER_GUIDE.md 品牌相关内容同步更新
+
+- **移动端播放器布局优化**
+  - 播放器固定于顶部（40vh），频道列表与节目单通过 Tab 切换在下方抽屉显示
+  - 移动端抽屉内部独立滚动，滚动时播放器区域不受影响
+  - 移动端播放信息浮窗（player-info-overlay）默认隐藏
+  - EPG 桌面端：鼠标移入自动显示，移出自动隐藏；首次打开播放器 3 秒后自动隐藏
+  - EPG 移动端：抽屉模式始终可见，支持独立滚动
+  - 频道列表与节目单共用同一深色/浅色主题状态
+
+- **样式问题修复**
+  - 恢复 CSS 清理过程中误删除的统计卡片样式（`.stat-card`、`.stat-title`、`.stat-value` 及颜色变体）
+  - 修复顶部导航容器宽度与下方内容区不一致问题，Logo 与表格左对齐
+
+- **CI/CD 持续集成优化**
+  - 修复 Docker Hub 镜像同步缺失 `latest` 标签问题（main 分支 push 时同步 latest）
+  - GHCR downloads workflow 同步更新包名为 `channel-sentinel`
+
+- **运维体系成熟化**
+  - 服务门禁质量 gate 稳定运行（7 类服务测试 + 4 类合同测试），13 次连续通过
+  - calibrationReady=true，门禁阈值已冻结，门禁趋势看板与最终验收报告已更新
+
 ### v1.3.6 (2026-03-21)
   CSS 架构重构与播放器移动端优化
 
