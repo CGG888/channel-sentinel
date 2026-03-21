@@ -1,0 +1,23 @@
+{
+  "latest": "1.0.0",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "published_at": "2026-03-17",
+      "changelog": [
+        "Initial release",
+        "湖南电信回放基础规则",
+        "15种时间格式支持"
+      ],
+      "total_rules": 1,
+      "base_rules_count": 1,
+      "time_formats_count": 15
+    }
+  ],
+  "urls": {
+    "1.0.0": {
+      "base_rules": "https://raw.githubusercontent.com/CGG888/channel-sentinel/main/rules/1.0.0/replay_base_rules.json",
+      "time_rules": "https://raw.githubusercontent.com/CGG888/channel-sentinel/main/rules/1.0.0/time_placeholder_rules.json"
+    }
+  }
+}

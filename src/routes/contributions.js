@@ -104,13 +104,14 @@ router.get('/auth/github/callback', wrapAsync(async (req, res) => {
             return apiFail(res, 'Failed to get token: ' + (tokenData && tokenData.error), 400);
         }
 
-        // 存储 Token 到配置
+        // 存储 Token 到配置并持久化
         const appSettings = config.getConfig('appSettings') || {};
         appSettings.github_access_token = tokenData.token;
         appSettings.github_username = tokenData.username;
         appSettings.github_linked = true;
         appSettings.github_linked_at = new Date().toISOString();
         config.updateConfig('appSettings', appSettings);
+        config.saveConfig('appSettings');
 
         // 返回成功（前端会自动跳转）
         return apiSuccess(res, {
@@ -135,6 +136,7 @@ router.delete('/auth/github/disconnect', wrapAsync(async (req, res) => {
     appSettings.github_linked = false;
     appSettings.github_linked_at = null;
     config.updateConfig('appSettings', appSettings);
+    config.saveConfig('appSettings');
 
     return apiSuccess(res, { message: 'GitHub account disconnected' });
 }));
@@ -170,7 +172,10 @@ router.post('/replay-rules/contributions', wrapAsync(async (req, res) => {
 
     // 通过 Worker API 发布 Issue 评论
     const commentBody = `@${githubUsername} 省份-运营商 提交:\n` +
-        `时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n\n` +
+        `时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}\n` +
+        `省份: ${province}\n` +
+        `运营商: ${operator}\n` +
+        `城市: ${city || '无'}\n\n` +
         `M3U行:\n${m3u_line}\n\n` +
         `说明: ${description || '无'}\n\n` +
         `状态: pending`;

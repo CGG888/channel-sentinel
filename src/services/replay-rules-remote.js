@@ -37,17 +37,21 @@ async function fetchRulesIndex() {
     const rulesIndexUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${RULES_BRANCH}/rules/rules.json`;
 
     try {
-        // 尝试使用 CDN/Worker 获取
-        const response = await cdnManager.fetchViaCdn(rulesIndexUrl, {
-            headers: { 'Accept': 'application/json' }
-        });
+        // 1. 尝试使用 CDN 获取
+        try {
+            const response = await cdnManager.fetchViaCdn(rulesIndexUrl, {
+                headers: { 'Accept': 'application/json' }
+            });
 
-        if (response.ok) {
-            const data = await response.json();
-            return { success: true, data };
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, data };
+            }
+        } catch (cdnErr) {
+            console.warn('[RemoteRules] CDN fetch failed:', cdnErr.message);
         }
 
-        // 直接获取（fallback）
+        // 2. 直接获取（fallback）
         const directResponse = await fetch(rulesIndexUrl);
         if (directResponse.ok) {
             const data = await directResponse.json();
@@ -69,11 +73,24 @@ async function fetchRemoteRule(ruleType, version) {
     const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${RULES_BRANCH}/rules/${version}/${ruleType}.json`;
 
     try {
-        const response = await cdnManager.fetchViaCdn(url);
-        if (response.ok) {
-            const data = await response.json();
+        // 1. 尝试 CDN
+        try {
+            const response = await cdnManager.fetchViaCdn(url);
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, data, url };
+            }
+        } catch (cdnErr) {
+            console.warn('[RemoteRules] CDN fetch failed:', cdnErr.message);
+        }
+
+        // 2. 直接获取
+        const directResponse = await fetch(url);
+        if (directResponse.ok) {
+            const data = await directResponse.json();
             return { success: true, data, url };
         }
+
         return { success: false, message: 'Failed to fetch rule file' };
     } catch (e) {
         console.error('[RemoteRules] fetchRemoteRule error:', e);
