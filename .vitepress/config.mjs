@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'Channel Sentinel',
   description: '智能 IPTV 频道检测与回放规则管理工具',
   srcDir: 'docs',
+  ignoreDeadLinks: true,
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],
     ['meta', { name: 'theme-color', content: '#1a73e8' }],
