@@ -291,5 +291,3 @@ CSS 架构重构与播放器移动端优化
 - 📝 完善部署文档
 
 ---
-
-> 📌 完整更新日志请查看：[docs/CHANGELOG.md](./docs/CHANGELOG.md)

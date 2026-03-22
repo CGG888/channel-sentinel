@@ -186,7 +186,7 @@ rules/
     └── ...
 ```
 
-详见：[回放规则系统设计文档](../md/回放规则系统设计文档.md)
+详见：[回放规则系统设计文档](https://github.com/CGG888/channel-sentinel/blob/main/md/回放规则系统设计文档.md)
 
 ---
 
@@ -223,7 +223,6 @@ md/
 
 ## 相关链接
 
-- [使用指南](./docs/WIKI.md)
-- [用户指南](./docs/USER_GUIDE.md)
-- [版本历史](./docs/CHANGELOG.md)
-- [回放规则设计文档](../md/回放规则系统设计文档.md)
+- [使用指南](./WIKI)
+- [用户指南](./USER_GUIDE)
+- [版本历史](./CHANGELOG)

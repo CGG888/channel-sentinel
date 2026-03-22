@@ -44,7 +44,7 @@
       restart: unless-stopped
   ```
 
-- 访问地址：http://localhost:3000
+- 访问地址：`http://localhost:3000`
 - 数据持久化：容器内 /app/data 映射到宿主机 ./data，包含频道、模板、EPG 源等所有配置与快照。
 
 2) 本地 Node.js（开发/轻量）  
@@ -479,11 +479,12 @@ location / {
 # 获取系统信息
 curl -s http://localhost:3000/api/system/info
 
-# 导出 M3U（示例参数按页面“接口弹窗”生成为准）
-curl -L "http://localhost:3000/api/export/m3u?scope=external&status=online&fmt=ku9&proto=http"
+# 导出 M3U（示例参数按页面”接口弹窗”生成为准）
+curl -L “http://localhost:3000/api/export/m3u?scope=external&status=online&fmt=ku9&proto=http”
 
 # 查看回放规则状态
 curl -s http://localhost:3000/api/system/replay-rules/status
+```
 ```
 
 2) 术语对照  
