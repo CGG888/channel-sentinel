@@ -25,7 +25,10 @@
     "ops:low-frequency": "node src/utils/ops-low-frequency-governance.js",
     "ops:governance": "node src/utils/ops-domain-sop.js && node src/utils/ops-low-frequency-governance.js",
     "report:final-acceptance": "node src/utils/final-acceptance-report.js",
-    "test:ops-observability": "node src/utils/ops-observability-tests.js"
+    "test:ops-observability": "node src/utils/ops-observability-tests.js",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
     "axios": "^1.13.5",
@@ -46,6 +49,7 @@
     "hls.js": "^1.6.15",
     "mpegts.js": "^1.8.0",
     "nodemon": "^3.0.2",
-    "qier-player": "^2.0.3"
+    "qier-player": "^2.0.3",
+    "vitepress": "^1.6.3"
   }
 }

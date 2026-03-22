@@ -1,0 +1,180 @@
+name: Generate Rules Documentation
+
+on:
+  push:
+    tags:
+      - 'rules/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: false
+
+jobs:
+  generate-rules-doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse version
+        id: version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            echo "No version specified"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          VERSION_NUM="${VERSION#rules/v}"
+          echo "VERSION_NUM=$VERSION_NUM" >> $GITHUB_OUTPUT
+
+      - name: Fetch rules file
+        run: |
+          VERSION_NUM="${{ steps.version.outputs.VERSION_NUM }}"
+          RULES_URL="https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/rules/v${VERSION_NUM}/replay_base_rules.json"
+
+          echo "Fetching rules from: $RULES_URL"
+          curl -sL "$RULES_URL" -o replay_base_rules.json || {
+            echo "Trying without tag prefix..."
+            RULES_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/rules/${VERSION_NUM}/replay_base_rules.json"
+            curl -sL "$RULES_URL" -o replay_base_rules.json
+          }
+
+      - name: Generate rules table
+        id: generator
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+
+          try {
+            const data = JSON.parse(fs.readFileSync('replay_base_rules.json', 'utf8'));
+            const rules = data.rules || [];
+
+            let table = `
+## 当前版本规则
+
+| 省份 | 运营商 | 城市 | 类型 | 规则ID | 更新时间 | 贡献者 |
+|------|--------|------|------|--------|----------|--------|
+`;
+
+            rules.forEach(rule => {
+              const province = rule.region?.province || '*';
+              const operator = rule.region?.operator || '*';
+              const city = rule.region?.city || '*';
+              const protocols = (rule.match?.protocols || []).join('/').toUpperCase();
+              const id = rule.id || '';
+              const updatedAt = data.meta?.updated_at?.split('T')[0] || '';
+              const contributor = rule.contributor?.github_username
+                ? `[@${rule.contributor.github_username}](https://github.com/${rule.contributor.github_username})`
+                : '@CGG888';
+
+              table += `| ${province} | ${operator} | ${city} | ${protocols} | ${id} | ${updatedAt} | ${contributor} |\n`;
+            });
+
+            // Output for use in next step
+            fs.writeFileSync('rules_table.md', table);
+            console.log('Generated rules table successfully');
+            console.log('Rules count:', rules.length);
+          } catch (e) {
+            console.error('Error:', e.message);
+            process.exit(1);
+          }
+          EOF
+
+      - name: Read rules table
+        id: table
+        run: |
+          cat rules_table.md
+          echo "---"
+          TABLE_CONTENT=$(cat rules_table.md)
+          echo "TABLE_CONTENT<<EOF" >> $GITHUB_OUTPUT
+          echo "$TABLE_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update rules.md
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TABLE_CONTENT="${{ steps.table.outputs.TABLE_CONTENT }}"
+
+          # Create updated rules.md
+          cat > docs/replay-rules/rules.md << 'MARKDOWN'
+---
+title: 规则详情
+---
+
+# 规则详情
+
+::: info 自动更新
+此页面由 GitHub Actions 自动从最新发布的规则版本生成。
+:::
+
+## 版本列表
+
+| 版本 | 发布日期 | 规则数 | 变更说明 |
+|------|----------|--------|----------|
+MARKDOWN
+
+          # Get version info
+          node << 'EOF'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('replay_base_rules.json', 'utf8'));
+          const version = data.meta?.rules_version || '1.0.0';
+          const updatedAt = data.meta?.updated_at?.split('T')[0] || '';
+          const rulesCount = (data.rules || []).length;
+          const changelog = (data.meta?.changelog || [])[0]?.changes?.join(', ') || '';
+
+          console.log(`| ${version} | ${updatedAt} | ${rulesCount} | ${changelog} |`);
+          EOF >> docs/replay-rules/rules.md
+
+          cat >> docs/replay-rules/rules.md << 'MARKDOWN'
+
+<!-- RULES_TABLE_START -->
+MARKDOWN
+
+          cat rules_table.md >> docs/replay-rules/rules.md
+
+          cat >> docs/replay-rules/rules.md << 'MARKDOWN'
+<!-- RULES_TABLE_END -->
+
+## 历史版本
+
+### v1.0.0 (2026-03-17)
+
+**变更内容：**
+- Initial release
+- 湖南电信回放基础规则
+- 15种时间格式支持
+
+## 数据来源
+
+- **规则索引**：[rules.json](https://github.com/CGG888/channel-sentinel/blob/main/rules/rules.json)
+- **规则文件**：[rules/1.0.0/](https://github.com/CGG888/channel-sentinel/tree/main/rules/1.0.0)
+- **原始提交**：[Issue #10](https://github.com/CGG888/channel-sentinel/issues/10)
+
+## 如何贡献
+
+如果您有新的规则想要贡献，请参考 [社区贡献](./community) 页面。
+MARKDOWN
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'docs: auto-update rules documentation'
+          title: 'docs: Auto-update rules documentation'
+          body: |
+            ## Summary
+
+            Auto-generated PR to update rules documentation.
+
+            **Changes:**
+            - Updated rules table in docs/replay-rules/rules.md
+
+            This PR was automatically created by the `rules-doc.yml` workflow.
+          branch: docs/update-rules
+          delete-branch: true
+          labels: documentation, automated
