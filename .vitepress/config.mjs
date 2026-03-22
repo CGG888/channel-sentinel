@@ -26,23 +26,52 @@ export default defineConfig({
       formatOptions: { dateOptions: { year: 'numeric', month: 'long', day: 'numeric' } }
     },
     nav: [
-      { text: '文档', link: '/guide/quickstart' },
+      { text: '首页', link: '/' },
+      { text: '指南', link: '/guide/intro' },
+      { text: 'WIKI', link: '/WIKI' },
       { text: '回放规则', link: '/replay-rules/' },
-      { text: 'API', link: '/api/' }
+      { text: 'API', link: '/api/' },
+      { text: '项目结构', link: '/project-structure' },
+      { text: '更新日志', link: '/CHANGELOG' }
     ],
     sidebar: {
-      '/guide/': [
+      '/': [
         {
-          text: '入门',
+          text: '指南',
           items: [
+            { text: '介绍', link: '/guide/intro' },
+            { text: '安装', link: '/guide/installation' },
             { text: '快速开始', link: '/guide/quickstart' },
-            { text: '安装方式', link: '/guide/installation' }
+            { text: '使用教程', link: '/guide/usage' }
           ]
         },
         {
-          text: '使用指南',
+          text: '完整文档',
           items: [
-            { text: 'URL 格式说明', link: '/guide/usage' }
+            { text: 'WIKI 使用指南', link: '/WIKI' },
+            { text: '用户指南', link: '/USER_GUIDE' }
+          ]
+        },
+        {
+          text: '回放规则',
+          items: [
+            { text: '概述', link: '/replay-rules/' },
+            { text: '规则格式', link: '/replay-rules/format' },
+            { text: '社区贡献', link: '/replay-rules/community' },
+            { text: '规则详情', link: '/replay-rules/rules' }
+          ]
+        },
+        {
+          text: 'API',
+          items: [
+            { text: 'API 文档', link: '/api/' }
+          ]
+        },
+        {
+          text: '其他',
+          items: [
+            { text: '项目结构', link: '/project-structure' },
+            { text: 'CHANGELOG', link: '/CHANGELOG' }
           ]
         }
       ],
@@ -54,15 +83,6 @@ export default defineConfig({
             { text: '规则格式', link: '/replay-rules/format' },
             { text: '社区贡献', link: '/replay-rules/community' },
             { text: '规则详情', link: '/replay-rules/rules' }
-          ]
-        }
-      ],
-      '/api/': [
-        {
-          text: 'API 文档',
-          items: [
-            { text: '认证接口', link: '/api/' },
-            { text: '回放规则接口', link: '/api/' }
           ]
         }
       ]
