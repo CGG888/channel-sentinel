@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f9fa"/>
+      <stop offset="100%" style="stop-color:#e9ecef"/>
+    </linearGradient>
+  </defs>
+  <rect fill="url(#bgGrad3)" width="800" height="450"/>
+  <text x="400" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" fill="#667eea" font-weight="600">社区规则库</text>
+  <text x="400" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#6c757d">Community Rules Library</text>
+  <rect x="100" y="280" width="600" height="30" rx="4" fill="#667eea"/>
+  <text x="120" y="300" font-family="Inter, sans-serif" font-size="11" fill="#fff">版本</text>
+  <text x="200" y="300" font-family="Inter, sans-serif" font-size="11" fill="#fff">规则数</text>
+  <text x="350" y="300" font-family="Inter, sans-serif" font-size="11" fill="#fff">更新时间</text>
+  <text x="500" y="300" font-family="Inter, sans-serif" font-size="11" fill="#fff">状态</text>
+  <rect x="100" y="320" width="600" height="35" rx="0" fill="#fff" stroke="#dee2e6"/>
+  <text x="120" y="342" font-family="Inter, sans-serif" font-size="11" fill="#495057">1.0.0</text>
+  <text x="200" y="342" font-family="Inter, sans-serif" font-size="11" fill="#495057">2</text>
+  <text x="350" y="342" font-family="Inter, sans-serif" font-size="11" fill="#495057">2026-03-17</text>
+  <text x="500" y="342" font-family="Inter, sans-serif" font-size="11" fill="#28a745">已应用</text>
+  <rect x="100" y="355" width="600" height="35" rx="0" fill="#f8f9fa" stroke="#dee2e6"/>
+  <text x="120" y="377" font-family="Inter, sans-serif" font-size="11" fill="#495057">1.0.1</text>
+  <text x="200" y="377" font-family="Inter, sans-serif" font-size="11" fill="#495057">3</text>
+  <text x="350" y="377" font-family="Inter, sans-serif" font-size="11" fill="#495057">2026-03-22</text>
+  <text x="500" y="377" font-family="Inter, sans-serif" font-size="11" fill="#667eea">最新</text>
+</svg>

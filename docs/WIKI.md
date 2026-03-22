@@ -44,7 +44,7 @@
       restart: unless-stopped
   ```
 
-- 访问地址：`http://localhost:3000`
+- 访问地址：`http://localhost:3000`（本地开发地址）
 - 数据持久化：容器内 /app/data 映射到宿主机 ./data，包含频道、模板、EPG 源等所有配置与快照。
 
 2) 本地 Node.js（开发/轻量）  

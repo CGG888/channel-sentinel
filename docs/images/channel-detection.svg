@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f9fa"/>
+      <stop offset="100%" style="stop-color:#e9ecef"/>
+    </linearGradient>
+  </defs>
+  <rect fill="url(#bgGrad)" width="800" height="450"/>
+  <text x="400" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" fill="#667eea" font-weight="600">频道检测</text>
+  <text x="400" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#6c757d">Channel Detection Interface</text>
+  <rect x="100" y="280" width="600" height="60" rx="8" fill="#fff" stroke="#dee2e6"/>
+  <text x="130" y="315" font-family="Inter, sans-serif" font-size="12" fill="#495057">搜索频道...</text>
+  <circle cx="720" cy="310" r="10" fill="#667eea"/>
+  <rect x="100" y="360" width="180" height="50" rx="6" fill="#fff" stroke="#dee2e6"/>
+  <rect x="300" y="360" width="180" height="50" rx="6" fill="#fff" stroke="#dee2e6"/>
+  <rect x="500" y="360" width="180" height="50" rx="6" fill="#fff" stroke="#dee2e6"/>
+</svg>

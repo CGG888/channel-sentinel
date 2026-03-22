@@ -35,14 +35,16 @@ jobs:
       - name: Fetch rules file
         run: |
           VERSION_NUM="${{ steps.version.outputs.VERSION_NUM }}"
-          RULES_URL="https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/rules/v${VERSION_NUM}/replay_base_rules.json"
+          # Use the tag directly - tags are accessible via refs/tags/
+          RULES_URL="https://raw.githubusercontent.com/${{ github.repository }}/rules/v${VERSION_NUM}/replay_base_rules.json"
 
           echo "Fetching rules from: $RULES_URL"
           curl -sL "$RULES_URL" -o replay_base_rules.json || {
-            echo "Trying without tag prefix..."
+            echo "Trying main branch..."
             RULES_URL="https://raw.githubusercontent.com/${{ github.repository }}/main/rules/${VERSION_NUM}/replay_base_rules.json"
             curl -sL "$RULES_URL" -o replay_base_rules.json
           }
+          cat replay_base_rules.json | head -20
 
       - name: Generate rules table
         id: generator

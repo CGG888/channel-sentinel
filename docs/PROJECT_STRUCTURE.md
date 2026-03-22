@@ -223,6 +223,6 @@ md/
 
 ## 相关链接
 
-- [使用指南](./WIKI)
-- [用户指南](./USER_GUIDE)
-- [版本历史](./CHANGELOG)
+- [使用指南](./WIKI.md)
+- [用户指南](./USER_GUIDE.md)
+- [版本历史](./CHANGELOG.md)

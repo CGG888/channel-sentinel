@@ -2,49 +2,81 @@
 layout: home
 
 hero:
-  name: "Channel Sentinel"
-  text: "智能 IPTV 频道检测工具"
-  tagline: 专业的 IPTV 频道检测与回放规则管理平台，支持多源 M3U8 解析、直播源检测、回放地址生成
+  name: Channel Sentinel
+  text: 智能 IPTV 检测工具
+  tagline: 智能检测 IPTV 频道状态，自动获取回放地址，支持自定义回放规则
+  image:
+    src: /logo.svg
+    alt: Channel Sentinel
   actions:
     - theme: brand
-      text: 快速开始 →
+      text: 快速开始
       link: /guide/quickstart
     - theme: alt
       text: GitHub
       link: https://github.com/CGG888/channel-sentinel
 
 features:
-  - icon: 🔍
-    title: 智能检测
-    details: 支持多种 M3U8 格式解析，自动识别直播源类型、协议和流媒体服务提供商
   - icon: 📺
-    title: 回放规则
-    details: 强大的回放地址生成规则引擎，支持省份、运营商、城市多维度匹配
+    title: 智能频道检测
+    details: 支持 HTTP/RTSP/UDP 多协议频道检测，实时显示频道状态
+  - icon: 🔄
+    title: 自动回放获取
+    details: 自动识别并获取频道回放地址，支持多种回放规则
+  - icon: 🛠️
+    title: 自定义回放规则
+    details: 灵活的回放规则系统，支持省份、运营商、城市等多维度匹配
   - icon: 🌐
-    title: 社区贡献
-    details: 开源社区驱动，用户可以提交和分享回放规则，共同完善规则库
-  - icon: ⚡
-    title: 高效稳定
-    details: 基于 Node.js 构建，支持 Docker 部署，提供 RESTful API 接口
-  - icon: 🔒
-    title: 安全可靠
-    details: GitHub OAuth 认证，规则来源可溯源，本地规则优先保护隐私
+    title: 社区规则库
+    details: 开放的社区规则贡献系统，用户可以提交和分享回放规则
   - icon: 📊
-    title: 实时日志
-    details: 详细的命中日志和调试信息，方便排查问题和优化规则
+    title: 批量处理
+    details: 支持批量检测和处理，轻松管理大量频道
+  - icon: 💾
+    title: 数据持久化
+    details: SQLite 本地存储，规则版本管理，支持快照和回滚
 ---
 
-<div class="vp-doc" style="text-align: center; padding: 40px 24px;">
+<style>
+.demo-section {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.demo-section h2 {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 48px;
+  letter-spacing: -0.02em;
+}
+.demo-section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 48px;
+  margin-bottom: 16px;
+}
+.demo-section img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--vp-c-divider);
+}
+</style>
 
-## 🎯 快速链接
+<div class="demo-section">
 
-<div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 24px;">
+## 功能演示
 
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/cgg888/channel-sentinel)
-[![GitHub Stars](https://img.shields.io/github/stars/CGG888/channel-sentinel?style=for-the-badge)](https://github.com/CGG888/channel-sentinel)
-[![License](https://img.shields.io/github/license/CGG888/channel-sentinel?style=for-the-badge)](https://github.com/CGG888/channel-sentinel/blob/main/LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+### 频道检测
 
-</div>
+![频道检测](./images/channel-detection.svg)
+
+### 回放规则配置
+
+![回放规则](./images/replay-rules.svg)
+
+### 社区规则库
+
+![社区规则](./images/community-rules.svg)
 
 </div>

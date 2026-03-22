@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f9fa"/>
+      <stop offset="100%" style="stop-color:#e9ecef"/>
+    </linearGradient>
+  </defs>
+  <rect fill="url(#bgGrad2)" width="800" height="450"/>
+  <text x="400" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" fill="#667eea" font-weight="600">回放规则配置</text>
+  <text x="400" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#6c757d">Replay Rules Configuration</text>
+  <rect x="100" y="280" width="280" height="120" rx="8" fill="#fff" stroke="#dee2e6"/>
+  <rect x="120" y="300" width="100" height="20" rx="4" fill="#667eea"/>
+  <text x="130" y="315" font-family="Inter, sans-serif" font-size="10" fill="#fff">基础地址规则</text>
+  <rect x="120" y="330" width="240" height="50" rx="4" fill="#f8f9fa"/>
+  <rect x="420" y="280" width="280" height="120" rx="8" fill="#fff" stroke="#dee2e6"/>
+  <rect x="440" y="300" width="100" height="20" rx="4" fill="#764ba2"/>
+  <text x="450" y="315" font-family="Inter, sans-serif" font-size="10" fill="#fff">时间规则</text>
+  <rect x="440" y="330" width="240" height="50" rx="4" fill="#f8f9fa"/>
+</svg>
