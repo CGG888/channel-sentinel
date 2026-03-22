@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from '频道哨兵-Channel Sentinel'
 
 export default defineConfig({
   title: 'Channel Sentinel',
