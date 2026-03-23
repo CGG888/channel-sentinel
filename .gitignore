@@ -8,3 +8,4 @@ captcha.svg
 cookies.txt
 md/*
 cloudflare-worker/index.js
+test_temp/*

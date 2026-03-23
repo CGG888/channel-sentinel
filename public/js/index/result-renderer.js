@@ -152,8 +152,6 @@
         hideStatusInfo();
         let lastResultDiv = document.getElementById('lastResultInfo');
         if (lastResultDiv) lastResultDiv.style.display = 'none';
-        let currentCheckInfo = document.getElementById('currentCheckInfo');
-        if (currentCheckInfo) currentCheckInfo.style.display = 'none';
     }
 
     function buildDetectionStats(list) {

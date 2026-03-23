@@ -88,17 +88,97 @@
         const applyBtn = document.getElementById('applyCidrBtn');
         if (applyBtn) {
             applyBtn.addEventListener('click', function() {
-                const cidr = document.getElementById('cidrInput').value.trim();
-                const rng = parseCIDR(cidr);
-                const portVal = document.getElementById('portInput')?.value.trim();
+                const cidrInput = document.getElementById('cidrInput');
+                const portInput = document.getElementById('portInput');
+                const startEl = document.getElementById('rangeStart');
+                const endEl = document.getElementById('rangeEnd');
+                const cidr = cidrInput ? cidrInput.value.trim() : '';
+                const portVal = portInput ? portInput.value.trim() : '';
                 const port = portVal ? parseInt(portVal, 10) : 9000;
-                if (rng) {
-                    document.getElementById('rangeStart').value = `rtp://${rng.start}:${port}`;
-                    document.getElementById('rangeEnd').value = `rtp://${rng.end}:${port}`;
-                    updateRangeSummary();
-                } else {
-                    showStatusInfo('CIDR格式不正确');
+                const startVal = startEl ? startEl.value.trim() : '';
+                const endVal = endEl ? endEl.value.trim() : '';
+
+                // 检查两个区域是否同时有数据
+                const cidrHasData = cidr.length > 0;
+                const rangeHasData = startVal.length > 0 || endVal.length > 0;
+
+                if (cidrHasData && rangeHasData) {
+                    showCenterConfirm('CIDR生成区域和起始/结束地址不能同时有数据，请只保留一个区域的数据', null, true);
+                    return;
                 }
+
+                // 清空之前的CIDR配置
+                cidrDetectConfig = null;
+
+                if (cidr) {
+                    const rng = parseCIDR(cidr);
+                    if (rng) {
+                        // 保存CIDR配置到全局变量，不填充到输入框
+                        cidrDetectConfig = {
+                            cidr: cidr,
+                            port: port,
+                            start: rng.start,
+                            end: rng.end
+                        };
+                        // 在rangeSummary中显示预览信息
+                        const total = (() => {
+                            const maskLen = parseInt(cidr.split('/')[1], 10);
+                            if (maskLen === 32) return 1;
+                            const count = maskLen <= 30 ? Math.max((1 << (32 - maskLen)) - 2, 0) : (1 << (32 - maskLen));
+                            return count;
+                        })();
+                        const sumEl = document.getElementById('rangeSummary');
+                        if (sumEl) sumEl.value = `CIDR: ${cidr} 端口:${port} 范围:${rng.start}-${rng.end} 组播数量:${total}`;
+                        // 弹窗提示
+                        showCenterConfirm(`已应用 CIDR范围检测配置\n\n📋 CIDR: ${cidr}\n🔌 端口: ${port}\n📍 范围: ${rng.start} ~ ${rng.end}\n🔢 组播数量: ${total}\n\n💡 点击「开始检测」按钮即可启动检测`, null, true);
+                    } else {
+                        showCenterConfirm('CIDR格式无效', null, true);
+                        return;
+                    }
+                } else {
+                    // 没有CIDR时检查起始/结束地址
+                    if (!startVal && !endVal) {
+                        showCenterConfirm('请先填写组播范围（CIDR 或 起始/结束地址）', null, true);
+                        return;
+                    }
+                    // 计算组播数量
+                    let pStart = startVal || '-';
+                    let pEnd = endVal || '-';
+                    let detail = '-';
+                    let total = '-';
+                    if (startVal && endVal) {
+                        const s = parseRtp(startVal);
+                        const e = parseRtp(endVal);
+                        if (s && e) {
+                            let si = ipv4ToInt(s.host);
+                            let ei = ipv4ToInt(e.host);
+                            if (si > ei) { let t = si; si = ei; ei = t; }
+                            const ipCount = ei - si + 1;
+                            const portSame = s.port === e.port;
+                            const portStart = portSame ? s.port : (s.port < e.port ? s.port : e.port);
+                            const portEnd = portSame ? s.port : (s.port > e.port ? s.port : e.port);
+                            const portCount = portSame ? 1 : (portEnd - portStart + 1);
+                            total = ipCount * portCount;
+                            detail = ipCount + ' IPs × ' + portCount + ' ports';
+                            pStart = s.host + ':' + s.port;
+                            pEnd = e.host + ':' + e.port;
+                        }
+                    }
+                    // 弹窗提示
+                    let msg = '已应用 起始/结束地址范围检测配置\n\n';
+                    msg += '📍 起始地址: ' + pStart + '\n';
+                    msg += '📍 结束地址: ' + pEnd + '\n';
+                    msg += '🔢 组播数量: ' + detail + ' = ' + total + '\n\n';
+                    msg += '💡 点击「开始检测」按钮即可启动检测';
+                    showCenterConfirm(msg, null, true);
+                }
+            });
+        }
+        // Port 输入监听：触发预览
+        const portInputEl = document.getElementById('portInput');
+        if (portInputEl) {
+            portInputEl.addEventListener('input', function() {
+                updateRangeSummary();
             });
         }
         const clearBtn = document.getElementById('clearCidrBtn');
@@ -112,6 +192,8 @@
                 if (endEl) endEl.value = '';
                 if (cidrEl) cidrEl.value = '';
                 if (sumEl) sumEl.value = '';
+                // 清除CIDR配置
+                cidrDetectConfig = null;
                 showStatusInfo('');
                 updateRangeSummary();
             });
@@ -122,16 +204,6 @@
         if (rs) rs.addEventListener('input', updateRangeSummary);
         if (re) re.addEventListener('input', updateRangeSummary);
         if (ci) ci.addEventListener('input', function() {
-            const cidr = ci.value.trim();
-            const rng = parseCIDR(cidr);
-            const portVal = document.getElementById('portInput')?.value.trim();
-            const port = portVal ? parseInt(portVal, 10) : 9000;
-            const startEl = document.getElementById('rangeStart');
-            const endEl = document.getElementById('rangeEnd');
-            if (rng) {
-                if (startEl) startEl.value = `rtp://${rng.start}:${port}`;
-                if (endEl) endEl.value = `rtp://${rng.end}:${port}`;
-            }
             updateRangeSummary();
         });
         updateRangeSummary();
@@ -146,19 +218,37 @@
                 if (stopBtn) stopBtn.disabled = false;
                 const udpxyUrl = document.getElementById('udpxyUrl').value;
                 const batchText = document.getElementById('batchInput').value;
+                const cidrVal = (document.getElementById('cidrInput') || {}).value || '';
                 const startUrl = document.getElementById('rangeStart').value.trim();
                 const endUrl = document.getElementById('rangeEnd').value.trim();
+
                 if (!udpxyUrl) {
                     showCenterConfirm('请先填写UDPXY服务器地址', null, true);
                     detectRunning = false;
                     if (startBtn) startBtn.disabled = false;
                     return;
                 }
+
+                // 检查CIDR区域和起始/结束地址是否同时有数据
+                const cidrHasData = cidrVal.trim().length > 0;
+                const rangeHasData = startUrl.length > 0 || endUrl.length > 0;
+
+                if (cidrHasData && rangeHasData) {
+                    showCenterConfirm('CIDR生成区域和起始/结束地址不能同时有数据，请只保留一个区域的数据', null, true);
+                    detectRunning = false;
+                    if (startBtn) startBtn.disabled = false;
+                    return;
+                }
+
                 try {
                     if (batchText.trim()) {
                         await batchCheckStreamsMixed(udpxyUrl, batchText);
                     } else if (startUrl && endUrl) {
+                        // 优先使用起始/结束地址
                         await rangeCheckStreams(udpxyUrl, startUrl, endUrl);
+                    } else if (cidrDetectConfig && cidrDetectConfig.cidr) {
+                        // 最后才使用CIDR配置
+                        await cidrCheckStreams(udpxyUrl, cidrDetectConfig);
                     } else {
                         showCenterConfirm('请粘贴组播地址或填写范围再点击检测', null, true);
                     }
@@ -271,5 +361,7 @@
         }
         updateInputCount();
         getStreams();
+        window.updateInputCount = updateInputCount;
     };
+    window.updateInputCount = updateInputCount;
 })();
