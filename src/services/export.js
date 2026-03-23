@@ -558,7 +558,10 @@ class ExportService {
             const tvgName = this.exportChannelName(s);
             let tvgLogo = s.logo || '';
             const logoTpl = pickLogoTpl ? pickLogoTpl.url : this.settings.logoTemplate;
-            if (logoTpl && tvgName) tvgLogo = logoTpl.replace('{name}', tvgName);
+            if (logoTpl && tvgName) {
+                const logoName = tvgName.replace(/\s+/g, '');
+                tvgLogo = logoTpl.replace('{name}', logoName);
+            }
             const groupTitle = this.exportGroupTitle(s);
             let catchupAttr = '';
             let unicastBase = '';

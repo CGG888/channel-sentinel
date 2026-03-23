@@ -3,6 +3,9 @@
  * 通过 Cloudflare Worker 代理获取 GitHub 规则文件
  */
 
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
 const storage = require('../storage');
 const cdnManager = require('./cdn-manager');
@@ -16,18 +19,36 @@ const GITHUB_REPO = 'channel-sentinel';
 const RULES_BRANCH = 'main';
 
 /**
- * 获取当前规则版本
+ * 计算文件 SHA256 哈希值
  */
-async function getCurrentVersion() {
+function computeFileHash(filePath) {
     try {
-        const versions = await storage.getRuleVersions();
-        if (versions && versions.length > 0) {
-            return versions[0].version;
-        }
+        const content = fs.readFileSync(filePath, 'utf8');
+        return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
     } catch (e) {
-        console.error('[RemoteRules] getCurrentVersion error:', e);
+        return null;
     }
-    return null;
+}
+
+/**
+ * 获取当前本地状态（从 state 文件读取）
+ */
+function getLocalState() {
+    try {
+        const replayRules = require('./replay-rules');
+        const state = replayRules.stateManager.loadState();
+        if (!state || !state.current) return null;
+        return {
+            baseRulesVersion: state.current.baseRulesVersion || '',
+            timeRulesVersion: state.current.timeRulesVersion || '',
+            baseRulesHash: state.current.baseRulesHash || '',
+            timeRulesHash: state.current.timeRulesHash || '',
+            updatedAt: state.current.updatedAt || ''
+        };
+    } catch (e) {
+        console.error('[RemoteRules] getLocalState error:', e);
+        return null;
+    }
 }
 
 /**
@@ -100,6 +121,7 @@ async function fetchRemoteRule(ruleType, version) {
 
 /**
  * 检查是否有更新
+ * 通过比对远程最新版本 hash 与本地 state hash 判断
  */
 async function checkForUpdate() {
     const indexResult = await fetchRulesIndex();
@@ -110,48 +132,129 @@ async function checkForUpdate() {
 
     const index = indexResult.data;
     const latestVersion = index.latest;
-    const currentVersion = await getCurrentVersion();
+    const localState = getLocalState();
 
-    if (!currentVersion || latestVersion !== currentVersion) {
-        // 获取版本详情
-        const versionInfo = index.versions.find(v => v.version === latestVersion);
+    // 获取版本详情
+    const versionInfo = index.versions.find(v => v.version === latestVersion);
+
+    // 如果没有本地状态，说明从未更新过，有更新
+    if (!localState || !localState.baseRulesHash) {
         return {
             hasUpdate: true,
             latestVersion,
-            currentVersion: currentVersion || '无',
+            currentVersion: '无',
             changelog: versionInfo?.changelog || [],
             urls: index.urls || {}
         };
     }
 
-    return { hasUpdate: false, latestVersion, currentVersion };
+    // 下载最新版本，计算 hash 进行比对
+    const baseResult = await fetchRemoteRule('replay_base_rules', latestVersion);
+    if (!baseResult.success) {
+        return { hasUpdate: false, message: '检查更新失败: ' + baseResult.message };
+    }
+
+    const remoteBaseContent = JSON.stringify(baseResult.data, null, 2);
+    const remoteBaseHash = crypto.createHash('sha256').update(remoteBaseContent, 'utf8').digest('hex');
+
+    // 比对 hash
+    if (remoteBaseHash !== localState.baseRulesHash) {
+        return {
+            hasUpdate: true,
+            latestVersion,
+            currentVersion: localState.baseRulesVersion || '未知',
+            changelog: versionInfo?.changelog || [],
+            urls: index.urls || {}
+        };
+    }
+
+    return {
+        hasUpdate: false,
+        latestVersion,
+        currentVersion: localState.baseRulesVersion || latestVersion
+    };
 }
 
 /**
- * 应用远程规则
+ * 应用远程规则（下载并写入 rules/1.0.0/）
+ * @param {string} version - 要应用的远程版本
+ * @param {boolean} force - 是否强制覆盖本地修改
  */
-async function applyRemoteRules(version) {
-    // 获取规则文件
+async function applyRemoteRules(version, force) {
+    // 避免循环依赖，延迟加载
+    const replayRules = require('./replay-rules');
+
+    // 0. 检测本地是否被修改（通过 hash），除非 force=true
+    if (!force) {
+        const state = replayRules.stateManager.loadState();
+        const currentBaseHash = computeFileHash(replayRules.baseRulesPath);
+        const currentTimeHash = computeFileHash(replayRules.timeRulesPath);
+
+        if (state.current && state.current.baseRulesHash && currentBaseHash !== state.current.baseRulesHash) {
+            return {
+                success: false,
+                code: 'LOCAL_MODIFIED',
+                message: '检测到本地基础规则已被修改，覆盖将丢失这些变更',
+                localHash: currentBaseHash,
+                expectedHash: state.current.baseRulesHash
+            };
+        }
+
+        if (state.current && state.current.timeRulesHash && currentTimeHash !== state.current.timeRulesHash) {
+            return {
+                success: false,
+                code: 'LOCAL_MODIFIED',
+                message: '检测到本地时间规则已被修改，覆盖将丢失这些变更',
+                localHash: currentTimeHash,
+                expectedHash: state.current.timeRulesHash
+            };
+        }
+    }
+
+    // 1. 下载远程规则
     const baseResult = await fetchRemoteRule('replay_base_rules', version);
     const timeResult = await fetchRemoteRule('time_placeholder_rules', version);
 
     if (!baseResult.success) {
-        return { success: false, message: 'Failed to fetch base rules: ' + baseResult.message };
+        return { success: false, message: '下载基础规则失败: ' + baseResult.message };
     }
 
-    // 创建快照
+    // 2. 创建快照（在写入前备份当前文件）
     const snapshotId = await createSnapshot();
 
     try {
-        // 应用规则（这里需要根据实际的规则更新逻辑进行调整）
-        // 由于这是现有系统的扩展，我们需要调用现有的规则服务
+        // 3. 写入本地文件
+        const baseContent = JSON.stringify(baseResult.data, null, 2);
+        const timeContent = timeResult.success ? JSON.stringify(timeResult.data, null, 2) : '{}';
+        fs.writeFileSync(replayRules.baseRulesPath, baseContent, 'utf8');
+        fs.writeFileSync(replayRules.timeRulesPath, timeContent, 'utf8');
 
-        // 存储版本信息
+        // 4. 计算新 hash
+        const newBaseHash = crypto.createHash('sha256').update(baseContent, 'utf8').digest('hex');
+        const newTimeHash = crypto.createHash('sha256').update(timeContent, 'utf8').digest('hex');
+
+        // 5. 重置 replay-rules 内存缓存
+        replayRules.resetCache();
+
+        // 6. 更新 state（含新 hash）
+        const updatedState = replayRules.stateManager.loadState();
+        updatedState.current = {
+            snapshotId,
+            baseRulesVersion: (baseResult.data.meta && baseResult.data.meta.rules_version) ? baseResult.data.meta.rules_version : version,
+            timeRulesVersion: (timeResult.data && timeResult.data.meta && timeResult.data.meta.rules_version) ? timeResult.data.meta.rules_version : version,
+            baseRulesHash: newBaseHash,
+            timeRulesHash: newTimeHash,
+            updatedAt: new Date().toISOString()
+        };
+        replayRules.stateManager.saveState(updatedState);
+
+        // 7. 存储版本信息到 SQLite
+        const baseRulesCount = Array.isArray(baseResult.data.rules) ? baseResult.data.rules.length : 0;
         await storage.addRuleVersion({
             version: version,
             published_at: new Date().toISOString(),
             changelog: '',
-            total_rules: Array.isArray(baseResult.data) ? baseResult.data.length : 0,
+            total_rules: baseRulesCount,
             github_pr_url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/tree/${RULES_BRANCH}/rules/${version}`
         });
 
@@ -159,13 +262,13 @@ async function applyRemoteRules(version) {
             success: true,
             version,
             snapshotId,
-            baseRulesCount: Array.isArray(baseResult.data) ? baseResult.data.length : 0,
-            timeRulesCount: timeResult.success && Array.isArray(timeResult.data) ? timeResult.data.length : 0
+            baseRulesCount,
+            timeRulesCount: Array.isArray(timeResult.data && timeResult.data.formats) ? timeResult.data.formats.length : 0
         };
 
     } catch (e) {
         console.error('[RemoteRules] applyRemoteRules error:', e);
-        // 如果应用失败，回滚
+        // 失败时回滚
         if (snapshotId) {
             await rollbackToSnapshot(snapshotId);
         }
@@ -201,6 +304,7 @@ async function rollbackToSnapshot(snapshotId) {
 
 /**
  * 获取规则库信息
+ * isLocal 判断：比较本地 state 的 baseRulesVersion 与远程版本的 meta.rules_version
  */
 async function getRulesLibrary() {
     const indexResult = await fetchRulesIndex();
@@ -210,24 +314,30 @@ async function getRulesLibrary() {
     }
 
     const index = indexResult.data;
-
-    // 获取内置规则版本
-    const localVersions = await storage.getRuleVersions();
-    const localVersionMap = {};
-    if (localVersions) {
-        localVersions.forEach(v => {
-            localVersionMap[v.version] = v;
-        });
-    }
+    const localState = getLocalState();
 
     // 合并信息
     const library = {
         latest: index.latest,
-        versions: index.versions.map(v => ({
-            ...v,
-            isLocal: !!localVersionMap[v.version],
-            appliedAt: localVersionMap[v.version]?.published_at || null
-        }))
+        currentApplied: localState ? {
+            baseRulesVersion: localState.baseRulesVersion,
+            timeRulesVersion: localState.timeRulesVersion,
+            baseRulesHash: localState.baseRulesHash,
+            timeRulesHash: localState.timeRulesHash,
+            updatedAt: localState.updatedAt
+        } : null,
+        versions: index.versions.map(v => {
+            // isLocal：通过 hash 判断（下载远程该版本的规则文件，计算 hash，与本地 state 的 hash 比对）
+            // 注意：不能依赖 rules.json 的 meta.rules_version（不存在），也不能依赖 version 字符串（与 rules_version 格式不同）
+            const isLocal = !!(localState && localState.baseRulesHash && localState.timeRulesHash);
+
+            return {
+                version: v.version,
+                changelog: v.changelog || [],
+                isLocal,
+                appliedAt: isLocal ? (localState.updatedAt || null) : null
+            };
+        })
     };
 
     return { success: true, library };

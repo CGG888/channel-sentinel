@@ -56,7 +56,8 @@
         ensureProxyRulePanel();
         const close = function() {
             modal.style.display = 'none';
-            modal.querySelector('.modal').classList.remove('show');
+            const inner = modal.matches('.modal') ? modal : modal.querySelector('.modal');
+            if (inner) inner.classList.remove('show');
         };
         const closeBtn = document.getElementById('replayRulesCloseR');
         if (closeBtn) closeBtn.onclick = close;
@@ -339,8 +340,8 @@
                 }
             });
         };
-        modal.style.display = 'block';
-        modal.querySelector('.modal').classList.add('show');
+        modal.style.display = '';
+        (modal.matches('.modal') ? modal : modal.querySelector('.modal')).classList.add('show');
         refreshAll();
     };
 

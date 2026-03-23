@@ -1084,7 +1084,7 @@ function renderTable() {
       <td class="col-fps">${s.frameRate ? '<span class="badge bg-light text-dark border">'+s.frameRate+'fps</span>' : '-'}</td>
       <td class="col-codec">${s.codec ? '<span class="badge bg-light text-dark border">'+s.codec+'</span>' : '-'}</td>
       <td class="col-group"><span class="badge" style="${groupBadgeStyle(s.groupTitle || '-')}">${s.groupTitle || '-'}</span></td>
-      <td class="col-logo">${s.logo ? '<img src="'+s.logo+'" class="logo-img" onerror="if(!this.dataset.err){this.dataset.err=1;this.src=\'/api/proxy/stream?url=\'+encodeURIComponent(this.src);}">' : '<div class="logo-img d-flex align-items-center justify-content-center text-muted"><i class="bi bi-tv"></i></div>'}</td>
+      <td class="col-logo">${(function(){const logoUrl=chooseLogoCandidate(s.tvgName||s.tvgId||s.name||'',s.resolution||'');return logoUrl?'<img src="'+logoUrl+'" class="logo-img" onerror="if(!this.dataset.err){this.dataset.err=1;this.src=\'/api/proxy/stream?url=\'+encodeURIComponent(this.src);}">':'<div class="logo-img d-flex align-items-center justify-content-center text-muted"><i class="bi bi-tv"></i></div>';})()}</td>
       <td class="col-addr" title="${displayUrlBase(s)}">${displayUrlBase(s)}</td>
       <td class="col-http" title="${s.httpParam||'-'}">${(function(){ const m=(s.httpParam||'').match(/fcc=([^&]+)/); return m ? m[1].split(':')[0] : '-'; })()}</td>
       <td class="col-ops pe-3">
@@ -2335,8 +2335,9 @@ function openEditModal(index) {
   const editLogoPreview = document.getElementById('editLogoPreviewR');
   const editLogoInput = document.getElementById('editLogoR');
   if (editLogoPreview) {
-      editLogoPreview.src = s.logo || '';
-      editLogoPreview.style.display = s.logo ? 'block' : 'none';
+      const logoUrl = chooseLogoCandidate(s.tvgName || s.tvgId || s.name || '', s.resolution || '');
+      editLogoPreview.src = logoUrl || '';
+      editLogoPreview.style.display = logoUrl ? 'block' : 'none';
   }
   if (editLogoInput && editLogoPreview) {
       editLogoInput.oninput = function() {

@@ -63,10 +63,10 @@
     };
 
     // 应用远程规则
-    community.applyRemoteRules = async function (version) {
+    community.applyRemoteRules = async function (version, force) {
         return apiJson('/api/replay-rules/apply-remote', {
             method: 'POST',
-            body: { version }
+            body: { version, force: !!force }
         });
     };
 
@@ -126,9 +126,9 @@
         });
     };
 
-    // 渲染规则库
+    // 渲染规则库（方案 A：按场景显示按钮，调用 onStatusUpdate）
     community.renderRulesLibrary = function (container, options) {
-        const { onApply, currentVersion } = options || {};
+        const { onApply, onStatusUpdate } = options || {};
         container.innerHTML = '<div class="text-center text-muted py-2"><i class="bi bi-hourglass-split"></i> 加载中...</div>';
         community.getRulesLibrary().then(function (j) {
             if (!j || !j.success) {
@@ -136,36 +136,65 @@
                 return;
             }
             const lib = j;
+            if (!lib) return;
             const latest = lib.latest;
             const versions = Array.isArray(lib.versions) ? lib.versions : [];
+
+            // 更新状态行
+            if (typeof onStatusUpdate === 'function') {
+                onStatusUpdate(j);
+            }
 
             if (versions.length === 0) {
                 container.innerHTML = '<div class="text-muted small">暂无规则库信息</div>';
                 return;
             }
 
+            // 场景判断：是否存在 isLocal 的版本
+            const localVersion = versions.find(function(v){ return v.isLocal; });
+            const hasLocal = !!localVersion;
+
+            // 如果没有本地版本，当前状态为"未应用"
+            // 如果有 isLocal 版本且是 latest → "已是最新"
+            // 如果有 isLocal 版本但不是 latest → "有更新"
+            const latestVersion = versions.find(function(v){ return v.version === latest; });
+            const isLocalLatest = latestVersion ? latestVersion.isLocal : false;
+
             let html = '<div class="small fw-bold mb-2">规则版本</div>';
-            html += '<div class="list-group list-group-flush small" style="max-height:200px;overflow-y:auto;">';
+            html += '<div class="list-group list-group-flush small" style="max-height:180px;overflow-y:auto;">';
 
             versions.slice(0, 10).forEach(function (v) {
                 const isLocal = v.isLocal;
                 const isLatest = v.version === latest;
                 const appliedAt = v.appliedAt ? new Date(v.appliedAt).toLocaleDateString('zh-CN') : '';
-                const badge = isLocal ? '<span class="badge bg-success me-1">已应用</span>' : (isLatest ? '<span class="badge bg-primary me-1">最新</span>' : '');
+                // badge: 已应用 / 最新
+                const badge = isLocal
+                    ? '<span class="badge bg-success me-1">已应用</span>'
+                    : (isLatest ? '<span class="badge bg-primary me-1">最新</span>' : '');
                 const changelog = Array.isArray(v.changelog) && v.changelog.length > 0
                     ? '<div class="text-muted small">' + escapeHtml(v.changelog.slice(0, 2).join(', ')) + '</div>'
                     : '';
                 const ruleCount = v.total_rules || 0;
                 const baseCount = v.base_rules_count || 0;
                 const timeCount = v.time_formats_count || 0;
+                const ruleCountDisplay = ruleCount > 0 ? '规则: ' + ruleCount + ' (基础:' + baseCount + ' 时间:' + timeCount + ')' : '';
                 html += '<div class="list-group-item d-flex justify-content-between align-items-start px-0 py-2">';
                 html += '<div class="me-auto">' + badge + '<strong>' + escapeHtml(v.version || '') + '</strong>' + changelog;
-                html += '<div class="text-muted small">规则: ' + ruleCount + ' (基础:' + baseCount + ' 时间:' + timeCount + ')</div>';
+                if (ruleCountDisplay) html += '<div class="text-muted small">' + ruleCountDisplay + '</div>';
                 if (appliedAt) html += '<div class="text-muted small">应用时间: ' + appliedAt + '</div>';
                 html += '</div>';
-                if (!isLocal && typeof onApply === 'function') {
-                    html += '<button class="btn btn-outline-primary btn-sm community-apply-btn" data-version="' + escapeHtml(v.version || '') + '">应用</button>';
+
+                // 按钮逻辑（方案 A）：
+                // isLocal → [当前]（禁用）
+                // !isLocal && isLatest → [下载更新]
+                // !isLocal && !isLatest → 无按钮
+                if (isLocal) {
+                    html += '<button class="btn btn-outline-secondary btn-sm" disabled><i class="bi bi-check"></i> 当前</button>';
+                } else if (isLatest && typeof onApply === 'function') {
+                    html += '<button class="btn btn-outline-primary btn-sm community-apply-btn" data-version="' + escapeHtml(v.version || '') + '"><i class="bi bi-download me-1"></i>下载更新</button>';
                 }
+                // 其他非 latest 版本不显示按钮
+
                 html += '</div>';
             });
 
@@ -260,7 +289,7 @@
         };
     };
 
-    // 将社区功能附加到回放规则模态框
+    // 将社区功能附加到回放规则模态框（方案 A 布局）
     community.attachToReplayRulesModal = function (modal) {
         const community = window.IptvCore.results.community;
         if (!community) return;
@@ -271,14 +300,17 @@
         // 检查是否已经添加过
         if (document.getElementById('communityFeaturesSection')) return;
 
-        // 创建社区功能区块
+        // 创建社区功能区块（方案 A：两行布局）
         const section = document.createElement('div');
         section.id = 'communityFeaturesSection';
-        section.className = 'mt-3 pt-3 border-top';
-        section.innerHTML = '<div class="row g-3">' +
-            // GitHub OAuth 状态
-            '<div class="col-md-6">' +
-            '<div class="card border-0 shadow-sm">' +
+        section.className = 'mb-3';
+        // Row 1: GitHub 关联（col-md-4）+ 规则库（col-md-8）
+        // Row 2: 规则贡献（col-12）
+        section.innerHTML =
+            '<div class="row g-3">' +
+            // GitHub 关联（左侧）
+            '<div class="col-md-4">' +
+            '<div class="card border-0 shadow-sm h-100">' +
             '<div class="card-body">' +
             '<div class="d-flex align-items-center justify-content-between mb-2">' +
             '<div class="fw-bold"><i class="bi bi-github me-1"></i>GitHub 关联</div>' +
@@ -287,19 +319,25 @@
             '</div>' +
             '</div>' +
             '</div>' +
-            // 规则库
-            '<div class="col-md-6">' +
+            // 规则库（右侧，带当前状态显示）
+            '<div class="col-md-8">' +
             '<div class="card border-0 shadow-sm">' +
             '<div class="card-body">' +
+            // 标题栏 + 状态行
             '<div class="d-flex align-items-center justify-content-between mb-2">' +
             '<div class="fw-bold"><i class="bi bi-cloud-download me-1"></i>规则库</div>' +
             '<button class="btn btn-outline-primary btn-sm" id="communityCheckUpdate"><i class="bi bi-arrow-repeat me-1"></i>检查更新</button>' +
             '</div>' +
+            // 当前本地状态行（由 renderRulesLibrary 填充）
+            '<div class="small mb-2" id="communityRulesLibraryStatus">' +
+            '<span class="text-muted"><i class="bi bi-hourglass-split"></i> 加载中...</span>' +
+            '</div>' +
+            // 规则库列表
             '<div id="communityRulesLibrary"></div>' +
             '</div>' +
             '</div>' +
             '</div>' +
-            // 规则贡献
+            // 规则贡献（底部，col-12）
             '<div class="col-12">' +
             '<div class="card border-0 shadow-sm">' +
             '<div class="card-body">' +
@@ -315,30 +353,79 @@
         // 渲染 GitHub 状态
         const githubStatusEl = document.getElementById('communityGithubStatus');
         community.renderGithubStatus(githubStatusEl, {
-            onLink: function () {
-                community.linkGithub();
-            },
-            onUnlink: function () {
-                return community.unlinkGithub();
-            }
+            onLink: function () { community.linkGithub(); },
+            onUnlink: function () { return community.unlinkGithub(); }
         });
 
-        // 渲染规则库
+        // 渲染规则库（带状态更新回调）
         const rulesLibraryEl = document.getElementById('communityRulesLibrary');
-        community.renderRulesLibrary(rulesLibraryEl, {
-            onApply: function (version) {
-                if (typeof window.showCenterConfirm === 'function') {
-                    window.showCenterConfirm('确定要应用版本 ' + version + ' 吗？', async function (ok) {
-                        if (!ok) return;
-                        const j = await community.applyRemoteRules(version);
-                        if (j && j.success) {
-                            window.showCenterConfirm('规则已应用: ' + version, null, true);
-                        } else {
-                            window.showCenterConfirm('应用失败: ' + (j && j.message || '未知错误'), null, true);
-                        }
-                    });
+        const statusEl = document.getElementById('communityRulesLibraryStatus');
+
+        function updateLibraryStatus(lib) {
+            if (!lib || !statusEl) return;
+            const cur = lib.currentApplied;
+            const latest = lib.latest;
+            const versions = lib.versions || [];
+            const latestVersion = versions.find(function(v){ return v.version === latest; });
+            const isLocalLatest = latestVersion ? latestVersion.isLocal : false;
+
+            let versionText = '-';
+            let hashText = '-';
+            let badgeHtml = '<span class="badge bg-secondary">未应用</span>';
+
+            if (cur && cur.baseRulesVersion) {
+                versionText = cur.baseRulesVersion + ' / ' + (cur.timeRulesVersion || '-');
+                hashText = cur.baseRulesHash ? cur.baseRulesHash.substring(0, 8) : '-';
+                if (isLocalLatest) {
+                    badgeHtml = '<span class="badge bg-success">已是最新</span>';
+                } else {
+                    badgeHtml = '<span class="badge bg-warning text-dark">有更新</span>';
                 }
             }
+
+            statusEl.innerHTML =
+                '<span class="me-3">当前: <strong>' + escapeHtml(versionText) + '</strong></span>' +
+                '<span class="me-3">' + badgeHtml + '</span>' +
+                '<span class="text-muted">hash: <code>' + escapeHtml(hashText) + '</code></span>';
+        }
+
+        function handleApplyVersion(version) {
+            if (typeof window.showCenterConfirm === 'function') {
+                window.showCenterConfirm('确定要应用版本 ' + version + ' 吗？', async function (ok) {
+                    if (!ok) return;
+                    const j = await community.applyRemoteRules(version);
+                    if (j && j.success) {
+                        window.showCenterConfirm('规则已应用: ' + version, null, true);
+                        community.renderRulesLibrary(rulesLibraryEl, {
+                            onApply: handleApplyVersion,
+                            onStatusUpdate: updateLibraryStatus
+                        });
+                    } else if (j && j.code === 'LOCAL_MODIFIED') {
+                        window.showCenterConfirm(
+                            '警告: ' + (j.message || '检测到本地规则已被修改') + '。\n强制应用将覆盖本地修改，确定继续吗？',
+                            async function (confirmOk) {
+                                if (!confirmOk) return;
+                                const forceJ = await community.applyRemoteRules(version, true);
+                                if (forceJ && forceJ.success) {
+                                    window.showCenterConfirm('规则已强制应用: ' + version, null, true);
+                                    community.renderRulesLibrary(rulesLibraryEl, {
+                                        onApply: handleApplyVersion,
+                                        onStatusUpdate: updateLibraryStatus
+                                    });
+                                } else {
+                                    window.showCenterConfirm('应用失败: ' + (forceJ && forceJ.message || '未知错误'), null, true);
+                                }
+                            }
+                        );
+                    } else {
+                        window.showCenterConfirm('应用失败: ' + (j && j.message || '未知错误'), null, true);
+                    }
+                });
+            }
+        }
+        community.renderRulesLibrary(rulesLibraryEl, {
+            onApply: handleApplyVersion,
+            onStatusUpdate: updateLibraryStatus
         });
 
         // 检查更新按钮
@@ -347,16 +434,32 @@
             checkUpdateBtn.onclick = function () {
                 community.checkUpdate().then(function (j) {
                     if (j && j.hasUpdate) {
-                        window.showCenterConfirm('发现新版本: ' + j.latestVersion + '，是否立即应用？', async function (ok) {
+                        window.showCenterConfirm('发现新版本: ' + j.latestVersion + '，当前: ' + (j.currentVersion || '无') + '，是否立即应用？', async function (ok) {
                             if (!ok) return;
                             const applyJ = await community.applyRemoteRules(j.latestVersion);
                             if (applyJ && applyJ.success) {
                                 window.showCenterConfirm('规则已更新到: ' + j.latestVersion, null, true);
                                 community.renderRulesLibrary(rulesLibraryEl, {
-                                    onApply: function (ver) {
-                                        // reuse logic
-                                    }
+                                    onApply: handleApplyVersion,
+                                    onStatusUpdate: updateLibraryStatus
                                 });
+                            } else if (applyJ && applyJ.code === 'LOCAL_MODIFIED') {
+                                window.showCenterConfirm(
+                                    '警告: ' + (applyJ.message || '检测到本地规则已被修改') + '。\n强制应用将覆盖本地修改，确定继续吗？',
+                                    async function (confirmOk) {
+                                        if (!confirmOk) return;
+                                        const forceJ = await community.applyRemoteRules(j.latestVersion, true);
+                                        if (forceJ && forceJ.success) {
+                                            window.showCenterConfirm('规则已强制更新到: ' + j.latestVersion, null, true);
+                                            community.renderRulesLibrary(rulesLibraryEl, {
+                                                onApply: handleApplyVersion,
+                                                onStatusUpdate: updateLibraryStatus
+                                            });
+                                        } else {
+                                            window.showCenterConfirm('更新失败: ' + (forceJ && forceJ.message || '未知错误'), null, true);
+                                        }
+                                    }
+                                );
                             } else {
                                 window.showCenterConfirm('更新失败: ' + (applyJ && applyJ.message || '未知错误'), null, true);
                             }

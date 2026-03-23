@@ -518,9 +518,18 @@ class SqliteStorage {
                 published_at TEXT,
                 changelog TEXT,
                 total_rules INTEGER DEFAULT 0,
-                github_pr_url TEXT
+                github_pr_url TEXT,
+                base_rules_version TEXT,
+                time_rules_version TEXT
             );
         `);
+        // 迁移：如果列已存在会报错，静默忽略
+        try {
+            await this.run(`ALTER TABLE replay_rule_versions ADD COLUMN base_rules_version TEXT;`);
+        } catch (_) { /* 列已存在 */ }
+        try {
+            await this.run(`ALTER TABLE replay_rule_versions ADD COLUMN time_rules_version TEXT;`);
+        } catch (_) { /* 列已存在 */ }
     }
 
     async close() {

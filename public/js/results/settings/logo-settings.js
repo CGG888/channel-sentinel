@@ -230,6 +230,9 @@
                 logo.setCurrentId(currItem.id);
                 localStorage.setItem('logoTemplate', currItem.url);
             }
+            const urls = list.map(x => x.url).filter(Boolean);
+            const currUrl = currItem ? currItem.url : (urls[0] || '');
+            await logo.setTemplate(currUrl, urls);
             close();
         };
 
@@ -243,7 +246,7 @@
             } catch(e) {}
         };
 
-        modal.style.display = 'block';
+        modal.style.display = '';
         modal.querySelector('.modal').classList.add('show');
         fetchList();
     };

@@ -4,8 +4,8 @@ const ReplayRulesStateManager = require('./replay-rules-state');
 
 class ReplayRulesService {
     constructor() {
-        this.baseRulesPath = path.join(__dirname, '../../replay_base_rules.json');
-        this.timeRulesPath = path.join(__dirname, '../../time_placeholder_rules.json');
+        this.baseRulesPath = path.join(__dirname, '../../rules/1.0.0/replay_base_rules.json');
+        this.timeRulesPath = path.join(__dirname, '../../rules/1.0.0/time_placeholder_rules.json');
         this.dataDir = path.join(__dirname, '../../data');
         this.cache = {
             base: null,

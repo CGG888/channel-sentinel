@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
     paths:
       - 'package.json'
+      - 'rules/**'
+      - 'replay_base_rules.json'
+      - 'time_placeholder_rules.json'
   workflow_dispatch:
     inputs:
       version:
@@ -27,6 +30,9 @@ on:
       - 'pnpm-lock.yaml'
       - 'yarn.lock'
       - 'docker-compose.yml'
+      - 'rules/**'
+      - 'replay_base_rules.json'
+      - 'time_placeholder_rules.json'
   release:
     types: [published]
 

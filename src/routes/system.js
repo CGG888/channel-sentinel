@@ -471,11 +471,16 @@ route('get', '/replay-rules/check-update', async (req, res) => {
 route('post', '/replay-rules/apply-remote', async (req, res) => {
     try {
         const version = String((req.body && req.body.version) || '').trim();
+        const force = !!(req.body && req.body.force);
         if (!version) {
             return apiFail(res, 'version is required', 400);
         }
-        const result = await replayRulesRemote.applyRemoteRules(version);
+        const result = await replayRulesRemote.applyRemoteRules(version, force);
         if (result.success) {
+            return apiSuccess(res, result);
+        }
+        // LOCAL_MODIFIED 需要前端特殊处理，返回 200 而非 400
+        if (result.code === 'LOCAL_MODIFIED') {
             return apiSuccess(res, result);
         }
         return apiFail(res, result.message || 'apply failed', 400);

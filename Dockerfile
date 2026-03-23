@@ -34,6 +34,7 @@ COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/src ./src
 COPY --from=builder /build/public ./public
 COPY --from=builder /build/docs ./docs
+COPY --from=builder /build/rules ./rules
 
 # 针对 sharp 模块特别处理：在 Alpine 环境使用 musl 平台标志重新安装
 # 这会覆盖 builder 阶段安装的 sharp，确保兼容性
