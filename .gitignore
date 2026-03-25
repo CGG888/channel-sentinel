@@ -6,6 +6,9 @@ server_error.log
 server.log
 captcha.svg
 cookies.txt
-md/*
+
 cloudflare-worker/index.js
-test_temp/*
+test_temp/
+test_temp\replay-rules-system.test.js
+cloudflare-worker/
+md/
