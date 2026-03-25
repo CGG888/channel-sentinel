@@ -285,17 +285,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build release notes from README
+      - name: Build release notes from CHANGELOG
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         id: notes
         shell: bash
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
+          # CHANGELOG.md format: ## v2.0.0 (2026-03-21)
+          # Extract section until next ## version line or end of file
           SEC=$(awk -v tag="$TAG" '
-            $0 ~ "^###[ ]+"tag"[ ]" {found=1; print; next}
-            /^###[ ]+v[0-9]+\.[0-9]+\.[0-9]+/ && found {exit}
+            BEGIN { tag_found = "v" tag }
+            $0 ~ "^##[ ]+" tag_found "[ ]" {found=1; print; next}
+            /^##[ ]+v[0-9]+\.[0-9]+\.[0-9]+/ && found {exit}
             found {print}
-          ' README.md)
+          ' docs/CHANGELOG.md)
           {
             echo "$TAG"
             echo
